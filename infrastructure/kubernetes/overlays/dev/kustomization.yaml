@@ -1,0 +1,42 @@
+# ============================================================================
+# Kustomize Development Environment Overlay
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: volteryde-dev
+
+bases:
+  - ../../base
+
+# Environment-specific labels
+commonLabels:
+  environment: development
+  cost-center: development
+
+# ConfigMap patches for dev environment
+patchesStrategicMerge:
+  - configmap-patch.yaml
+  - replicas-patch.yaml
+
+# Image tags for dev
+images:
+  - name: REGISTRY_URL/volteryde/nestjs-service
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/nestjs-service
+    newTag: develop-latest
+  - name: REGISTRY_URL/volteryde/springboot-service
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/springboot-service
+    newTag: develop-latest
+  - name: REGISTRY_URL/volteryde/temporal-workers
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/temporal-workers
+    newTag: develop-latest
+
+# Resource adjustments for dev (lower limits)
+replicas:
+  - name: nestjs-service
+    count: 1
+  - name: springboot-service
+    count: 1
+  - name: temporal-workers
+    count: 1

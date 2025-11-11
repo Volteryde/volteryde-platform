@@ -1,0 +1,26 @@
+# ============================================================================
+# Staging Environment Replica Overrides
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nestjs-service
+spec:
+  replicas: 2
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-service
+spec:
+  replicas: 2
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-workers
+spec:
+  replicas: 1

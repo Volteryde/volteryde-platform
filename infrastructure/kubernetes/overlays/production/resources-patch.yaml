@@ -1,0 +1,56 @@
+# ============================================================================
+# Production Environment Resource Limits (Higher than base)
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nestjs-service
+spec:
+  template:
+    spec:
+      containers:
+      - name: nestjs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-service
+spec:
+  template:
+    spec:
+      containers:
+      - name: springboot
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "4000m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-workers
+spec:
+  template:
+    spec:
+      containers:
+      - name: temporal-workers
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"

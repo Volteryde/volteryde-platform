@@ -1,0 +1,14 @@
+# ============================================================================
+# Production Environment ConfigMap Overrides
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: volteryde-config
+data:
+  # Override specific values for production
+  NODE_ENV: "production"
+  LOG_LEVEL: "warn"
+  API_GATEWAY_URL: "https://api.volteryde.com"
+  CORS_ORIGINS: "https://volteryde.com,https://www.volteryde.com,https://admin.volteryde.com"
