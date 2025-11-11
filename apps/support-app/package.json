@@ -1,5 +1,5 @@
 {
-  "name": "@volteryde/support-dashboard",
+  "name": "@volteryde/support-app",
   "private": true,
   "type": "module",
   "scripts": {
