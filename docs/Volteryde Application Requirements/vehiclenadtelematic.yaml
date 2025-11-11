@@ -1,0 +1,14 @@
+telematics.vehicle-location-updated:
+  Frequency: Every 5-10 seconds
+  Subscribers: Dispatcher, Driver App, Booking Service
+  Payload: { busId, lat, lng, speed, heading, timestamp }
+
+telematics.battery-level-updated:
+  Frequency: Every 30 seconds
+  Subscribers: Fleet Operations, Charging Infrastructure, Alerts
+  Payload: { busId, batteryPercent, health, chargeRate, timestamp }
+
+telematics.diagnostics-warning:
+  Frequency: On error detection
+  Subscribers: Fleet Operations, Alerts, Support
+  Payload: { busId, errorCode, severity, description, timestamp }

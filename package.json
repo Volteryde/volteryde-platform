@@ -1,0 +1,50 @@
+{
+  "name": "volteryde-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade electric mobility platform monorepo",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.0.3",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "electric-mobility",
+    "transportation",
+    "monorepo",
+    "aws",
+    "kubernetes",
+    "temporal"
+  ],
+  "author": "Volteryde Team",
+  "license": "MIT"
+}

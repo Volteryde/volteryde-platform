@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: volteryde-dev
+  labels:
+    name: volteryde-dev
+    environment: development
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: volteryde-staging
+  labels:
+    name: volteryde-staging
+    environment: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: volteryde-prod
+  labels:
+    name: volteryde-prod
+    environment: production

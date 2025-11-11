@@ -1,0 +1,41 @@
+# ============================================================================
+# Prometheus Configuration for Volteryde Platform
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'volteryde-local'
+    environment: 'development'
+
+scrape_configs:
+  # NestJS Backend
+  - job_name: 'nestjs-backend'
+    static_configs:
+      - targets: ['nestjs-backend:3000']
+        labels:
+          service: 'nestjs'
+          domain: 'backend'
+
+  # Spring Boot Backend
+  - job_name: 'springboot-backend'
+    static_configs:
+      - targets: ['springboot-backend:8080']
+        labels:
+          service: 'springboot'
+          domain: 'backend'
+    metrics_path: '/actuator/prometheus'
+
+  # Temporal
+  - job_name: 'temporal'
+    static_configs:
+      - targets: ['temporal:7233']
+        labels:
+          service: 'temporal'
+          domain: 'workflow'
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

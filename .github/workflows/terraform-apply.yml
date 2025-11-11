@@ -1,0 +1,97 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-apply:
+    name: Terraform Apply - ${{ github.event.inputs.environment || 'dev' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+      
+      - name: Terraform Init
+        run: terraform init
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -out=tfplan
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+      
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "✅ Terraform Apply Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Terraform Apply to ${{ github.event.inputs.environment || 'dev' }} succeeded*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        continue-on-error: true
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "❌ Terraform Apply Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Terraform Apply to ${{ github.event.inputs.environment || 'dev' }} failed*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Manual intervention required"
+                  }
+                }
+              ]
+            }
+        continue-on-error: true

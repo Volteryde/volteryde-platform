@@ -1,0 +1,14 @@
+# ============================================================================
+# Staging Environment ConfigMap Overrides
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: volteryde-config
+data:
+  # Override specific values for staging
+  NODE_ENV: "staging"
+  LOG_LEVEL: "info"
+  API_GATEWAY_URL: "https://staging-api.volteryde.com"
+  CORS_ORIGINS: "https://staging.volteryde.com,https://staging-admin.volteryde.com"

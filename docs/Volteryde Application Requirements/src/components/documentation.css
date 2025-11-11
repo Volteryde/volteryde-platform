@@ -1,0 +1,60 @@
+/* Documentation Component Styles */
+
+.markdown-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.markdown-content * {
+  max-width: 100%;
+}
+
+.markdown-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.markdown-content code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.markdown-content table {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Better list styling */
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Horizontal scroll for code blocks on mobile */
+@media (max-width: 768px) {
+  .markdown-content pre {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .markdown-content code {
+    font-size: 0.75rem;
+  }
+}
+
+/* Smooth scrolling for scroll areas */
+.scroll-area {
+  scroll-behavior: smooth;
+}

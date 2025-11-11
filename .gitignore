@@ -1,0 +1,439 @@
+# ============================================================================
+# Volteryde Platform - Professional .gitignore
+# ============================================================================
+
+# ============================================================================
+# Dependencies & Package Managers
+# ============================================================================
+
+# Node.js
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+
+# npm
+package-lock.json
+npm-debug.log*
+
+# Yarn
+yarn-debug.log*
+yarn-error.log*
+
+# Maven (Java)
+target/
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Gradle (if used)
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ============================================================================
+# Build Outputs & Artifacts
+# ============================================================================
+
+dist/
+build/
+out/
+*.tsbuildinfo
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# Compiled Java class files
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# ============================================================================
+# Environment & Configuration
+# ============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+.env.backup
+
+# Secrets
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# AWS
+.aws/
+aws-exports.js
+
+# Configuration backups
+*.config.backup
+
+# ============================================================================
+# Testing & Coverage
+# ============================================================================
+
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+junit.xml
+test-results/
+playwright-report/
+test-report/
+
+# Jest
+jest-cache/
+
+# ============================================================================
+# Logs
+# ============================================================================
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log
+
+# Application logs
+app-*.log
+*.log.*
+
+# ============================================================================
+# IDEs & Editors
+# ============================================================================
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains IDEs (IntelliJ, WebStorm, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw?
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Xcode (for React Native iOS)
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Android Studio (for React Native Android)
+.gradle
+local.properties
+.idea/
+*.iml
+.externalNativeBuild
+.cxx/
+
+# ============================================================================
+# React Native
+# ============================================================================
+
+# Metro bundler
+.metro-health-check*
+
+# OSX
+.DS_Store
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+.gradle/
+build/
+captures/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# iOS
+ios/Pods/
+ios/build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ============================================================================
+# Docker & Containers
+# ============================================================================
+
+# Docker
+*.dockerignore.backup
+docker-compose.override.yml
+
+# Docker volumes
+.docker/
+
+# ============================================================================
+# Terraform & Infrastructure
+# ============================================================================
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ============================================================================
+# Kubernetes
+# ============================================================================
+
+# Kubernetes secrets (never commit)
+*-secret.yaml
+*-secrets.yaml
+
+# Helm
+charts/*/charts/
+.helm/
+
+# ============================================================================
+# Databases
+# ============================================================================
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# PostgreSQL
+*.sql.backup
+pg_data/
+
+# ============================================================================
+# Operating Systems
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Temporary & Cache Files
+# ============================================================================
+
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.cache
+.cache/
+tmp/
+temp/
+
+# ============================================================================
+# CI/CD & Deployment
+# ============================================================================
+
+# GitHub Actions artifacts (local testing)
+act/
+
+# Deployment artifacts
+deployment-backup.yaml
+service-backup.yaml
+
+# ============================================================================
+# Monitoring & Analytics
+# ============================================================================
+
+# Sentry
+.sentryclirc
+
+# NewRelic
+newrelic_agent.log
+
+# ============================================================================
+# Documentation Build
+# ============================================================================
+
+# Docusaurus / Fumadocs build
+.docusaurus/
+.fumadocs/
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+
+# Backup files
+*.orig
+*.rej
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# SSL certificates (never commit)
+*.pem
+*.crt
+*.csr
+
+# Service account keys (never commit)
+*-service-account.json
+*-credentials.json
+
+# Lock files (include pnpm-lock.yaml but exclude others)
+package-lock.json
+
+# Debugging
+.vscode/launch.json
+chrome-debug/
+
+# ============================================================================
+# Project-Specific Ignores
+# ============================================================================
+
+# Volteryde specific
+scripts/*.backup
+infrastructure/backups/
+*.deployment-backup.yaml
+
+# Local development overrides
+docker-compose.local.yml
+.env.override
+
+# Generated API documentation
+api-docs-generated/
+
+# Load testing results
+load-test-results/
+
+# Performance profiling
+*.prof
+*.cpuprofile
+*.heapprofile
+
+# ============================================================================
+# KEEP THESE FILES (Explicitly NOT ignored)
+# ============================================================================
+# !.gitkeep
+# !.env.example
+# !.github/
+# !.mvn/wrapper/maven-wrapper.jar
+# !gradle/wrapper/gradle-wrapper.jar

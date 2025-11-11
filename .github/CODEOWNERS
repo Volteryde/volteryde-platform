@@ -1,0 +1,180 @@
+# Volteryde Platform - Code Ownership
+# 
+# This file defines code ownership for automatic reviewer assignment.
+# When a PR modifies files in these paths, the specified owners will be automatically requested for review.
+# 
+# Format: <file pattern> @github-username @github-team
+# 
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# =============================================================================
+# Global Ownership (Default)
+# =============================================================================
+# These owners will be requested for review on all PRs unless a more specific rule matches
+* @volteryde/platform-leads
+
+# =============================================================================
+# Backend Services
+# =============================================================================
+
+# NestJS Services (Telematics, Booking, Fleet Ops, Charging)
+/services/volteryde-nest/ @volteryde/backend-team @volteryde/nestjs-experts
+
+# Java Spring Boot Services (Auth, Payment)
+/services/volteryde-springboot/ @volteryde/backend-team @volteryde/java-experts
+
+# Temporal Workers
+/workers/temporal-workers/ @volteryde/backend-team @volteryde/workflow-experts
+
+# =============================================================================
+# Frontend Applications
+# =============================================================================
+
+# Admin Dashboard
+/apps/admin-dashboard/ @volteryde/frontend-team @volteryde/admin-team
+
+# Driver Apps (Web & Mobile)
+/apps/driver-app/ @volteryde/frontend-team @volteryde/driver-app-team
+/apps/mobile-driver-app/ @volteryde/mobile-team @volteryde/driver-app-team
+
+# Support App
+/apps/support-app/ @volteryde/frontend-team @volteryde/support-team
+
+# BI Partner App
+/apps/bi-partner-app/ @volteryde/frontend-team @volteryde/analytics-team
+
+# Docs Platform
+/apps/docs-platform/ @volteryde/docs-team @volteryde/frontend-team
+
+# Mobile Passenger App
+/apps/mobile-passenger-app/ @volteryde/mobile-team
+
+# =============================================================================
+# Infrastructure & DevOps
+# =============================================================================
+
+# Terraform Infrastructure
+/infrastructure/terraform/ @volteryde/devops-team @volteryde/platform-leads
+
+# Kubernetes Configurations
+/infrastructure/kubernetes/ @volteryde/devops-team
+
+# Docker Compose
+docker-compose.yml @volteryde/devops-team
+**/Dockerfile @volteryde/devops-team
+
+# =============================================================================
+# CI/CD & GitHub Actions
+# =============================================================================
+
+/.github/workflows/ @volteryde/devops-team @volteryde/platform-leads
+/.github/CODEOWNERS @volteryde/platform-leads
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+/docs/ @volteryde/docs-team
+README.md @volteryde/docs-team @volteryde/platform-leads
+CONTRIBUTING.md @volteryde/platform-leads
+
+# API Documentation
+/docs/api/ @volteryde/backend-team @volteryde/docs-team
+
+# Architecture Decision Records (ADRs)
+/docs/architecture/ @volteryde/platform-leads @volteryde/architects
+
+# =============================================================================
+# Configuration Files
+# =============================================================================
+
+# Package management
+package.json @volteryde/platform-leads
+pnpm-workspace.yaml @volteryde/platform-leads
+**/pom.xml @volteryde/java-experts
+
+# Environment configuration
+.env.example @volteryde/devops-team @volteryde/platform-leads
+**/.env.example @volteryde/devops-team
+
+# TypeScript/JavaScript configuration
+tsconfig*.json @volteryde/frontend-team @volteryde/backend-team
+*.config.js @volteryde/frontend-team @volteryde/backend-team
+*.config.ts @volteryde/frontend-team @volteryde/backend-team
+
+# Linting and formatting
+.eslintrc* @volteryde/platform-leads
+.prettierrc* @volteryde/platform-leads
+.editorconfig @volteryde/platform-leads
+
+# Git configuration
+.gitignore @volteryde/platform-leads
+.gitattributes @volteryde/platform-leads
+
+# =============================================================================
+# Security & Compliance
+# =============================================================================
+
+# Security-critical files (require approval from security team)
+**/authentication/** @volteryde/security-team @volteryde/java-experts
+**/payment/** @volteryde/security-team @volteryde/java-experts
+**/secrets/** @volteryde/security-team @volteryde/devops-team
+
+# =============================================================================
+# Database Migrations
+# =============================================================================
+
+# NestJS migrations
+**/migrations/*.ts @volteryde/backend-team @volteryde/database-team
+
+# Java migrations
+**/db/migration/*.sql @volteryde/backend-team @volteryde/database-team
+
+# =============================================================================
+# Shared Packages
+# =============================================================================
+
+/packages/ @volteryde/platform-leads @volteryde/backend-team
+
+# =============================================================================
+# Scripts
+# =============================================================================
+
+/scripts/ @volteryde/devops-team
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+# Test configuration
+**/*.test.ts @volteryde/backend-team @volteryde/frontend-team
+**/*.spec.ts @volteryde/backend-team @volteryde/frontend-team
+**/*Test.java @volteryde/backend-team @volteryde/java-experts
+
+# E2E tests
+**/e2e/ @volteryde/qa-team
+
+# =============================================================================
+# Notes for Team Leads
+# =============================================================================
+#
+# Replace the placeholder GitHub team handles with actual teams:
+# - @volteryde/platform-leads
+# - @volteryde/backend-team
+# - @volteryde/frontend-team
+# - @volteryde/mobile-team
+# - @volteryde/devops-team
+# - @volteryde/docs-team
+# - @volteryde/security-team
+# - @volteryde/database-team
+# - @volteryde/qa-team
+# - @volteryde/nestjs-experts
+# - @volteryde/java-experts
+# - @volteryde/workflow-experts
+# - @volteryde/architects
+# - @volteryde/admin-team
+# - @volteryde/driver-app-team
+# - @volteryde/support-team
+# - @volteryde/analytics-team
+#
+# Or replace with individual usernames like @username

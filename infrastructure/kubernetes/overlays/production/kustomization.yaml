@@ -1,0 +1,43 @@
+# ============================================================================
+# Kustomize Production Environment Overlay
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: volteryde-prod
+
+bases:
+  - ../../base
+
+# Environment-specific labels
+commonLabels:
+  environment: production
+  cost-center: production
+
+# ConfigMap patches for production environment
+patchesStrategicMerge:
+  - configmap-patch.yaml
+  - replicas-patch.yaml
+  - resources-patch.yaml
+
+# Image tags for production (use specific versions, not latest)
+images:
+  - name: REGISTRY_URL/volteryde/nestjs-service
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/nestjs-service
+    newTag: v1.0.0  # Use semantic versioning in production
+  - name: REGISTRY_URL/volteryde/springboot-service
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/springboot-service
+    newTag: v1.0.0
+  - name: REGISTRY_URL/volteryde/temporal-workers
+    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/temporal-workers
+    newTag: v1.0.0
+
+# Production scale
+replicas:
+  - name: nestjs-service
+    count: 3
+  - name: springboot-service
+    count: 3
+  - name: temporal-workers
+    count: 2
