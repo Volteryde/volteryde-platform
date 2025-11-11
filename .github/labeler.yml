@@ -1,72 +1,89 @@
 # Auto-label PRs based on changed files
 
 # Backend labels
-'backend:nestjs':
-  - services/volteryde-nest/**
+backend:nestjs:
+  - changed-files:
+    - any-glob-to-any-file: 'services/volteryde-nest/**/*'
 
-'backend:java':
-  - services/volteryde-springboot/**
+backend:java:
+  - changed-files:
+    - any-glob-to-any-file: 'services/volteryde-springboot/**/*'
 
-'workers':
-  - workers/**
+workers:
+  - changed-files:
+    - any-glob-to-any-file: 'workers/**/*'
 
 # Frontend labels
-'frontend:admin-dashboard':
-  - apps/admin-dashboard/**
+frontend:admin-dashboard:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/admin-dashboard/**/*'
 
-'frontend:driver-app':
-  - apps/driver-app/**
+frontend:driver-app:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/driver-app/**/*'
 
-'frontend:support-app':
-  - apps/support-app/**
+frontend:support-app:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/support-app/**/*'
 
-'frontend:bi-partner-app':
-  - apps/bi-partner-app/**
+frontend:bi-partner-app:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/bi-partner-app/**/*'
 
-'frontend:docs':
-  - apps/docs-platform/**
+frontend:docs:
+  - changed-files:
+    - any-glob-to-any-file: 'apps/docs-platform/**/*'
 
-'frontend:mobile':
-  - apps/mobile-passenger-app/**
-  - apps/mobile-driver-app/**
+frontend:mobile:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - 'apps/mobile-passenger-app/**/*'
+      - 'apps/mobile-driver-app/**/*'
 
 # Infrastructure labels
-'infrastructure':
-  - infrastructure/**
+infrastructure:
+  - changed-files:
+    - any-glob-to-any-file: 'infrastructure/**/*'
 
-'terraform':
-  - infrastructure/terraform/**
+terraform:
+  - changed-files:
+    - any-glob-to-any-file: 'infrastructure/terraform/**/*'
 
-'kubernetes':
-  - infrastructure/kubernetes/**
+kubernetes:
+  - changed-files:
+    - any-glob-to-any-file: 'infrastructure/kubernetes/**/*'
 
 # CI/CD labels
-'ci/cd':
-  - .github/workflows/**
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file: '.github/workflows/**/*'
 
 # Documentation labels
-'documentation':
-  - docs/**
-  - '**/*.md'
-  - README.md
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**/*'
+      - '**/*.md'
 
 # Dependencies
-'dependencies':
-  - '**/package.json'
-  - '**/pom.xml'
-  - '**/package-lock.json'
-  - '**/pnpm-lock.yaml'
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/package.json'
+      - '**/pom.xml'
+      - '**/pnpm-lock.yaml'
 
 # Configuration
-'configuration':
-  - '**/.env.example'
-  - '**/config/**'
-  - '**/*.config.js'
-  - '**/*.config.ts'
+configuration:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/.env.example'
+      - '**/config/**/*'
 
 # Tests
-'tests':
-  - '**/*.test.ts'
-  - '**/*.spec.ts'
-  - '**/*Test.java'
-  - '**/test/**'
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.test.ts'
+      - '**/*.spec.ts'
+      - '**/*Test.java'
