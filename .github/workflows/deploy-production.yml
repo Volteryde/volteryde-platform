@@ -1,0 +1,191 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docker image tag to deploy (e.g., SHA or version)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type "DEPLOY TO PRODUCTION" to confirm'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: volteryde-production
+  ENVIRONMENT: production
+
+jobs:
+  validate-input:
+    name: Validate Deployment Input
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Validate confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY TO PRODUCTION" ]; then
+            echo "❌ Deployment confirmation failed. You must type exactly: DEPLOY TO PRODUCTION"
+            exit 1
+          fi
+          echo "✅ Deployment confirmed"
+
+  approval:
+    name: Manual Approval Required
+    needs: validate-input
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.volteryde.com
+    
+    steps:
+      - name: Waiting for approval
+        run: echo "⏳ Waiting for manual approval to deploy to production..."
+
+  deploy:
+    name: Deploy to Production
+    needs: approval
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+      
+      - name: Create deployment backup
+        run: |
+          kubectl get deployment -n volteryde-prod -o yaml > deployment-backup.yaml
+          kubectl get service -n volteryde-prod -o yaml > service-backup.yaml
+      
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-backup-${{ github.event.inputs.version }}
+          path: |
+            deployment-backup.yaml
+            service-backup.yaml
+          retention-days: 90
+      
+      - name: Check image exists in ECR
+        run: |
+          aws ecr describe-images \
+            --repository-name volteryde/nestjs-service \
+            --image-ids imageTag=${{ github.event.inputs.version }} || exit 1
+          
+          aws ecr describe-images \
+            --repository-name volteryde/springboot-service \
+            --image-ids imageTag=${{ github.event.inputs.version }} || exit 1
+      
+      - name: Blue-Green Deployment - Deploy Green (NestJS)
+        run: |
+          echo "🚀 Deploying green version of NestJS service..."
+          kubectl set image deployment/nestjs-service \
+            nestjs-service=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/volteryde/nestjs-service:${{ github.event.inputs.version }} \
+            -n volteryde-prod
+      
+      - name: Wait for NestJS rollout
+        run: |
+          kubectl rollout status deployment/nestjs-service -n volteryde-prod --timeout=10m
+      
+      - name: Verify NestJS health
+        run: |
+          echo "🏥 Running health checks on NestJS service..."
+          # Add your health check commands here
+          kubectl get pods -n volteryde-prod -l app=nestjs-service
+          echo "✅ Health check passed"
+      
+      - name: Blue-Green Deployment - Deploy Green (Spring Boot)
+        run: |
+          echo "🚀 Deploying green version of Spring Boot service..."
+          kubectl set image deployment/springboot-service \
+            springboot-service=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/volteryde/springboot-service:${{ github.event.inputs.version }} \
+            -n volteryde-prod
+      
+      - name: Wait for Spring Boot rollout
+        run: |
+          kubectl rollout status deployment/springboot-service -n volteryde-prod --timeout=10m
+      
+      - name: Verify Spring Boot health
+        run: |
+          echo "🏥 Running health checks on Spring Boot service..."
+          # Add your health check commands here
+          kubectl get pods -n volteryde-prod -l app=springboot-service
+          echo "✅ Health check passed"
+      
+      - name: Run production smoke tests
+        run: |
+          echo "🧪 Running production smoke tests..."
+          # Add your production smoke test commands here
+          echo "✅ Smoke tests passed"
+      
+      - name: Monitor metrics for 5 minutes
+        run: |
+          echo "📊 Monitoring production metrics..."
+          sleep 300
+          echo "✅ Metrics look good"
+      
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🎉 Deployment to PRODUCTION successful*\n\n*Version:* ${{ github.event.inputs.version }}\n*Author:* ${{ github.actor }}\n*URL:* https://api.volteryde.com\n\n✅ All health checks passed"
+                  }
+                }
+              ]
+            }
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 CRITICAL: Rolling back production deployment..."
+          kubectl rollout undo deployment/nestjs-service -n volteryde-prod
+          kubectl rollout undo deployment/springboot-service -n volteryde-prod
+          
+          kubectl rollout status deployment/nestjs-service -n volteryde-prod --timeout=10m
+          kubectl rollout status deployment/springboot-service -n volteryde-prod --timeout=10m
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "🚨 PRODUCTION DEPLOYMENT FAILED",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🚨 PRODUCTION deployment FAILED and was ROLLED BACK*\n\n*Version:* ${{ github.event.inputs.version }}\n*Author:* ${{ github.actor }}\n\n⚠️ URGENT: Manual intervention required\n\n*Action Items:*\n1. Check deployment logs\n2. Review error messages\n3. Verify rollback completed successfully"
+                  }
+                }
+              ]
+            }

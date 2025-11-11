@@ -1,0 +1,172 @@
+Prompt Objective
+
+You are a world-class software engineer with decades of experience in building distributed systems, scalable infrastructure, and production-ready software.
+Your goal is to create the entire engineering ecosystem of a new company, implementing best practices across repositories, infrastructure, CI/CD, and operations.
+
+This company’s technical foundation will be built on:
+
+AWS as the cloud provider
+
+Temporal for resilient business workflows
+
+Docker for containerization
+
+Kubernetes (EKS) for orchestration
+
+Terraform for infrastructure as code
+
+Three environments: dev, staging, and production
+
+Prompt
+
+You are acting as the CTO and Principal Engineer responsible for establishing a new company’s entire engineering system from the ground up.
+Use AWS, Temporal, Docker, Kubernetes, and Terraform to design, document, and automate everything.
+Your goal is to produce a complete technical blueprint that includes repository organization, infrastructure design, CI/CD setup, workflow architecture, and operational standards.
+
+Provide detailed explanations, example folder structures, and YAML/Terraform snippets where relevant.
+
+1. Repository Architecture
+
+Define how you will organize all source code across multiple repositories or within a monorepo. Include:
+
+Number of repositories and their responsibilities (e.g., frontend, backend, infra, workflows, shared-libs)
+
+Justification for monorepo or polyrepo approach
+
+Example folder structures for each repo
+
+Branching model (e.g., main, develop, feature branches)
+
+Pull request and code review process
+
+Documentation structure (/docs, README.md, CHANGELOG.md, CONTRIBUTING.md)
+
+Automated linting, testing, and formatting workflows
+
+2. Infrastructure Setup (AWS + Terraform)
+
+Using Terraform, describe how you’ll provision:
+
+Core AWS resources: VPC, EKS cluster, RDS, S3, IAM roles, Load Balancers, CloudFront, Route53
+
+Secrets management: AWS Secrets Manager or Parameter Store
+
+Networking structure: Private/public subnets, NAT gateways, and security groups
+
+State management: Terraform Cloud or remote S3 backend with DynamoDB locking
+
+Environment isolation: Separate workspaces or state files for dev, staging, and production 3. Containerization & Orchestration
+
+Use Docker for containerization and Kubernetes (EKS) for orchestration.
+
+Include:
+
+Dockerfile templates for frontend, backend, and Temporal workers
+
+Multi-stage builds for small image sizes
+
+Kubernetes manifests or Helm charts for deployments
+
+Namespaces for each environment (dev, staging, prod)
+
+Service mesh (e.g., Istio or Linkerd) if required
+
+Secrets injection using AWS Secrets Manager
+
+Horizontal Pod Autoscaler setup 4. Temporal Workflow Setup
+
+Deploy Temporal on AWS (via EKS or ECS) to handle resilient workflows.
+
+Include:
+
+Namespace and cluster configuration
+
+Worker services setup with Docker + Kubernetes
+
+Integration between backend microservices and Temporal
+
+Example workflow code (e.g., order processing, user onboarding)
+
+Monitoring Temporal with Prometheus and Grafana
+
+Backup and failover strategy for Temporal persistence (e.g., RDS/PostgreSQL)
+
+5. CI/CD Pipelines (GitHub Actions)
+
+Design a multi-stage GitHub Actions pipeline for:
+
+Building and testing Docker images
+
+Running lint, test, and security scans
+
+Deploying infrastructure via Terraform
+
+Deploying apps to EKS
+
+Promoting releases from dev → staging → production 6. Monitoring & Observability
+
+Implement Prometheus, Grafana, and Loki for metrics, dashboards, and logs.
+
+Use AWS CloudWatch for centralized logging and alarms
+
+Include application-level observability via OpenTelemetry
+
+Create Grafana dashboards for system health and Temporal workflow metrics
+
+Implement alerting integrations (Slack, PagerDuty, Opsgenie)
+
+7. Developer Experience (DX)
+
+Provide Dev Containers or Makefiles for easy local setup
+
+Use pre-commit hooks with Husky and lint-staged
+
+Document local workflow with Docker Compose
+
+Automate onboarding scripts (e.g., environment setup, credentials, access keys)
+
+Maintain internal documentation with Docusaurus or Notion
+
+8. Security & Compliance
+
+Manage secrets through AWS Secrets Manager
+
+Enable IAM least-privilege access
+
+Integrate Trivy or Snyk for container and dependency scanning
+
+Use AWS WAF and CloudFront for protection
+
+Define backup and disaster recovery policy for Temporal, RDS, and S3
+
+Implement audit logging and security alerts 9. Scaling, Resilience, and Failover
+
+Use AWS Autoscaling for compute nodes
+
+Implement Horizontal Pod Autoscaler (HPA) in Kubernetes
+
+Enable multi-AZ RDS for redundancy
+
+Deploy blue-green or canary deployments via ArgoCD or FluxCD
+
+Configure CloudFront + Route53 for global DNS and caching
+
+Document failover and rollback procedures
+
+10. Engineering Culture & Documentation
+
+Define contribution guidelines and pull request templates
+
+Require peer review and automated test passing for merges
+
+Maintain engineering handbooks and architecture diagrams
+
+Use Notion, Docusaurus, or GitBook for internal documentation
+
+Schedule periodic infra reviews and post-mortem meetings
+
+Goal
+
+Produce a complete technical blueprint and README-style output that describes exactly how to build and operate a production-grade company ecosystem using:
+
+AWS + Terraform + Docker + Kubernetes + Temporal + GitHub Actions

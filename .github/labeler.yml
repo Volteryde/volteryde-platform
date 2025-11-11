@@ -1,0 +1,72 @@
+# Auto-label PRs based on changed files
+
+# Backend labels
+'backend:nestjs':
+  - services/volteryde-nest/**
+
+'backend:java':
+  - services/volteryde-springboot/**
+
+'workers':
+  - workers/**
+
+# Frontend labels
+'frontend:admin-dashboard':
+  - apps/admin-dashboard/**
+
+'frontend:driver-app':
+  - apps/driver-app/**
+
+'frontend:support-app':
+  - apps/support-app/**
+
+'frontend:bi-partner-app':
+  - apps/bi-partner-app/**
+
+'frontend:docs':
+  - apps/docs-platform/**
+
+'frontend:mobile':
+  - apps/mobile-passenger-app/**
+  - apps/mobile-driver-app/**
+
+# Infrastructure labels
+'infrastructure':
+  - infrastructure/**
+
+'terraform':
+  - infrastructure/terraform/**
+
+'kubernetes':
+  - infrastructure/kubernetes/**
+
+# CI/CD labels
+'ci/cd':
+  - .github/workflows/**
+
+# Documentation labels
+'documentation':
+  - docs/**
+  - '**/*.md'
+  - README.md
+
+# Dependencies
+'dependencies':
+  - '**/package.json'
+  - '**/pom.xml'
+  - '**/package-lock.json'
+  - '**/pnpm-lock.yaml'
+
+# Configuration
+'configuration':
+  - '**/.env.example'
+  - '**/config/**'
+  - '**/*.config.js'
+  - '**/*.config.ts'
+
+# Tests
+'tests':
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+  - '**/*Test.java'
+  - '**/test/**'

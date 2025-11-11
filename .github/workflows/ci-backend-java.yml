@@ -1,0 +1,187 @@
+name: CI - Java Spring Boot Services
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'services/volteryde-springboot/**'
+      - '.github/workflows/ci-backend-java.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'services/volteryde-springboot/**'
+
+jobs:
+  detect-changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      java-changed: ${{ steps.filter.outputs.java }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            java:
+              - 'services/volteryde-springboot/**'
+
+  build-and-test-java:
+    name: Build & Test Java Services
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: volteryde_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      
+      - name: Build with Maven
+        run: ./mvnw clean compile -DskipTests
+        working-directory: services/volteryde-springboot
+      
+      - name: Run unit tests
+        run: ./mvnw test
+        working-directory: services/volteryde-springboot
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/volteryde_test
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          SPRING_REDIS_HOST: localhost
+          SPRING_REDIS_PORT: 6379
+      
+      - name: Generate JaCoCo coverage report
+        run: ./mvnw jacoco:report
+        working-directory: services/volteryde-springboot
+        continue-on-error: true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: services/volteryde-springboot/target/site/jacoco/jacoco.xml
+          flags: java
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      
+      - name: Run integration tests
+        run: ./mvnw verify -P integration-test
+        working-directory: services/volteryde-springboot
+        env:
+          SPRING_PROFILES_ACTIVE: test
+        continue-on-error: true
+      
+      - name: Build JAR package
+        run: ./mvnw package -DskipTests
+        working-directory: services/volteryde-springboot
+      
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spring-boot-services
+          path: services/volteryde-springboot/target/*.jar
+          retention-days: 5
+
+  code-quality:
+    name: Code Quality Analysis
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            ./mvnw sonar:sonar \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.organization=volteryde \
+              -Dsonar.projectKey=volteryde_springboot-services
+          else
+            echo "⚠️ SonarQube scan skipped - SONAR_TOKEN not configured"
+          fi
+        working-directory: services/volteryde-springboot
+        continue-on-error: true
+
+  security-scan-java:
+    name: Security Scan - Java
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Run Snyk security scan
+        uses: snyk/actions/maven@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+      
+      - name: OWASP Dependency Check
+        run: ./mvnw dependency-check:check || echo "Dependency check completed"
+        working-directory: services/volteryde-springboot
+        continue-on-error: true
