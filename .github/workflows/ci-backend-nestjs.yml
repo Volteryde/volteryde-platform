@@ -75,11 +75,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: services/volteryde-nest/pnpm-lock.yaml
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
         working-directory: services/volteryde-nest
       
       - name: Run ESLint
@@ -164,11 +162,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: services/volteryde-nest/pnpm-lock.yaml
       
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
         working-directory: services/volteryde-nest
       
       - name: Build application

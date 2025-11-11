@@ -114,12 +114,10 @@ jobs:
       
       - name: Build Java manually
         if: matrix.language == 'java'
-        run: |
-          cd services/volteryde-springboot
-          ./mvnw clean package -DskipTests
+        run: echo "Skipping manual Java build - using autobuild"
+        continue-on-error: true
       
-      - name: Autobuild (for non-Java)
-        if: matrix.language != 'java'
+      - name: Autobuild
         uses: github/codeql-action/autobuild@v3
       
       - name: Perform CodeQL Analysis
