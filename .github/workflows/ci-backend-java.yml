@@ -27,6 +27,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             java:
               - 'services/volteryde-springboot/**'
