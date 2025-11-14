@@ -13,6 +13,7 @@ spec:
       labels:
         app: routing-service
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: routing-service
         image: YOUR_ECR_REGISTRY/routing-service:latest # <-- USER MUST REPLACE WITH ACTUAL ECR REGISTRY

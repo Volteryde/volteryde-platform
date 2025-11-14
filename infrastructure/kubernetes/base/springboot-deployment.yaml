@@ -27,6 +27,7 @@ spec:
         component: backend
     spec:
       serviceAccountName: volteryde-sa
+      automountServiceAccountToken: false
       containers:
       - name: springboot
         image: REGISTRY_URL/volteryde/springboot-service:latest
