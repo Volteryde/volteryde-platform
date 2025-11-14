@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthModule } from './health/health.module';
+import { TemporalModule } from './shared/temporal/temporal.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -19,7 +21,9 @@ import { HealthModule } from './health/health.module';
       autoLoadEntities: true,
       synchronize: process.env.NODE_ENV === 'development',
     }),
+    TemporalModule,
     HealthModule,
+    BookingModule,
   ],
   controllers: [],
   providers: [],
