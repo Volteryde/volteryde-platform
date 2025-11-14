@@ -24,7 +24,7 @@
     "@nestjs/config": "^3.0.0",
     "@nestjs/typeorm": "^10.0.0",
     "@nestjs/swagger": "^7.0.0",
-    "@temporal/client": "^1.8.0",
+    "@temporalio/client": "^1.8.0",
     "typeorm": "^0.3.17",
     "pg": "^8.11.0",
     "redis": "^4.6.7",

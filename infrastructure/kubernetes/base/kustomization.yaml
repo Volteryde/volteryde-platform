@@ -15,6 +15,7 @@ resources:
   - nestjs-deployment.yaml
   - springboot-deployment.yaml
   - temporal-workers-deployment.yaml
+  - routing-service-deployment.yaml
   - ingress.yaml
 
 # Common labels applied to all resources

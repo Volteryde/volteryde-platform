@@ -210,6 +210,19 @@ services:
     restart: unless-stopped
     command: pnpm dev
 
+  routing-service:
+    build:
+      context: ./services/routing-service
+      dockerfile: Dockerfile
+    container_name: volteryde-routing
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/routing-service:/data
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
   # ============================================================================
   # Monitoring & Observability (Optional)
   # ============================================================================
