@@ -16,10 +16,13 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: routing-service
-        image: YOUR_ECR_REGISTRY/routing-service:latest # <-- USER MUST REPLACE WITH ACTUAL ECR REGISTRY
+        image: YOUR_ECR_REGISTRY/routing-service:v1.0.0 # <-- USER MUST REPLACE WITH ACTUAL ECR REGISTRY AND VERSION
         ports:
         - containerPort: 5000
           name: http
+        volumeMounts:
+        - name: routing-data
+          mountPath: /data
         resources:
           requests:
             memory: "2Gi" # OSRM needs RAM for the routing graph
@@ -39,6 +42,10 @@ spec:
             port: 5000
           initialDelaySeconds: 10
           periodSeconds: 5
+      volumes:
+      - name: routing-data
+        persistentVolumeClaim:
+          claimName: routing-data-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -54,3 +61,16 @@ spec:
     targetPort: 5000
     name: http
   type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: routing-data-pvc
+  namespace: volteryde
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3 # AWS EBS GP3 storage class (adjust for your cloud provider)
