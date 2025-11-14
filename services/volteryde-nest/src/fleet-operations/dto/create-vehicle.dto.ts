@@ -5,7 +5,7 @@
 
 import { IsString, IsNumber, IsEnum, IsOptional, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { VehicleType, VehicleStatus } from '../entities/vehicle.entity';
+import { VehicleType } from '../entities/vehicle.entity';
 
 export class CreateVehicleDto {
   @ApiProperty({

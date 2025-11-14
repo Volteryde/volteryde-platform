@@ -6,7 +6,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TimestreamService } from './timestream.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
-import { DiagnosticsDto } from '../dto/diagnostics.dto';
 
 @Injectable()
 export class TelematicsService {
