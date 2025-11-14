@@ -18,19 +18,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-timestream-query": "^3.931.0",
+    "@aws-sdk/client-timestream-write": "^3.931.0",
     "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
-    "@nestjs/config": "^3.0.0",
-    "@nestjs/typeorm": "^10.0.0",
+    "@nestjs/platform-socket.io": "^11.1.9",
     "@nestjs/swagger": "^7.0.0",
+    "@nestjs/typeorm": "^10.0.0",
+    "@nestjs/websockets": "^11.1.9",
     "@temporalio/client": "^1.8.0",
-    "typeorm": "^0.3.17",
+    "@types/geojson": "^7946.0.16",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0",
+    "ioredis": "^5.8.2",
     "pg": "^8.11.0",
     "redis": "^4.6.7",
-    "class-validator": "^0.14.0",
-    "class-transformer": "^0.5.1",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
+    "typeorm": "^0.3.17"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

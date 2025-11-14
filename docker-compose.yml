@@ -4,8 +4,6 @@
 # This compose file sets up the complete local development environment
 # Usage: docker-compose up -d
 
-version: '3.8'
-
 services:
   # ============================================================================
   # Databases & Cache
@@ -58,22 +56,23 @@ services:
     image: temporalio/auto-setup:latest
     container_name: volteryde-temporal
     environment:
-      - DB=postgresql
+      - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PWD=postgres
       - POSTGRES_SEEDS=postgres
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+      - DBNAME=temporal
     ports:
       - "7233:7233"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "tctl", "--address", "localhost:7233", "cluster", "health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD", "sh", "-c", "tctl --address 127.0.0.1:7233 cluster health 2>&1 | grep -q 'SERVING' || nc -z 127.0.0.1 7233"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped

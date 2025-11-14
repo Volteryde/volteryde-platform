@@ -31,10 +31,42 @@ async function run() {
   console.log('');
 
   try {
-    // Create connection to Temporal server
-    const connection = await NativeConnection.connect({
+    // Get configuration for Temporal Cloud
+    const apiKey = process.env.TEMPORAL_API_KEY;
+    const clientCertPath = process.env.TEMPORAL_CLIENT_CERT;
+    const clientKeyPath = process.env.TEMPORAL_CLIENT_KEY;
+
+    // Create connection options
+    const connectionOptions: any = {
       address: temporalAddress,
-    });
+    };
+
+    // Method 1: API Key (simpler, recommended for Temporal Cloud)
+    if (apiKey) {
+      console.log('🔒 Using API Key for Temporal Cloud connection');
+      connectionOptions.tls = true;
+      connectionOptions.apiKey = apiKey;
+    }
+    // Method 2: mTLS with certificates (traditional method)
+    else if (clientCertPath && clientKeyPath) {
+      console.log('🔒 Using mTLS (certificates) for Temporal Cloud connection');
+      const { readFile } = await import('fs/promises');
+      const cert = await readFile(clientCertPath);
+      const key = await readFile(clientKeyPath);
+      
+      connectionOptions.tls = {
+        clientCertPair: {
+          crt: cert,
+          key: key,
+        },
+      };
+    } 
+    // Method 3: Local development (no TLS)
+    else {
+      console.log('🔓 Using insecure connection (local development)');
+    }
+
+    const connection = await NativeConnection.connect(connectionOptions);
 
     console.log('✓ Connected to Temporal server');
 

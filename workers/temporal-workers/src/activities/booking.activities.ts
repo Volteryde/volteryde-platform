@@ -15,8 +15,12 @@ import {
 } from '../interfaces';
 
 // Get service URLs from environment variables
+// In Kubernetes: http://service-name.namespace.svc.cluster.local
+// In Docker Compose: http://service-name
+// In Local Dev: http://localhost:PORT
 const NESTJS_API_URL = process.env.NESTJS_API_URL || 'http://localhost:3000';
 const SPRINGBOOT_API_URL = process.env.SPRINGBOOT_API_URL || 'http://localhost:8080';
+const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY || 'dev-internal-key';
 
 /**
  * Activity: Reserve a seat for the booking
@@ -32,22 +36,28 @@ export async function reserveSeat(request: BookingRequest): Promise<Reservation>
   console.log(`[ACTIVITY] Route: ${JSON.stringify(request.startLocation)} -> ${JSON.stringify(request.endLocation)}`);
 
   try {
-    // In production, this would call the NestJS Booking API
-    // const response = await axios.post(`${NESTJS_API_URL}/api/v1/booking/reserve`, request);
-    // return response.data;
+    // Call the NestJS Booking API to reserve a seat
+    const response = await axios.post(
+      `${NESTJS_API_URL}/api/v1/booking/internal/reserve-seat`,
+      request,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 10000, // 10 second timeout
+      }
+    );
 
-    // Placeholder implementation
-    const reservation: Reservation = {
-      reservationId: `res-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      seatId: `seat-${Math.floor(Math.random() * 50) + 1}A`,
-      vehicleId: `bus-${Math.floor(Math.random() * 10) + 1}`.padStart(3, '0'),
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
-    };
-
+    const reservation: Reservation = response.data;
     console.log(`[ACTIVITY] Seat reserved: ${reservation.reservationId} on vehicle ${reservation.vehicleId}`);
     return reservation;
   } catch (error) {
     console.error(`[ACTIVITY] Failed to reserve seat:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Seat reservation failed: ${message}`);
+    }
     throw new Error(`Seat reservation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -65,41 +75,40 @@ export async function processPayment(reservation: Reservation): Promise<PaymentD
   console.log(`[ACTIVITY] Processing payment for reservation ${reservation.reservationId}`);
 
   try {
-    // In production, this would call the Spring Boot Payment API
-    // const response = await axios.post(`${SPRINGBOOT_API_URL}/api/v1/payment/process`, {
-    //   reservationId: reservation.reservationId,
-    //   amount: calculateFare(reservation),
-    //   currency: 'GHS',
-    // });
-    // return response.data;
-
-    // Placeholder implementation with random success/failure for testing
-    const shouldSucceed = Math.random() > 0.1; // 90% success rate
-
-    if (!shouldSucceed) {
-      const failedPayment: PaymentDetails = {
-        paymentId: `pay-failed-${Date.now()}`,
-        status: 'FAILED',
-        amount: 50.0,
+    // Call the Spring Boot Payment API to process payment via Paystack
+    const response = await axios.post(
+      `${SPRINGBOOT_API_URL}/api/v1/payment/process`,
+      {
+        reservationId: reservation.reservationId,
+        vehicleId: reservation.vehicleId,
+        seatId: reservation.seatId,
+        amount: 50.0, // Calculate fare based on route
         currency: 'GHS',
-        failureReason: 'Insufficient funds',
-      };
-      console.error(`[ACTIVITY] Payment failed: ${failedPayment.failureReason}`);
-      return failedPayment;
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 30000, // 30 second timeout (payment can take time)
+      }
+    );
+
+    const payment: PaymentDetails = response.data;
+    
+    if (payment.status === 'SUCCESS') {
+      console.log(`[ACTIVITY] Payment successful: ${payment.paymentId} (${payment.amount} ${payment.currency})`);
+    } else {
+      console.error(`[ACTIVITY] Payment failed: ${payment.failureReason}`);
     }
-
-    const payment: PaymentDetails = {
-      paymentId: `pay-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      status: 'SUCCESS',
-      amount: 50.0, // Base fare in GHS
-      currency: 'GHS',
-      paystackReference: `PSTK-${Date.now()}`,
-    };
-
-    console.log(`[ACTIVITY] Payment successful: ${payment.paymentId} (${payment.amount} ${payment.currency})`);
+    
     return payment;
   } catch (error) {
     console.error(`[ACTIVITY] Payment processing error:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Payment failed: ${message}`);
+    }
     throw new Error(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -121,27 +130,33 @@ export async function confirmBooking(
   console.log(`[ACTIVITY] Confirming booking for reservation ${reservation.reservationId}`);
 
   try {
-    // In production, this would call the NestJS Booking API
-    // const response = await axios.post(`${NESTJS_API_URL}/api/v1/booking/confirm`, {
-    //   reservationId: reservation.reservationId,
-    //   paymentId: payment.paymentId,
-    // });
-    // return response.data;
+    // Call the NestJS Booking API to confirm and assign driver
+    const response = await axios.post(
+      `${NESTJS_API_URL}/api/v1/booking/internal/confirm`,
+      {
+        reservationId: reservation.reservationId,
+        paymentId: payment.paymentId,
+        vehicleId: reservation.vehicleId,
+        seatId: reservation.seatId,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 15000, // 15 second timeout
+      }
+    );
 
-    // Placeholder implementation
-    const booking: BookingConfirmation = {
-      bookingId: `book-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      status: 'CONFIRMED',
-      vehicleId: reservation.vehicleId,
-      driverId: `driver-${Math.floor(Math.random() * 100) + 1}`,
-      estimatedArrivalTime: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-      fare: payment.amount,
-    };
-
+    const booking: BookingConfirmation = response.data;
     console.log(`[ACTIVITY] Booking confirmed: ${booking.bookingId} with driver ${booking.driverId}`);
     return booking;
   } catch (error) {
     console.error(`[ACTIVITY] Booking confirmation error:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Booking confirmation failed: ${message}`);
+    }
     throw new Error(`Booking confirmation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -158,13 +173,20 @@ export async function notifyDriver(notification: DriverNotification): Promise<vo
   console.log(`[ACTIVITY] Notifying driver ${notification.driverId} about booking ${notification.bookingId}`);
 
   try {
-    // In production, this would call the NestJS Telematics API
-    // await axios.post(`${NESTJS_API_URL}/api/v1/telematics/notify-driver`, notification);
+    // Call the NestJS API to send driver notification
+    await axios.post(
+      `${NESTJS_API_URL}/api/v1/notifications/internal/driver`,
+      notification,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 5000,
+      }
+    );
 
-    // Placeholder implementation
     console.log(`[ACTIVITY] Driver notification sent successfully`);
-    console.log(`[ACTIVITY] Pickup: ${notification.pickupLocation.address || 'Unknown'}`);
-    console.log(`[ACTIVITY] Dropoff: ${notification.dropoffLocation.address || 'Unknown'}`);
   } catch (error) {
     console.error(`[ACTIVITY] Driver notification error:`, error);
     // Don't throw - notification failures shouldn't fail the workflow
@@ -184,10 +206,19 @@ export async function sendNotification(notification: NotificationPayload): Promi
   console.log(`[ACTIVITY] Sending ${notification.type} notification to user ${notification.userId}`);
 
   try {
-    // In production, this would call the NestJS notification service
-    // await axios.post(`${NESTJS_API_URL}/api/v1/notifications/send`, notification);
+    // Call the NestJS notification service to send notification
+    await axios.post(
+      `${NESTJS_API_URL}/api/v1/notifications/internal/send`,
+      notification,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 5000,
+      }
+    );
 
-    // Placeholder implementation
     console.log(`[ACTIVITY] ${notification.type} notification sent: ${notification.message}`);
   } catch (error) {
     console.error(`[ACTIVITY] Notification sending error:`, error);
@@ -208,10 +239,17 @@ export async function releaseSeatReservation(reservation: Reservation): Promise<
   console.log(`[COMPENSATION] Releasing seat reservation ${reservation.reservationId}`);
 
   try {
-    // In production, this would call the NestJS Booking API
-    // await axios.delete(`${NESTJS_API_URL}/api/v1/booking/reserve/${reservation.reservationId}`);
+    // Call the NestJS Booking API to release the reservation
+    await axios.delete(
+      `${NESTJS_API_URL}/api/v1/booking/internal/reserve/${reservation.reservationId}`,
+      {
+        headers: {
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 10000,
+      }
+    );
 
-    // Placeholder implementation
     console.log(`[COMPENSATION] Seat ${reservation.seatId} on vehicle ${reservation.vehicleId} released successfully`);
   } catch (error) {
     console.error(`[COMPENSATION] Failed to release seat reservation:`, error);
@@ -232,14 +270,24 @@ export async function refundPayment(payment: PaymentDetails): Promise<void> {
   console.log(`[COMPENSATION] Refunding payment ${payment.paymentId}`);
 
   try {
-    // In production, this would call the Spring Boot Payment API
-    // await axios.post(`${SPRINGBOOT_API_URL}/api/v1/payment/refund`, {
-    //   paymentId: payment.paymentId,
-    //   amount: payment.amount,
-    //   reason: 'Booking failed',
-    // });
+    // Call the Spring Boot Payment API to process refund via Paystack
+    await axios.post(
+      `${SPRINGBOOT_API_URL}/api/v1/payment/refund`,
+      {
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        currency: payment.currency,
+        reason: 'Booking failed - compensation',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 30000, // 30 second timeout (refunds can take time)
+      }
+    );
 
-    // Placeholder implementation
     console.log(`[COMPENSATION] Refund initiated for ${payment.amount} ${payment.currency}`);
     console.log(`[COMPENSATION] Paystack reference: ${payment.paystackReference}`);
   } catch (error) {

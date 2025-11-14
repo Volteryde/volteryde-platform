@@ -6,6 +6,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client, Connection } from '@temporalio/client';
+import { readFile } from 'fs/promises';
 
 @Injectable()
 export class TemporalService implements OnModuleInit, OnModuleDestroy {
@@ -22,11 +23,46 @@ export class TemporalService implements OnModuleInit, OnModuleDestroy {
     try {
       const address = this.configService.get<string>('TEMPORAL_ADDRESS', 'localhost:7233');
       const namespace = this.configService.get<string>('TEMPORAL_NAMESPACE', 'default');
+      const apiKey = this.configService.get<string>('TEMPORAL_API_KEY');
+      const clientCertPath = this.configService.get<string>('TEMPORAL_CLIENT_CERT');
+      const clientKeyPath = this.configService.get<string>('TEMPORAL_CLIENT_KEY');
 
       this.logger.log(`Connecting to Temporal server at ${address}`);
 
+      // Prepare connection options
+      const connectionOptions: any = { address };
+
+      // Method 1: API Key (simpler, recommended for Temporal Cloud)
+      if (apiKey) {
+        this.logger.log('🔒 Using API Key for Temporal Cloud connection');
+        connectionOptions.tls = true;
+        connectionOptions.apiKey = apiKey;
+      }
+      // Method 2: mTLS with certificates (traditional method)
+      else if (clientCertPath && clientKeyPath) {
+        this.logger.log('🔒 Using mTLS (certificates) for Temporal Cloud connection');
+        try {
+          const cert = await readFile(clientCertPath);
+          const key = await readFile(clientKeyPath);
+          
+          connectionOptions.tls = {
+            clientCertPair: {
+              crt: cert,
+              key: key,
+            },
+          };
+        } catch (certError) {
+          this.logger.error('Failed to read TLS certificates:', certError);
+          throw certError;
+        }
+      } 
+      // Method 3: Local development (no TLS)
+      else {
+        this.logger.log('🔓 Using insecure connection (local development)');
+      }
+
       // Create connection
-      this.connection = await Connection.connect({ address });
+      this.connection = await Connection.connect(connectionOptions);
 
       // Create client
       this.client = new Client({
