@@ -1,6 +1,6 @@
 'use client'; // This component will run in the browser
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -34,7 +34,7 @@ function RouteLayer({ start, end, routeData }: RouteLayerProps) {
   const map = useMap();
 
   useEffect(() => {
-    if (routeData && routeData.routes && routeData.routes.length > 0) {
+    if (routeData?.routes?.length > 0) {
       const routeGeoJson = routeData.routes[0].geometry;
 
       // Draw the route on the map
@@ -63,7 +63,7 @@ export function DriverMap() {
       const response = await fetch(url);
       const data = await response.json();
 
-      if (!data || !data.routes || data.routes.length === 0) {
+      if (!data?.routes?.length) {
         console.error('Invalid route data received:', data);
         return;
       }

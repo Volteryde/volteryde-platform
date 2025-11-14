@@ -14,7 +14,7 @@ interface ClientOnlyProps {
  * 
  * Perfect for libraries like Leaflet that require browser APIs.
  */
-export function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
+export function ClientOnly({ children, fallback = null }: Readonly<ClientOnlyProps>) {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
