@@ -5,8 +5,7 @@ import { HealthModule } from './health/health.module';
 import { TemporalModule } from './shared/temporal/temporal.module';
 import { BookingModule } from './booking/booking.module';
 import { TelematicsModule } from './telematics/telematics.module';
-// TODO: Import when created
-// import { FleetOperationsModule } from './fleet-operations/fleet-operations.module';
+import { FleetOperationsModule } from './fleet-operations/fleet-operations.module';
 // import { ChargingInfrastructureModule } from './charging-infrastructure/charging-infrastructure.module';
 
 @Module({
@@ -32,8 +31,8 @@ import { TelematicsModule } from './telematics/telematics.module';
     HealthModule,
     BookingModule,
     TelematicsModule,
-    // FleetOperationsModule, // TODO: Uncomment when created
-    // ChargingInfrastructureModule, // TODO: Uncomment when created
+    FleetOperationsModule,
+    // ChargingInfrastructureModule, // TODO: Add when created
   ],
   controllers: [],
   providers: [],
