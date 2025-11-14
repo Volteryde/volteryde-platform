@@ -206,8 +206,8 @@ export class TelematicsService {
   /**
    * Calculate tire pressure status
    */
-  private calculateTirePressure(diagnostics: any): 'NORMAL' | 'LOW' | 'CRITICAL' {
-    // TODO: Implement actual tire pressure monitoring
+  private calculateTirePressure(_diagnostics: any): 'NORMAL' | 'LOW' | 'CRITICAL' {
+    // TODO: Implement actual tire pressure monitoring using _diagnostics data
     // For now, return NORMAL
     return 'NORMAL';
   }

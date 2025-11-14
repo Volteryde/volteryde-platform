@@ -34,7 +34,7 @@ export class TelematicsGateway
   // Track active subscriptions
   private vehicleSubscriptions = new Map<string, Set<string>>();
 
-  afterInit(server: Server) {
+  afterInit() {
     this.logger.log('Telematics WebSocket Gateway initialized');
   }
 

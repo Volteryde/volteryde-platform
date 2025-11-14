@@ -114,7 +114,7 @@ export class TemporalService implements OnModuleInit, OnModuleDestroy {
    * @param options - Workflow execution options
    * @returns Workflow handle
    */
-  async startWorkflow<T = any>(
+  async startWorkflow(
     workflowType: string,
     args: any[],
     options: {
