@@ -1,30 +1,37 @@
-import type { Route } from './+types/home';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
-import { Link } from 'react-router';
-import { baseOptions } from '@/lib/layout.shared';
+import { ClientOnly } from '../components/ClientOnly';
+import { lazy, Suspense } from 'react';
 
-export function meta({}: Route.MetaArgs) {
+// Lazy load the Map component (Leaflet requires browser window)
+const DriverMap = lazy(() => import('../components/Map').then((mod) => ({ default: mod.DriverMap })));
+
+export function meta() {
   return [
-    { title: 'New React Router App' },
-    { name: 'description', content: 'Welcome to React Router!' },
+    { title: 'Volteryde Driver App - Map' },
+    { name: 'description', content: 'Real-time driver map with routing' },
   ];
 }
 
 export default function Home() {
   return (
-    <HomeLayout {...baseOptions()}>
-      <div className="p-4 flex flex-col items-center justify-center text-center flex-1">
-        <h1 className="text-xl font-bold mb-2">Fumadocs on React Router.</h1>
-        <p className="text-fd-muted-foreground mb-4">
-          The truly flexible docs framework on React.js.
-        </p>
-        <Link
-          className="text-sm bg-fd-primary text-fd-primary-foreground rounded-full font-medium px-4 py-2.5"
-          to="/docs"
-        >
-          Open Docs
-        </Link>
-      </div>
-    </HomeLayout>
+    <main>
+      <ClientOnly fallback={
+        <div style={{ 
+          height: '100vh', 
+          width: '100%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          background: '#f0f0f0'
+        }}>
+          <p>Loading map...</p>
+        </div>
+      }>
+        {() => (
+          <Suspense fallback={<div>Loading map...</div>}>
+            <DriverMap />
+          </Suspense>
+        )}
+      </ClientOnly>
+    </main>
   );
 }

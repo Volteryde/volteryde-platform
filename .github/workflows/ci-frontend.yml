@@ -67,7 +67,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/admin-dashboard
       
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
@@ -112,7 +111,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/driver-app
       
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
@@ -146,7 +144,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/support-app
       
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
@@ -180,7 +177,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/bi-partner-app
       
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
@@ -214,7 +210,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: apps/docs-platform
       
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"

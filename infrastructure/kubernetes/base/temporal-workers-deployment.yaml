@@ -26,6 +26,7 @@ spec:
         component: workers
     spec:
       serviceAccountName: volteryde-sa
+      automountServiceAccountToken: false
       containers:
       - name: temporal-workers
         image: REGISTRY_URL/volteryde/temporal-workers:latest

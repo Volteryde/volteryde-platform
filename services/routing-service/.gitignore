@@ -1,0 +1,15 @@
+# OSM data files - too large for git
+*.osm.pbf
+*.osm
+*.osrm
+*.osrm.*
+
+# OSRM generated files
+*.fileIndex
+*.icd
+*.mldgr
+*.nodes
+*.ebg
+*.ebg_nodes
+*.properties
+*.timestamp

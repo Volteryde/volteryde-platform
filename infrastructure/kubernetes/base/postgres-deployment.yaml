@@ -20,6 +20,7 @@ spec:
         app: postgres
         component: database
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: postgres
         image: postgres:15-alpine
