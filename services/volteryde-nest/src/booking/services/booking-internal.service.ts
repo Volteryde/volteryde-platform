@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../entities/booking.entity';
 import { Reservation } from '../entities/reservation.entity';
+import { BookingStatus } from '../../../../../packages/shared-types/src/booking-status.enum';
 
 @Injectable()
 export class BookingInternalService {
@@ -54,9 +55,19 @@ export class BookingInternalService {
       vehicleId: data.vehicleId,
       seatId: data.seatId,
       userId: reservation.userId,
-      status: 'CONFIRMED',
+      status: BookingStatus.CONFIRMED, // Use enum
       fare: 50.0, // Placeholder
     });
+    return await this.bookingRepository.save(booking);
+  }
+
+  async updateBookingStatus(bookingId: string, status: BookingStatus): Promise<Booking> {
+    this.logger.log(`Updating status for booking ${bookingId} to ${status}`);
+    const booking = await this.bookingRepository.findOne({ where: { id: bookingId } });
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+    }
+    booking.status = status;
     return await this.bookingRepository.save(booking);
   }
 

@@ -10,6 +10,7 @@ import {
   IsDate,
   Min,
   Max,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -95,4 +96,14 @@ export class LocationUpdateDto {
   @IsDate()
   @Type(() => Date)
   timestamp?: Date;
+
+  @ApiProperty({
+    description: 'Indicates if the location is from a mocked provider (e.g., fake GPS app)',
+    example: false,
+    required: false,
+    type: Boolean,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isMocked?: boolean;
 }

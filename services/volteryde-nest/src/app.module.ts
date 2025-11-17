@@ -7,6 +7,7 @@ import { BookingModule } from './booking/booking.module';
 import { TelematicsModule } from './telematics/telematics.module';
 import { FleetOperationsModule } from './fleet-operations/fleet-operations.module';
 import { ChargingInfrastructureModule } from './charging-infrastructure/charging-infrastructure.module';
+import { FirebaseModule } from './firebase/firebase.module'; // Import FirebaseModule
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ChargingInfrastructureModule } from './charging-infrastructure/charging
     TelematicsModule,
     FleetOperationsModule,
     ChargingInfrastructureModule,
+    FirebaseModule, // Add FirebaseModule to imports
   ],
   controllers: [],
   providers: [],

@@ -37,6 +37,7 @@ export class NotificationsInternalController {
       pickupLocation: { latitude: number; longitude: number; address?: string };
       dropoffLocation: { latitude: number; longitude: number; address?: string };
       passengerName?: string;
+      deviceToken?: string; // Added for FCM
     },
   ) {
     this.logger.log(`Notifying driver ${data.driverId} about booking ${data.bookingId}`);
@@ -60,6 +61,7 @@ export class NotificationsInternalController {
       subject?: string;
       message: string;
       bookingId?: string;
+      deviceToken?: string; // Added for FCM
     },
   ) {
     this.logger.log(`Sending ${data.type} notification to user ${data.userId}`);

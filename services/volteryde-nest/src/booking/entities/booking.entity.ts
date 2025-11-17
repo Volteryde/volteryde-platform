@@ -3,6 +3,7 @@
 // ============================================================================
 // TypeORM entity for bookings
 
+import { BookingStatus } from '../../../../../packages/shared-types/src/booking-status.enum';
 import {
   Entity,
   Column,
@@ -31,8 +32,12 @@ export class Booking {
   @Column()
   paymentId: string;
 
-  @Column()
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: BookingStatus,
+    default: BookingStatus.PENDING,
+  })
+  status: BookingStatus;
 
   @Column('decimal', { precision: 10, scale: 2 })
   fare: number;

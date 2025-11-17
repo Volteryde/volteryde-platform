@@ -11,6 +11,8 @@ import { MqttService } from '../../mqtt/mqtt.service'; // Import MqttService
 @Injectable()
 export class TelematicsService {
   private readonly logger = new Logger(TelematicsService.name);
+  private readonly MAX_ALLOWED_SPEED_KPH = 150; // Example: Max speed for a bus
+  private readonly MAX_ACCURACY_THRESHOLD_METERS = 50; // Example: Max acceptable GPS accuracy
 
   constructor(
     private timestreamService: TimestreamService,
@@ -19,6 +21,15 @@ export class TelematicsService {
 
   async updateLocation(data: LocationUpdateDto): Promise<void> {
     this.logger.log(`Updating location for vehicle ${data.vehicleId}`);
+
+    // Perform fraud detection
+    const isFraudulent = await this.detectFraud(data);
+    if (isFraudulent) {
+      this.logger.warn(`FRAUD DETECTED for vehicle ${data.vehicleId}. Location update ignored.`);
+      // TODO: Integrate with a dedicated fraud alerting system or driver management system
+      // For now, we'll just log and potentially stop processing this update further for fraud.
+      return; // Stop processing this fraudulent update
+    }
 
     await this.timestreamService.writeLocation({
       vehicleId: data.vehicleId,
@@ -216,6 +227,48 @@ export class TelematicsService {
       safetyScore: 92,
       efficiencyScore: 88,
     };
+  }
+
+  private async detectFraud(data: LocationUpdateDto): Promise<boolean> {
+    // Rule 1: Check for client-side mock location flag
+    if (data.isMocked) {
+      this.logger.warn(`Fraud detected: Client-side mock location flag set for vehicle ${data.vehicleId}`);
+      return true;
+    }
+
+    // Rule 2: Check GPS accuracy
+    if (data.accuracy && data.accuracy > this.MAX_ACCURACY_THRESHOLD_METERS) {
+      this.logger.warn(`Fraud detected: Low GPS accuracy (${data.accuracy}m) for vehicle ${data.vehicleId}`);
+      return true;
+    }
+
+    // Rule 3: Impossible speed/distance check
+    const lastLocation = await this.timestreamService.getLatestLocation(data.vehicleId);
+
+    if (lastLocation && lastLocation.location && lastLocation.time) {
+      const lastLat = lastLocation.location.latitude;
+      const lastLng = lastLocation.location.longitude;
+      const lastTimestamp = new Date(lastLocation.time);
+      const currentTimestamp = data.timestamp || new Date();
+
+      const timeDiffSeconds = (currentTimestamp.getTime() - lastTimestamp.getTime()) / 1000;
+      const distanceMeters = this.calculateDistance(lastLat, lastLng, data.latitude, data.longitude);
+
+      if (timeDiffSeconds > 0) {
+        const speedMps = distanceMeters / timeDiffSeconds;
+        const speedKph = speedMps * 3.6; // Convert m/s to km/h
+
+        if (speedKph > this.MAX_ALLOWED_SPEED_KPH) {
+          this.logger.warn(
+            `Fraud detected: Impossible speed (${speedKph.toFixed(2)} km/h) for vehicle ${data.vehicleId}. ` +
+            `Moved ${distanceMeters.toFixed(2)}m in ${timeDiffSeconds.toFixed(2)}s.`
+          );
+          return true;
+        }
+      }
+    }
+
+    return false; // No fraud detected
   }
 
   private calculateBatteryHealth(
