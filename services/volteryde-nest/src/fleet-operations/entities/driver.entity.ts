@@ -11,7 +11,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Vehicle } from './vehicle.entity';
+import { DriverVehicleAssignment } from './driver-vehicle-assignment.entity'; // Import new entity
 
 export enum DriverStatus {
   ACTIVE = 'ACTIVE',
@@ -46,6 +46,9 @@ export class Driver {
   @Column()
   licenseExpiry: Date;
 
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth?: Date;
+
   @Column({
     type: 'enum',
     enum: DriverStatus,
@@ -77,11 +80,8 @@ export class Driver {
   @Column({ type: 'int', default: 0 })
   speedingIncidents: number;
 
-  @Column({ nullable: true })
-  currentVehicleId: string;
-
-  @OneToMany(() => Vehicle, (vehicle) => vehicle.currentDriver)
-  vehicles: Vehicle[];
+  @OneToMany(() => DriverVehicleAssignment, (assignment) => assignment.driver)
+  assignments: DriverVehicleAssignment[];
 
   @Column({ type: 'jsonb', nullable: true })
   emergencyContact: {

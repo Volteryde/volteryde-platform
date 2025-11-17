@@ -22,6 +22,6 @@ import { NotificationService } from './services/notification.service';
     NotificationsInternalController,
   ],
   providers: [BookingService, BookingInternalService, NotificationService],
-  exports: [BookingService],
+  exports: [BookingService, NotificationService],
 })
 export class BookingModule {}

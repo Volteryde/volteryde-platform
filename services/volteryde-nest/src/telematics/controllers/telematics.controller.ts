@@ -12,6 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { TelematicsService } from '../services/telematics.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
+import { NearbyVehiclesQueryDto } from '../dto/nearby-vehicles-query.dto'; // Import new DTO
 import {
   LocationResponseDto,
   LocationUpdateResponseDto,
@@ -21,6 +22,7 @@ import {
   GeofenceCheckResponseDto,
   TripDataResponseDto,
   DriverAnalyticsResponseDto,
+  NearbyVehicleResponseDto, // Import new DTO
 } from '../dto/responses.dto';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 
@@ -93,6 +95,30 @@ export class TelematicsController {
       vehicleId: data.vehicleId,
       timestamp: new Date(),
     };
+  }
+
+  @Get('nearby-vehicles')
+  @ApiOperation({
+    summary: 'Find nearby vehicles',
+    description: 'Retrieves a list of vehicles currently active within a specified geographical area using Geohash indexing.'
+  })
+  @ApiQuery({ name: 'latitude', example: 5.6037, description: 'Latitude of the center point' })
+  @ApiQuery({ name: 'longitude', example: -0.187, description: 'Longitude of the center point' })
+  @ApiQuery({ name: 'precision', example: 6, description: 'Geohash precision (1-12), default 6', required: false })
+  @ApiQuery({ name: 'timeWindowMinutes', example: 5, description: 'Time window in minutes for recent locations, default 5', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'List of nearby vehicles returned successfully',
+    type: [NearbyVehicleResponseDto]
+  })
+  async findNearbyVehicles(@Query() query: NearbyVehiclesQueryDto) {
+    const { latitude, longitude, precision, timeWindowMinutes } = query;
+    return await this.telematicsService.findNearbyVehicles(
+      latitude,
+      longitude,
+      precision,
+      timeWindowMinutes,
+    );
   }
 
   @Get('diagnostics/:vehicleId')

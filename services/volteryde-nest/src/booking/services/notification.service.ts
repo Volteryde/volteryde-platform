@@ -93,7 +93,12 @@ export class NotificationService {
 
   private async sendPushNotification(message: admin.messaging.Message): Promise<void> {
     try {
-      const response = await this.firebaseService.getMessaging().send(message);
+      const messaging = this.firebaseService.getMessaging();
+      if (!messaging) {
+        this.logger.warn('Firebase Messaging not initialized. Push notification not sent.');
+        return;
+      }
+      const response = await messaging.send(message);
       this.logger.log(`Successfully sent FCM message: ${response}`);
     } catch (error) {
       this.logger.error(`Failed to send FCM message: ${error}`);

@@ -7,29 +7,45 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TimestreamService } from './timestream.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
 import { MqttService } from '../../mqtt/mqtt.service'; // Import MqttService
+import { NotificationService } from '../../booking/services/notification.service'; // Import NotificationService
+import { DriverVehicleAssignmentService } from '../../fleet-operations/services/driver-vehicle-assignment.service'; // Import DriverVehicleAssignmentService
+import * as ngeohash from 'ngeohash'; // Import ngeohash
 
 @Injectable()
 export class TelematicsService {
   private readonly logger = new Logger(TelematicsService.name);
   private readonly MAX_ALLOWED_SPEED_KPH = 150; // Example: Max speed for a bus
   private readonly MAX_ACCURACY_THRESHOLD_METERS = 50; // Example: Max acceptable GPS accuracy
+  // Expected GPS update frequency from mobile apps: 1-5 seconds.
+  // Server-side logic is designed to handle this frequency.
 
   constructor(
     private timestreamService: TimestreamService,
     private mqttService: MqttService, // Inject MqttService
+    private notificationService: NotificationService, // Inject NotificationService
   ) {}
 
   async updateLocation(data: LocationUpdateDto): Promise<void> {
     this.logger.log(`Updating location for vehicle ${data.vehicleId}`);
 
     // Perform fraud detection
-    const isFraudulent = await this.detectFraud(data);
-    if (isFraudulent) {
-      this.logger.warn(`FRAUD DETECTED for vehicle ${data.vehicleId}. Location update ignored.`);
+    const fraudReason = await this.detectFraud(data);
+    if (fraudReason) {
+      this.logger.warn(`FRAUD DETECTED for vehicle ${data.vehicleId}: ${fraudReason}. Location update ignored.`);
+      // Send internal notification to administrators
+      await this.notificationService.sendNotification({
+        userId: 'admin', // Or a specific admin user ID
+        type: 'EMAIL', // Or PUSH to an admin app
+        subject: `Fraud Alert: Vehicle ${data.vehicleId}`,
+        message: `Fraudulent activity detected for vehicle ${data.vehicleId}. Reason: ${fraudReason}.`,
+      });
       // TODO: Integrate with a dedicated fraud alerting system or driver management system
-      // For now, we'll just log and potentially stop processing this update further for fraud.
+      // For example, update driver's fraud score or temporarily suspend driver.
       return; // Stop processing this fraudulent update
     }
+
+    // Generate Geohash
+    const geohash = ngeohash.encode(data.latitude, data.longitude, 9); // Precision 9 (approx 4.77m x 4.77m)
 
     await this.timestreamService.writeLocation({
       vehicleId: data.vehicleId,
@@ -39,6 +55,7 @@ export class TelematicsService {
       heading: data.heading,
       accuracy: data.accuracy,
       timestamp: data.timestamp ? new Date(data.timestamp) : undefined,
+      geohash: geohash, // Pass geohash to TimestreamService
     });
 
     // Publish to MQTT topics
@@ -51,6 +68,7 @@ export class TelematicsService {
         heading: data.heading || 0,
         accuracy: data.accuracy,
       },
+      geohash: geohash, // Include geohash in MQTT payload
       timestamp: new Date(),
     };
 
@@ -227,6 +245,21 @@ export class TelematicsService {
       safetyScore: 92,
       efficiencyScore: 88,
     };
+  }
+
+  async findNearbyVehicles(
+    latitude: number,
+    longitude: number,
+    precision: number = 6,
+    timeWindowMinutes: number = 5,
+  ): Promise<any[]> {
+    this.logger.log(`Finding nearby vehicles at (${latitude}, ${longitude})`);
+    return await this.timestreamService.findNearbyVehicles(
+      latitude,
+      longitude,
+      precision,
+      timeWindowMinutes,
+    );
   }
 
   private async detectFraud(data: LocationUpdateDto): Promise<boolean> {

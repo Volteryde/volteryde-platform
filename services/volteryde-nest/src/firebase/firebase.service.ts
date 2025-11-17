@@ -16,15 +16,15 @@ export class FirebaseService implements OnModuleInit {
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
 
     if (!serviceAccountPath) {
-      this.logger.error('FIREBASE_SERVICE_ACCOUNT_PATH environment variable is not set.');
-      throw new InternalServerErrorException('Firebase service account path is not configured.');
+      this.logger.warn('FIREBASE_SERVICE_ACCOUNT_PATH environment variable is not set. Firebase will not be initialized.');
+      return;
     }
 
     const absolutePath = path.resolve(process.cwd(), serviceAccountPath);
 
     if (!fs.existsSync(absolutePath)) {
-      this.logger.error(`Firebase service account file not found at: ${absolutePath}`);
-      throw new InternalServerErrorException('Firebase service account file not found.');
+      this.logger.warn(`Firebase service account file not found at: ${absolutePath}. Firebase will not be initialized.`);
+      return;
     }
 
     try {
@@ -36,13 +36,14 @@ export class FirebaseService implements OnModuleInit {
       this.logger.log('Firebase Admin SDK initialized successfully.');
     } catch (error) {
       this.logger.error('Failed to initialize Firebase Admin SDK:', error);
-      throw new InternalServerErrorException('Failed to initialize Firebase Admin SDK.');
+      this.logger.warn('Continuing without Firebase support.');
     }
   }
 
   getMessaging(): admin.messaging.Messaging {
     if (!this.app) {
-      throw new InternalServerErrorException('Firebase app not initialized.');
+      this.logger.warn('Firebase app not initialized. Push notifications will not be sent.');
+      return null;
     }
     return this.app.messaging();
   }

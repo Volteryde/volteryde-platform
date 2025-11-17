@@ -10,9 +10,10 @@ import { TelematicsController } from './controllers/telematics.controller';
 import { TelematicsService } from './services/telematics.service';
 import { TimestreamService } from './services/timestream.service';
 import { MqttModule } from '../mqtt/mqtt.module'; // Import MqttModule
+import { BookingModule } from '../booking/booking.module'; // Import BookingModule
 
 @Module({
-  imports: [ConfigModule, MqttModule], // Add ConfigModule and MqttModule here
+  imports: [ConfigModule, MqttModule, BookingModule], // Add ConfigModule, MqttModule, and BookingModule here
   controllers: [TelematicsController],
   providers: [TelematicsService, TimestreamService],
   exports: [TelematicsService],
