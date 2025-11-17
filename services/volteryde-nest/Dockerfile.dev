@@ -1,0 +1,55 @@
+# ============================================================================
+# Volteryde NestJS Backend - Development Docker Build
+# ============================================================================
+# This Dockerfile is optimized for development with hot-reload support
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy monorepo workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+
+# Copy pnpm-lock.yaml if it exists
+COPY pnpm-lock.yaml* ./
+
+# Copy service package.json
+COPY services/volteryde-nest/package.json ./services/volteryde-nest/
+
+# Copy shared packages if they exist
+COPY packages ./packages
+
+# Install all dependencies
+RUN pnpm install
+
+# Copy service source code
+COPY services/volteryde-nest ./services/volteryde-nest
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Working directory for the service
+WORKDIR /app/services/volteryde-nest
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start in development mode with hot-reload
+CMD ["pnpm", "dev"]

@@ -62,17 +62,18 @@ services:
       - POSTGRES_PWD=postgres
       - POSTGRES_SEEDS=postgres
       - DBNAME=temporal
+      - BIND_ON_IP=0.0.0.0
     ports:
       - "7233:7233"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "tctl --address 127.0.0.1:7233 cluster health 2>&1 | grep -q 'SERVING' || nc -z 127.0.0.1 7233"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
-      start_period: 60s
+      test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -97,7 +98,7 @@ services:
   # ============================================================================
   
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.5.0
     container_name: volteryde-kafka
     environment:
       KAFKA_BROKER_ID: 1
@@ -107,6 +108,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
     ports:
       - "29092:29092"
     depends_on:
@@ -135,14 +137,23 @@ services:
   
   nestjs-backend:
     build:
-      context: ./services/volteryde-nest
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
     container_name: volteryde-nestjs
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/volteryde
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - DATABASE_NAME=volteryde
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_API_KEY=
+      - TEMPORAL_CLIENT_CERT=
+      - TEMPORAL_CLIENT_KEY=
       - KAFKA_BROKERS=kafka:9092
       - PORT=3000
     ports:
@@ -155,17 +166,19 @@ services:
       temporal:
         condition: service_healthy
     volumes:
-      - ./services/volteryde-nest/src:/app/src
+      # Mount the entire monorepo for proper pnpm workspace support
+      - .:/app
+      # Prevent node_modules from being overwritten
       - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
     networks:
       - volteryde-network
     restart: unless-stopped
-    command: pnpm dev
 
   springboot-backend:
     build:
-      context: ./services/volteryde-springboot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile
     container_name: volteryde-springboot
     environment:
       - SPRING_PROFILES_ACTIVE=development
@@ -182,14 +195,20 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     networks:
       - volteryde-network
     restart: unless-stopped
 
   temporal-workers:
     build:
-      context: ./workers/temporal-workers
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: workers/temporal-workers/Dockerfile.dev
     container_name: volteryde-temporal-workers
     environment:
       - NODE_ENV=development
@@ -202,22 +221,24 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./workers/temporal-workers/src:/app/src
+      # Mount the entire monorepo for proper pnpm workspace support
+      - .:/app
+      # Prevent node_modules from being overwritten
       - /app/node_modules
+      - /app/workers/temporal-workers/node_modules
     networks:
       - volteryde-network
     restart: unless-stopped
-    command: pnpm dev
 
   routing-service:
     build:
-      context: ./services/routing-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/routing-service/Dockerfile
     container_name: volteryde-routing
     ports:
-      - "5000:5000"
+      - "5001:5000"
     volumes:
-      - ./services/routing-service:/data
+      - osrm_data:/data
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -263,6 +284,7 @@ volumes:
   zookeeper_data:
   prometheus_data:
   grafana_data:
+  osrm_data:
 
 networks:
   volteryde-network:

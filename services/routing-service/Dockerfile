@@ -3,7 +3,7 @@ FROM osrm/osrm-backend:latest
 
 # Add the map data file
 # The user MUST place 'ghana-latest.osm.pbf' in this directory
-COPY ./ghana-latest.osm.pbf /data/ghana-latest.osm.pbf
+COPY ./services/routing-service/ghana-latest.osm.pbf /data/ghana-latest.osm.pbf
 
 # Pre-process the data
 # This will run *during the build* to create the routing graph

@@ -6,7 +6,7 @@ import { TemporalModule } from './shared/temporal/temporal.module';
 import { BookingModule } from './booking/booking.module';
 import { TelematicsModule } from './telematics/telematics.module';
 import { FleetOperationsModule } from './fleet-operations/fleet-operations.module';
-// import { ChargingInfrastructureModule } from './charging-infrastructure/charging-infrastructure.module';
+import { ChargingInfrastructureModule } from './charging-infrastructure/charging-infrastructure.module';
 
 @Module({
   imports: [
@@ -32,7 +32,7 @@ import { FleetOperationsModule } from './fleet-operations/fleet-operations.modul
     BookingModule,
     TelematicsModule,
     FleetOperationsModule,
-    // ChargingInfrastructureModule, // TODO: Add when created
+    ChargingInfrastructureModule,
   ],
   controllers: [],
   providers: [],

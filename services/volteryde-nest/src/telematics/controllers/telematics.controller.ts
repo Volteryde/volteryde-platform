@@ -1,8 +1,3 @@
-// ============================================================================
-// Telematics Controller
-// ============================================================================
-// REST API endpoints for vehicle tracking, diagnostics, and analytics
-
 import {
   Controller,
   Get,
@@ -12,6 +7,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { TelematicsService } from '../services/telematics.service';
@@ -26,20 +22,15 @@ import {
   TripDataResponseDto,
   DriverAnalyticsResponseDto,
 } from '../dto/responses.dto';
-
-// TODO: Create JwtAuthGuard
-// import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 
 @ApiTags('Telematics')
 @Controller('api/v1/telematics')
-// @UseGuards(JwtAuthGuard) // Enable when JWT auth is set up
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class TelematicsController {
   constructor(private telematicsService: TelematicsService) {}
 
-  // =========================================================================
-  // Endpoint 1: Get current vehicle location
-  // =========================================================================
   @Get('location/current/:vehicleId')
   @ApiOperation({ 
     summary: 'Get current vehicle location',
@@ -56,9 +47,6 @@ export class TelematicsController {
     return await this.telematicsService.getCurrentLocation(vehicleId);
   }
 
-  // =========================================================================
-  // Endpoint 2: Get vehicle location history
-  // =========================================================================
   @Get('location/history')
   @ApiOperation({ 
     summary: 'Get vehicle location history',
@@ -84,9 +72,6 @@ export class TelematicsController {
     );
   }
 
-  // =========================================================================
-  // Endpoint 3: Update vehicle location (from driver app)
-  // =========================================================================
   @Post('location/track')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
@@ -102,9 +87,6 @@ export class TelematicsController {
   async updateLocation(@Body() data: LocationUpdateDto) {
     await this.telematicsService.updateLocation(data);
     
-    // TODO: Broadcast to WebSocket subscribers
-    // this.telematicsGateway.broadcastLocationUpdate(data.vehicleId, data);
-    
     return {
       success: true,
       message: 'Location updated successfully',
@@ -113,9 +95,6 @@ export class TelematicsController {
     };
   }
 
-  // =========================================================================
-  // Endpoint 4: Get vehicle diagnostics
-  // =========================================================================
   @Get('diagnostics/:vehicleId')
   @ApiOperation({ 
     summary: 'Get vehicle diagnostics (battery, temperature, etc.)',
@@ -132,9 +111,6 @@ export class TelematicsController {
     return await this.telematicsService.getDiagnostics(vehicleId);
   }
 
-  // =========================================================================
-  // Endpoint 5: Get vehicle alerts
-  // =========================================================================
   @Get('alerts/:vehicleId')
   @ApiOperation({ 
     summary: 'Get vehicle alerts and warnings',
@@ -157,9 +133,6 @@ export class TelematicsController {
     };
   }
 
-  // =========================================================================
-  // Endpoint 6: Check if vehicle is within geofence
-  // =========================================================================
   @Post('geofence/check')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
@@ -188,9 +161,6 @@ export class TelematicsController {
     };
   }
 
-  // =========================================================================
-  // Endpoint 7: Get trip data
-  // =========================================================================
   @Get('trip/:tripId')
   @ApiOperation({ 
     summary: 'Get trip data (route, stats, etc.)',
@@ -207,9 +177,6 @@ export class TelematicsController {
     return await this.telematicsService.getTripData(tripId);
   }
 
-  // =========================================================================
-  // Endpoint 8: Get driver behavior analytics
-  // =========================================================================
   @Get('analytics/driver/:driverId')
   @ApiOperation({ 
     summary: 'Get driver behavior analytics and scores',
