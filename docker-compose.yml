@@ -299,6 +299,7 @@ volumes:
   prometheus_data:
   grafana_data:
   osrm_data:
+  mosquitto_data:
 
 networks:
   volteryde-network:
