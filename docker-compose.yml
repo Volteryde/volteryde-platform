@@ -131,6 +131,19 @@ services:
       - volteryde-network
     restart: unless-stopped
 
+  mosquitto:
+    image: eclipse-mosquitto:2.0.15
+    container_name: volteryde-mosquitto
+    ports:
+      - "1883:1883" # Standard MQTT port
+      - "9001:9001" # MQTT over WebSockets port
+    volumes:
+      - ./infrastructure/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
   # ============================================================================
   # Backend Services
   # ============================================================================
@@ -155,6 +168,7 @@ services:
       - TEMPORAL_CLIENT_CERT=
       - TEMPORAL_CLIENT_KEY=
       - KAFKA_BROKERS=kafka:9092
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3000
     ports:
       - "3000:3000"

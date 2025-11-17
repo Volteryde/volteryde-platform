@@ -6,7 +6,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TimestreamService } from './timestream.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
-import { TelematicsGateway } from '../gateways/telematics.gateway';
+import { MqttService } from '../../mqtt/mqtt.service'; // Import MqttService
 
 @Injectable()
 export class TelematicsService {
@@ -14,7 +14,7 @@ export class TelematicsService {
 
   constructor(
     private timestreamService: TimestreamService,
-    private telematicsGateway: TelematicsGateway,
+    private mqttService: MqttService, // Inject MqttService
   ) {}
 
   async updateLocation(data: LocationUpdateDto): Promise<void> {
@@ -30,7 +30,53 @@ export class TelematicsService {
       timestamp: data.timestamp ? new Date(data.timestamp) : undefined,
     });
 
-    this.telematicsGateway.broadcastLocationUpdate(data.vehicleId, data);
+    // Publish to MQTT topics
+    const payload = {
+      vehicleId: data.vehicleId,
+      location: {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        speed: data.speed || 0,
+        heading: data.heading || 0,
+        accuracy: data.accuracy,
+      },
+      timestamp: new Date(),
+    };
+
+    const vehicleTopic = `volteryde/telematics/live/vehicle/${data.vehicleId}/location`;
+    const allVehiclesTopic = `volteryde/telematics/live/all/location`;
+
+    await this.mqttService.publish(vehicleTopic, payload);
+    await this.mqttService.publish(allVehiclesTopic, payload);
+  }
+
+  async broadcastDiagnosticsUpdate(vehicleId: string, diagnostics: any) {
+    const payload = {
+      vehicleId,
+      diagnostics,
+      timestamp: new Date(),
+    };
+    const vehicleTopic = `volteryde/telematics/live/vehicle/${vehicleId}/diagnostics`;
+    const allVehiclesTopic = `volteryde/telematics/live/all/diagnostics`;
+
+    await this.mqttService.publish(vehicleTopic, payload);
+    await this.mqttService.publish(allVehiclesTopic, payload);
+    this.logger.debug(`Diagnostics update broadcast for vehicle ${vehicleId}`);
+  }
+
+  async broadcastAlert(vehicleId: string, alert: string, severity: 'LOW' | 'MEDIUM' | 'HIGH') {
+    const payload = {
+      vehicleId,
+      alert,
+      severity,
+      timestamp: new Date(),
+    };
+    const vehicleTopic = `volteryde/telematics/live/vehicle/${vehicleId}/alert`;
+    const allVehiclesTopic = `volteryde/telematics/live/all/alert`;
+
+    await this.mqttService.publish(vehicleTopic, payload);
+    await this.mqttService.publish(allVehiclesTopic, payload);
+    this.logger.warn(`Alert broadcast for vehicle ${vehicleId}: ${alert}`);
   }
 
   async getCurrentLocation(vehicleId: string): Promise<any> {
