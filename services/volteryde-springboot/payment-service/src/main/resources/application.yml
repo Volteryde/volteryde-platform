@@ -1,0 +1,61 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /api/payment
+
+spring:
+  application:
+    name: payment-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/volteryde_payment
+    username: ${DB_USERNAME:volteryde_payment}
+    password: ${DB_PASSWORD:payment_password}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+stripe:
+  api:
+    key: ${STRIPE_API_KEY:sk_test_1234567890}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_1234567890}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.volteryde.payment: DEBUG
+    com.stripe: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/payment-service.log
