@@ -1,10 +1,17 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static files from the public directory
+  app.useStaticAssets(join(process.cwd(), 'public'), {
+    prefix: '/',
+  });
 
   // Enable CORS
   app.enableCors({
@@ -21,8 +28,10 @@ async function bootstrap() {
     }),
   );
 
-  // API prefix
-  app.setGlobalPrefix('api/v1');
+  // API prefix - exclude root controller
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
 
   // Swagger documentation
   const config = new DocumentBuilder()
