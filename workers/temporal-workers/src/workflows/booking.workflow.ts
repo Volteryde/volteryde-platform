@@ -22,6 +22,7 @@ import type {
   DriverNotification,
   NotificationPayload,
 } from '../interfaces';
+import { BookingStatus } from '../../../../packages/shared-types/src/booking-status.enum';
 
 // ============================================================================
 // Activity Proxies
@@ -36,6 +37,7 @@ const {
   sendNotification,
   releaseSeatReservation,
   refundPayment,
+  updateBookingStatus, // Import the new activity
 } = proxyActivities<typeof activities>({
   startToCloseTimeout: '30 seconds', // Max time for a single activity attempt
   retry: {
@@ -77,6 +79,8 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
   let reservation: Reservation | null = null;
   let payment: PaymentDetails | null = null;
   let shouldCompensate = false;
+  let bookingStatus: BookingStatus = BookingStatus.PENDING;
+  let bookingId: string | null = null; // To store bookingId once available
 
   try {
     // ========================================================================
@@ -84,6 +88,11 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     // ========================================================================
     console.log(`[WORKFLOW] Step 1: Reserving seat...`);
     reservation = await reserveSeat(request);
+    if (!reservation) {
+      throw new Error('Seat reservation failed: no reservation returned');
+    }
+    bookingStatus = BookingStatus.PENDING; // Still pending until confirmed
+    // We don't have a bookingId yet, so we can't update status in DB
     console.log(`[WORKFLOW] Seat reserved: ${reservation.reservationId}`);
 
     // Small delay to simulate real-world timing
@@ -95,11 +104,12 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     console.log(`[WORKFLOW] Step 2: Processing payment...`);
     payment = await processPayment(reservation);
 
-    if (payment.status !== 'SUCCESS') {
-      throw new Error(`Payment failed: ${payment.failureReason || 'Unknown reason'}`);
+    if (!payment || payment.status !== 'SUCCESS') {
+      throw new Error(`Payment failed: ${payment ? payment.failureReason || 'Unknown reason' : 'No payment response'}`);
     }
 
     console.log(`[WORKFLOW] Payment successful: ${payment.paymentId}`);
+    bookingStatus = BookingStatus.CONFIRMED; // Payment successful, now confirmed
 
     // After successful payment, we need to compensate if anything fails
     shouldCompensate = true;
@@ -109,6 +119,9 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     // ========================================================================
     console.log(`[WORKFLOW] Step 3: Confirming booking...`);
     const booking = await confirmBooking(reservation, payment);
+    bookingId = booking.bookingId;
+    bookingStatus = BookingStatus.IN_PROGRESS; // Booking is now in progress
+    await updateBookingStatus(bookingId, bookingStatus); // Update DB
     console.log(`[WORKFLOW] Booking confirmed: ${booking.bookingId}`);
 
     // ========================================================================
@@ -148,6 +161,10 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     // ========================================================================
     // Success!
     // ========================================================================
+    bookingStatus = BookingStatus.COMPLETED;
+    if (bookingId) {
+      await updateBookingStatus(bookingId, bookingStatus); // Update DB
+    }
     console.log(`[WORKFLOW] Booking workflow completed successfully: ${booking.bookingId}`);
     return booking;
 
@@ -157,6 +174,11 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     // ========================================================================
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[WORKFLOW] Booking workflow failed: ${errorMessage}`);
+
+    bookingStatus = BookingStatus.FAILED;
+    if (bookingId) {
+      await updateBookingStatus(bookingId, bookingStatus); // Update DB
+    }
 
     // Run compensation logic if needed
     if (shouldCompensate) {
@@ -237,8 +259,11 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
 /**
  * Example query handler to get the current booking status
  * Usage: const status = await handle.query('getBookingStatus');
+ * Note: This requires the status to be tracked in a workflow-scoped variable
  */
-export function getBookingStatus(): string {
-  // In a real implementation, you would track state in workflow variables
-  return 'PROCESSING';
+export function getBookingStatus(): BookingStatus {
+  // This is a placeholder - in the actual implementation,
+  // you would need to maintain a workflow-level state variable
+  // that can be accessed by this query function
+  return BookingStatus.PENDING;
 }

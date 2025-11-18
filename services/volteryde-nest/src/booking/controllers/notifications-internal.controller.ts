@@ -14,9 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { InternalServiceGuard } from '../../shared/guards/internal-service.guard';
-
-// TODO: Import notification service when created
-// import { NotificationService } from '../services/notification.service';
+import { NotificationService } from '../services/notification.service';
 
 @ApiTags('Internal - Notifications')
 @Controller('api/v1/notifications/internal')
@@ -24,11 +22,8 @@ import { InternalServiceGuard } from '../../shared/guards/internal-service.guard
 export class NotificationsInternalController {
   private readonly logger = new Logger(NotificationsInternalController.name);
   
-  // constructor(private notificationService: NotificationService) {}
+  constructor(private notificationService: NotificationService) {}
 
-  // =========================================================================
-  // Internal Endpoint 4: Notify Driver (Temporal Activity)
-  // =========================================================================
   @Post('driver')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
@@ -42,30 +37,17 @@ export class NotificationsInternalController {
       pickupLocation: { latitude: number; longitude: number; address?: string };
       dropoffLocation: { latitude: number; longitude: number; address?: string };
       passengerName?: string;
+      deviceToken?: string; // Added for FCM
     },
   ) {
     this.logger.log(`Notifying driver ${data.driverId} about booking ${data.bookingId}`);
-
-    // TODO: Implement actual notification logic (FCM, SMS, etc.)
-    // await this.notificationService.sendDriverNotification(data);
-
-    // Placeholder implementation
-    const notification = {
+    await this.notificationService.sendDriverNotification(data);
+    return {
       success: true,
-      driverId: data.driverId,
-      bookingId: data.bookingId,
-      channel: 'PUSH', // Could be PUSH, SMS, EMAIL
-      message: `New booking ${data.bookingId} assigned`,
-      sentAt: new Date(),
+      message: `Driver ${data.driverId} notified successfully`,
     };
-
-    this.logger.log(`Driver ${data.driverId} notified successfully`);
-    return notification;
   }
 
-  // =========================================================================
-  // Internal Endpoint 5: Send Passenger Notification (Temporal Activity)
-  // =========================================================================
   @Post('send')
   @HttpCode(HttpStatus.OK)
   @ApiExcludeEndpoint()
@@ -79,23 +61,14 @@ export class NotificationsInternalController {
       subject?: string;
       message: string;
       bookingId?: string;
+      deviceToken?: string; // Added for FCM
     },
   ) {
     this.logger.log(`Sending ${data.type} notification to user ${data.userId}`);
-
-    // TODO: Implement actual notification logic
-    // await this.notificationService.sendNotification(data);
-
-    // Placeholder implementation
-    const notification = {
+    await this.notificationService.sendNotification(data);
+    return {
       success: true,
-      userId: data.userId,
-      type: data.type,
-      message: data.message,
-      sentAt: new Date(),
+      message: `${data.type} notification sent to user ${data.userId}`,
     };
-
-    this.logger.log(`${data.type} notification sent to user ${data.userId}`);
-    return notification;
   }
 }

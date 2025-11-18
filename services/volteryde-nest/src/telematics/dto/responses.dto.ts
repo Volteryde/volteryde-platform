@@ -141,27 +141,44 @@ export class TripDataResponseDto {
 }
 
 export class DriverAnalyticsResponseDto {
-  @ApiProperty({ example: 'DRV-001' })
+  @ApiProperty({ description: 'Unique driver identifier', example: 'DRV-001' })
   driverId: string;
 
-  @ApiProperty({ example: 850.5, description: 'Total kilometers driven' })
-  totalDistance: number;
-
-  @ApiProperty({ example: 42, description: 'Total trips completed' })
+  @ApiProperty({ description: 'Total number of trips completed', example: 25 })
   totalTrips: number;
 
-  @ApiProperty({ example: 45.2, description: 'Average speed in km/h' })
+  @ApiProperty({ description: 'Total distance covered in kilometers', example: 543.2 })
+  totalDistance: number;
+
+  @ApiProperty({ description: 'Average speed across all trips in km/h', example: 45.3 })
   averageSpeed: number;
 
-  @ApiProperty({ example: 92.5, description: 'Driver score out of 100' })
-  driverScore: number;
+  @ApiProperty({ description: 'Safety score (e.g., 0-100)', example: 92 })
+  safetyScore: number;
 
-  @ApiProperty({ example: 3, description: 'Number of harsh braking events' })
-  harshBraking: number;
+  @ApiProperty({ description: 'Efficiency score (e.g., 0-100)', example: 88 })
+  efficiencyScore: number;
+}
 
-  @ApiProperty({ example: 2, description: 'Number of rapid acceleration events' })
-  rapidAcceleration: number;
+export class NearbyVehicleResponseDto {
+  @ApiProperty({ description: 'Unique vehicle identifier', example: 'VEH-001' })
+  vehicleId: string;
 
-  @ApiProperty({ example: 1, description: 'Number of speeding incidents' })
-  speeding: number;
+  @ApiProperty({ description: 'Latitude coordinate', example: 5.6037 })
+  latitude: number;
+
+  @ApiProperty({ description: 'Longitude coordinate', example: -0.187 })
+  longitude: number;
+
+  @ApiProperty({ description: 'Vehicle speed in km/h', example: 45 })
+  speed: number;
+
+  @ApiProperty({ description: 'Vehicle heading in degrees', example: 180 })
+  heading: number;
+
+  @ApiProperty({ description: 'GPS accuracy in meters', example: 5.2 })
+  accuracy: number;
+
+  @ApiProperty({ description: 'Timestamp of the latest location update', example: '2024-11-14T16:30:00Z' })
+  latest_time: Date;
 }

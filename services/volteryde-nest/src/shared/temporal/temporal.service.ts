@@ -59,6 +59,7 @@ export class TemporalService implements OnModuleInit, OnModuleDestroy {
       // Method 3: Local development (no TLS)
       else {
         this.logger.log('🔓 Using insecure connection (local development)');
+        connectionOptions.tls = false;
       }
 
       // Create connection
@@ -72,7 +73,8 @@ export class TemporalService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log('✓ Successfully connected to Temporal server');
     } catch (error) {
-      this.logger.error('Failed to connect to Temporal server:', error);
+      this.logger.error('Failed to connect to Temporal server:');
+      this.logger.error(error instanceof Error ? error.message : String(error));
       this.logger.warn('Temporal workflows will not be available');
       // Don't throw - allow the service to start even if Temporal is unavailable
     }

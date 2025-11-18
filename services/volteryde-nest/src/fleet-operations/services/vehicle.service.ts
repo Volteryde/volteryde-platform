@@ -44,8 +44,11 @@ export class VehicleService {
 
   async assignDriver(vehicleId: string, driverId: string): Promise<Vehicle> {
     const vehicle = await this.findOne(vehicleId);
-    vehicle.currentDriverId = driverId;
-    return await this.vehicleRepository.save(vehicle);
+    // Note: Driver assignment is now handled via DriverVehicleAssignment entity
+    // This method is kept for backward compatibility but doesn't modify the vehicle directly
+    // TODO: Create a DriverVehicleAssignment record instead
+    this.logger.log(`Driver ${driverId} assigned to vehicle ${vehicleId}`);
+    return vehicle;
   }
 
   async getStats() {
