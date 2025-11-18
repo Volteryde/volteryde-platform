@@ -13,6 +13,7 @@ import {
   DriverNotification,
   NotificationPayload,
 } from '../interfaces';
+import { BookingStatus } from '../../../../packages/shared-types/src/booking-status.enum';
 
 // Get service URLs from environment variables
 // In Kubernetes: http://service-name.namespace.svc.cluster.local
@@ -21,6 +22,41 @@ import {
 const NESTJS_API_URL = process.env.NESTJS_API_URL || 'http://localhost:3000';
 const SPRINGBOOT_API_URL = process.env.SPRINGBOOT_API_URL || 'http://localhost:8080';
 const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY || 'dev-internal-key';
+
+/**
+ * Activity: Update the status of a booking
+ * 
+ * This activity communicates with the Booking domain in NestJS
+ * to update the status of a specific booking.
+ * 
+ * @param bookingId - The ID of the booking to update
+ * @param status - The new status for the booking
+ */
+export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<void> {
+  console.log(`[ACTIVITY] Updating status for booking ${bookingId} to ${status}`);
+
+  try {
+    await axios.patch(
+      `${NESTJS_API_URL}/api/v1/booking/internal/${bookingId}/status`,
+      { status },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 5000,
+      }
+    );
+    console.log(`[ACTIVITY] Booking ${bookingId} status updated to ${status}`);
+  } catch (error) {
+    console.error(`[ACTIVITY] Failed to update status for booking ${bookingId} to ${status}:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Failed to update booking status: ${message}`);
+    }
+    throw new Error(`Failed to update booking status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 /**
  * Activity: Reserve a seat for the booking

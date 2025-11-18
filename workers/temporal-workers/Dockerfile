@@ -10,11 +10,16 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm@8
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+# Copy monorepo workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Copy worker package.json
+COPY workers/temporal-workers/package.json ./workers/temporal-workers/
+
+# Install all dependencies (including workspace dependencies)
+RUN pnpm install
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
@@ -26,11 +31,20 @@ RUN npm install -g pnpm@8
 
 # Copy dependencies from previous stage
 COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=dependencies /app/workers/temporal-workers/node_modules ./workers/temporal-workers/node_modules
 
-# Copy source code
-COPY . .
+# Copy workspace configuration
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml ./
+
+# Copy worker source code
+COPY workers/temporal-workers ./workers/temporal-workers
+
+# Copy shared packages if they exist
+COPY packages ./packages
 
 # Build the application
+WORKDIR /app/workers/temporal-workers
 RUN pnpm build
 
 # Stage 3: Production
@@ -48,14 +62,17 @@ RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+# Copy workspace configuration
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
+COPY workers/temporal-workers/package.json ./workers/temporal-workers/
 
-# Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+# Install production dependencies only
+RUN pnpm install --prod
 
 # Copy built application from builder stage
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/workers/temporal-workers/dist ./dist
 
 # Set ownership
 RUN chown -R nodejs:nodejs /app

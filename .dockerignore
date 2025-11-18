@@ -1,0 +1,91 @@
+# ============================================================================
+# Root .dockerignore for Volteryde Platform Monorepo
+# ============================================================================
+# This file controls what gets sent to Docker build context from the root
+# Keep it minimal since we're building from monorepo root
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.vs
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Documentation (except essential ones)
+*.md
+!README.md
+docs/
+
+# Docker files (except what we need)
+**/Dockerfile
+!**/Dockerfile.dev
+docker-compose*.yml
+!docker-compose.yml
+
+# Large files and caches that aren't needed
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.cache/
+**/coverage/
+**/.nyc_output/
+
+# Environment and secrets
+.env.local
+.env.*.local
+*.pem
+*.key
+!**/public.key
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test files
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__/
+**/test/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Mobile apps (not needed for backend services)
+apps/mobile-driver-app/
+apps/mobile-passenger-app/
+
+# Keep these essential files
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!tsconfig.json
+!nest-cli.json
+!.prettierrc
+!.eslintrc.js

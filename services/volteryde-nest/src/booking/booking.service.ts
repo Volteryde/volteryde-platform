@@ -5,6 +5,7 @@
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TemporalService } from '../shared/temporal/temporal.service';
+import { BookingStatus } from '../../../../packages/shared-types/src/booking-status.enum';
 
 // Import types from temporal-workers (shared in monorepo)
 interface GpsLocation {
@@ -82,7 +83,7 @@ export class BookingService {
       return {
         workflowId: execution.workflowId,
         runId: execution.runId,
-        status: 'PROCESSING',
+        status: BookingStatus.PENDING, // Initial status from workflow
         message: 'Your booking is being processed',
       };
     } catch (error) {
@@ -97,7 +98,7 @@ export class BookingService {
    * @param workflowId - The workflow/booking ID
    * @returns Booking confirmation or status
    */
-  async getBookingStatus(workflowId: string): Promise<any> {
+  async getBookingStatus(workflowId: string): Promise<{ workflowId: string; status: BookingStatus; message?: string }> {
     this.logger.log(`Getting booking status for ${workflowId}`);
 
     if (!this.temporalService.isAvailable()) {
@@ -105,22 +106,24 @@ export class BookingService {
     }
 
     try {
-      // Try to get the workflow result (this will wait if workflow is still running)
-      const result = await this.temporalService.getWorkflowResult<BookingConfirmation>(workflowId);
+      // Query the workflow for its current status
+      const currentStatus: BookingStatus = await this.temporalService.queryWorkflow(
+        workflowId,
+        'getBookingStatus',
+      );
       
-      this.logger.log(`Booking completed: ${result.bookingId}`);
+      this.logger.log(`Booking ${workflowId} current status: ${currentStatus}`);
       
       return {
         workflowId,
-        status: 'COMPLETED',
-        booking: result,
+        status: currentStatus,
       };
     } catch (error: any) {
       // If workflow is still running or failed
       if (error.message?.includes('workflow execution already started')) {
         return {
           workflowId,
-          status: 'PROCESSING',
+          status: BookingStatus.PENDING, // Default to PENDING if query fails but workflow is running
           message: 'Booking is still being processed',
         };
       }
@@ -133,8 +136,8 @@ export class BookingService {
       
       return {
         workflowId,
-        status: 'FAILED',
-        error: error.message || 'Unknown error occurred',
+        status: BookingStatus.FAILED, // Default to FAILED if an unknown error occurs
+        message: error.message || 'Unknown error occurred',
       };
     }
   }

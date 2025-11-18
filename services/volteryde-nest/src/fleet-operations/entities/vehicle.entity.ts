@@ -9,11 +9,10 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
   OneToMany,
 } from 'typeorm';
-import { Driver } from './driver.entity';
 import { MaintenanceRecord } from './maintenance-record.entity';
+import { DriverVehicleAssignment } from './driver-vehicle-assignment.entity'; // Import new entity
 
 export enum VehicleStatus {
   ACTIVE = 'ACTIVE',
@@ -74,11 +73,8 @@ export class Vehicle {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   currentBatteryLevel: number; // percentage
 
-  @Column({ nullable: true })
-  currentDriverId: string;
-
-  @ManyToOne(() => Driver, (driver) => driver.vehicles, { nullable: true })
-  currentDriver: Driver;
+  @OneToMany(() => DriverVehicleAssignment, (assignment) => assignment.vehicle)
+  assignments: DriverVehicleAssignment[];
 
   @OneToMany(() => MaintenanceRecord, (record) => record.vehicle)
   maintenanceRecords: MaintenanceRecord[];

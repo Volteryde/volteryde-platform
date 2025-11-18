@@ -1,0 +1,180 @@
+#!/usr/bin/env sh
+
+#
+# Copyright 2007-2022, the original author or authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# ----------------------------------------------------------------------------
+# Maven Start Up Script
+#
+# Required ENV vars:
+# ------------------
+#   M2_HOME - location of maven installation
+#
+# Optional ENV vars
+# -----------------
+#   MAVEN_OPTS - parameters passed to the Java VM when running Maven
+#     e.g. to debug Maven itself, use
+#       set MAVEN_OPTS=-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000
+#   MAVEN_SKIP_RC - flag to disable loading of /etc/mavenrc and ~/.mavenrc
+# ----------------------------------------------------------------------------
+
+# based on https://github.com/takari/maven-wrapper/blob/master/src/main/maven/mvnw
+
+# OS specific support.
+cydwin=false;
+darwin=false;
+mingw=false;
+case "`uname`" in
+  CYGWIN*) cygwin=true;; 
+  Darwin*) darwin=true;; 
+  MINGW*) mingw=true;; 
+esac
+
+# Attempt to set M2_HOME if it is not already set.
+if [ -z "$M2_HOME" ]; then
+  ## resolve links - $0 may be a link to maven's script
+  PRG="$0"
+
+  # need this for relative symlinks
+  while [ -h "$PRG" ] ; do
+    ls=`ls -ld "$PRG"`
+    link=`expr "$ls" : '.*-> \(.*\)$'`
+    if expr "$link" : '/.*' > /dev/null; then
+      PRG="$link"
+    else
+      PRG="`dirname "$PRG"`/$link"
+    fi
+  done
+
+  saveddir=`pwd`
+
+  M2_HOME=`dirname "$PRG"`/.. 
+
+  # make it fully qualified
+  M2_HOME=`cd "$M2_HOME" && pwd`
+
+  cd "$saveddir"
+fi
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin ; then
+  [ -n "$M2_HOME" ] &&
+    M2_HOME=`cygpath --unix "$M2_HOME"`
+  [ -n "$JAVA_HOME" ] &&
+    JAVA_HOME=`cygpath --unix "$JAVA_HOME"`
+fi
+
+# Read command line options in case -f or --file is used.
+#
+# This is a bit of a hack, but it is the only way to get the correct
+# project directory without lots of rewriting of the existing script.
+#
+# This will not work if the user specifies '-f' with a directory, but
+# that is not a common use case.
+#
+# It will also not work if the user specifies '--file' with a directory,
+
+while [ $# -gt 0 ]
+do
+  case "$1" in
+    -f|--file)
+      if [ $# -gt 1 ]; then
+        PROJECT_DIR=`dirname "$2"`
+      fi
+      break;;
+  esac
+  shift
+done
+
+if [ -z "$PROJECT_DIR" ]; then
+  PROJECT_DIR=`pwd`
+fi
+
+# For Cygwin, switch paths to Windows format before running java
+if $cygwin; then
+  [ -n "$M2_HOME" ] &&
+    M2_HOME=`cygpath --path --windows "$M2_HOME"`
+  [ -n "$JAVA_HOME" ] &&
+    JAVA_HOME=`cygpath --path --windows "$JAVA_HOME"`
+  [ -n "$PROJECT_DIR" ] &&
+    PROJECT_DIR=`cygpath --path --windows "$PROJECT_DIR"`
+fi
+
+# For MinGW, ensure paths are in UNIX format before anything is touched
+if $mingw ; then
+  [ -n "$M2_HOME" ] &&
+    M2_HOME=`(cd "$M2_HOME" && pwd)`
+  [ -n "$JAVA_HOME" ] &&
+    JAVA_HOME=`(cd "$JAVA_HOME" && pwd)`
+  # TODO a better way to detect this
+  if [ -n "$CLASSPATH" ] ; then
+    CLASSPATH=`cygpath --path --windows "$CLASSPATH"`
+  fi
+fi
+
+# ----- Verify and Set Required Environment Variables -------------------------
+
+MAVEN_PROJECTBASEDIR="${PROJECT_DIR}"
+export MAVEN_PROJECTBASEDIR
+
+if [ -z "$JAVA_HOME" ]; then
+  if $darwin; then
+    if [ -x "/usr/libexec/java_home" ]; then
+      JAVA_HOME=`/usr/libexec/java_home`
+    elif [ -d "/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home" ]; then
+      JAVA_HOME="/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home"
+    fi
+  else
+    java_exe=`which java 2>/dev/null`
+    if [ -n "$java_exe" ]; then
+      java_exe=`readlink -f "$java_exe" 2>/dev/null`
+      if [ -n "$java_exe" ]; then
+        JAVA_HOME=`dirname "$java_exe"`/.. 
+        JAVA_HOME=`cd "$JAVA_HOME" && pwd`
+      fi
+    fi
+  fi
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+  echo "Error: JAVA_HOME is not defined."
+  exit 1
+fi
+
+# ----- Set Up The Boot Classpath ---------------------------------------------
+
+MAVEN_WRAPPER_JAR="${MAVEN_PROJECTBASEDIR}/.mvn/wrapper/maven-wrapper.jar"
+export MAVEN_WRAPPER_JAR
+
+if [ ! -f "$MAVEN_WRAPPER_JAR" ]; then
+  echo "Error: Maven wrapper jar is not available: $MAVEN_WRAPPER_JAR"
+  exit 1
+fi
+
+# ----- Set Up The Classpath --------------------------------------------------
+
+# For MinGW, we need to fix the classpath
+if $mingw ; then
+  MAVEN_WRAPPER_JAR=`cygpath --path --windows "$MAVEN_WRAPPER_JAR"`
+fi
+
+# ----- Execute The Requested Command -----------------------------------------
+
+"$_RUNJAVA" $MAVEN_OPTS \
+  -classpath "$MAVEN_WRAPPER_JAR" \
+  "-Dmaven.home=${M2_HOME}" \
+  "-Dmaven.multiModuleProjectDirectory=${MAVEN_PROJECTBASEDIR}" \
+  org.apache.maven.wrapper.MavenWrapperMain "$@"

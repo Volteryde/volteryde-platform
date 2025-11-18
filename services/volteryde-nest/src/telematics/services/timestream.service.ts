@@ -16,6 +16,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/client-timestream-query';
 import { ConfigService } from '@nestjs/config';
+import * as ngeohash from 'ngeohash';
 
 @Injectable()
 export class TimestreamService {
@@ -48,6 +49,7 @@ export class TimestreamService {
     heading?: number;
     accuracy?: number;
     timestamp?: Date;
+    geohash: string; // Add geohash
   }): Promise<void> {
     try {
       const currentTime = (data.timestamp || new Date()).getTime().toString();
@@ -56,6 +58,10 @@ export class TimestreamService {
         {
           Name: 'vehicleId',
           Value: data.vehicleId,
+        },
+        {
+          Name: 'geohash', // Add geohash as a dimension
+          Value: data.geohash,
         },
       ];
 
@@ -237,6 +243,50 @@ export class TimestreamService {
       return results.length > 0 ? results[0] : null;
     } catch (error) {
       this.logger.error('Failed to get latest diagnostics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find nearby vehicles using Geohash prefixes
+   */
+  async findNearbyVehicles(
+    latitude: number,
+    longitude: number,
+    precision: number = 6, // Geohash precision (e.g., 6 for ~610m x 610m)
+    timeWindowMinutes: number = 5, // Look for vehicles updated in the last 5 minutes
+  ): Promise<any[]> {
+    try {
+      const geohash = ngeohash.encode(latitude, longitude, precision);
+      const neighbors = ngeohash.neighbors(geohash);
+      const geohashPrefixes = [geohash, ...neighbors];
+
+      const geohashFilter = geohashPrefixes
+        .map((prefix) => `geohash LIKE '${prefix}%'`)
+        .join(' OR ');
+
+      const queryString = `
+        SELECT DISTINCT
+          vehicleId,
+          MAX(time) AS latest_time,
+          MAX(measure_value::double) FILTER (WHERE measure_name = 'latitude') AS latitude,
+          MAX(measure_value::double) FILTER (WHERE measure_name = 'longitude') AS longitude,
+          MAX(measure_value::double) FILTER (WHERE measure_name = 'speed') AS speed,
+          MAX(measure_value::double) FILTER (WHERE measure_name = 'heading') AS heading,
+          MAX(measure_value::double) FILTER (WHERE measure_name = 'accuracy') AS accuracy
+        FROM "${this.databaseName}"."${this.locationTableName}"
+        WHERE (${geohashFilter})
+          AND time BETWEEN ago(${timeWindowMinutes}m) AND now()
+        GROUP BY vehicleId
+        ORDER BY latest_time DESC
+      `;
+
+      const command = new QueryCommand({ QueryString: queryString });
+      const response = await this.queryClient.send(command);
+
+      return this.parseQueryResponse(response);
+    } catch (error) {
+      this.logger.error('Failed to find nearby vehicles:', error);
       throw error;
     }
   }

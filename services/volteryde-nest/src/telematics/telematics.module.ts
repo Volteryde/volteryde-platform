@@ -5,14 +5,17 @@
 // Using AWS Timestream for time-series data storage
 
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config'; // Import ConfigModule
 import { TelematicsController } from './controllers/telematics.controller';
 import { TelematicsService } from './services/telematics.service';
 import { TimestreamService } from './services/timestream.service';
-import { TelematicsGateway } from './gateways/telematics.gateway';
+import { MqttModule } from '../mqtt/mqtt.module'; // Import MqttModule
+import { BookingModule } from '../booking/booking.module'; // Import BookingModule
 
 @Module({
+  imports: [ConfigModule, MqttModule, BookingModule], // Add ConfigModule, MqttModule, and BookingModule here
   controllers: [TelematicsController],
-  providers: [TelematicsService, TimestreamService, TelematicsGateway],
+  providers: [TelematicsService, TimestreamService],
   exports: [TelematicsService],
 })
 export class TelematicsModule {}
