@@ -12,8 +12,10 @@ import {
   BookingConfirmation,
   DriverNotification,
   NotificationPayload,
+  WalletBalance,
+  WalletTransaction,
+  BookingStatus,
 } from '../interfaces';
-import { BookingStatus } from '../../../../packages/shared-types/src/booking-status.enum';
 
 // Get service URLs from environment variables
 // In Kubernetes: http://service-name.namespace.svc.cluster.local
@@ -55,6 +57,121 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
       throw new Error(`Failed to update booking status: ${message}`);
     }
     throw new Error(`Failed to update booking status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Activity: Check if user has sufficient wallet balance
+ * 
+ * This activity communicates with the Payment/Wallet domain in Spring Boot
+ * to check the user's current wallet balance.
+ * 
+ * @param userId - The ID of the user
+ * @param requiredAmount - The amount required for the booking
+ * @returns Wallet balance status
+ */
+export async function checkWalletBalance(userId: string, requiredAmount: number): Promise<WalletBalance> {
+  console.log(`[ACTIVITY] Checking wallet balance for user ${userId}. Required: ${requiredAmount}`);
+
+  try {
+    // Call the Spring Boot Wallet API to get balance
+    // Assuming endpoint: GET /api/v1/wallet/{userId}/balance
+    const response = await axios.get(
+      `${SPRINGBOOT_API_URL}/api/v1/wallet/${userId}/balance`,
+      {
+        headers: {
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 5000,
+      }
+    );
+
+    const data = response.data;
+    // Assuming response structure: { balance: number, currency: string }
+    
+    const balance = typeof data === 'number' ? data : data.balance;
+    const currency = data.currency || 'GHS';
+
+    const hasSufficientFunds = balance >= requiredAmount;
+
+    console.log(`[ACTIVITY] User ${userId} balance: ${balance} ${currency}. Sufficient: ${hasSufficientFunds}`);
+
+    return {
+      userId,
+      balance,
+      currency,
+      hasSufficientFunds,
+    };
+  } catch (error) {
+    console.error(`[ACTIVITY] Failed to check wallet balance:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      // If 404, maybe wallet doesn't exist, treat as 0 balance
+      if (error.response?.status === 404) {
+        return {
+            userId,
+            balance: 0,
+            currency: 'GHS',
+            hasSufficientFunds: false
+        };
+      }
+      throw new Error(`Wallet balance check failed: ${message}`);
+    }
+    throw new Error(`Wallet balance check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Activity: Deduct fare from user's wallet
+ * 
+ * This activity communicates with the Payment/Wallet domain in Spring Boot
+ * to deduct the fare amount from the user's wallet.
+ * 
+ * @param userId - The ID of the user
+ * @param amount - The amount to deduct
+ * @param bookingId - The booking ID (for reference)
+ * @returns Transaction details
+ */
+export async function deductFare(userId: string, amount: number, bookingId: string): Promise<WalletTransaction> {
+  console.log(`[ACTIVITY] Deducting ${amount} from user ${userId} wallet for booking ${bookingId}`);
+
+  try {
+    // Call the Spring Boot Wallet API to deduct funds
+    // Assuming endpoint: POST /api/v1/wallet/deduct
+    const response = await axios.post(
+      `${SPRINGBOOT_API_URL}/api/v1/wallet/deduct`,
+      {
+        userId,
+        amount,
+        currency: 'GHS',
+        referenceId: bookingId,
+        reason: 'Ride Booking Fare',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 10000,
+      }
+    );
+
+    const transaction: WalletTransaction = response.data;
+    
+    if (transaction.status === 'SUCCESS') {
+      console.log(`[ACTIVITY] Wallet deduction successful: ${transaction.transactionId}`);
+    } else {
+      console.error(`[ACTIVITY] Wallet deduction failed: ${transaction.failureReason}`);
+    }
+    
+    return transaction;
+  } catch (error) {
+    console.error(`[ACTIVITY] Wallet deduction error:`, error);
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message || error.message;
+      throw new Error(`Wallet deduction failed: ${message}`);
+    }
+    throw new Error(`Wallet deduction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -260,6 +377,43 @@ export async function sendNotification(notification: NotificationPayload): Promi
     console.error(`[ACTIVITY] Notification sending error:`, error);
     // Don't throw - notification failures shouldn't fail the workflow
     console.warn(`[ACTIVITY] Continuing despite notification failure`);
+  }
+}
+
+/**
+ * Compensation Activity: Refund wallet deduction
+ *
+ * This activity credits the user's wallet if the booking workflow fails
+ * after funds have already been deducted.
+ *
+ * @param transaction - The wallet transaction to refund
+ */
+export async function refundWalletDeduction(transaction: WalletTransaction): Promise<void> {
+  console.log(`[COMPENSATION] Refunding wallet transaction ${transaction.transactionId}`);
+
+  try {
+    await axios.post(
+      `${SPRINGBOOT_API_URL}/api/v1/wallet/credit`,
+      {
+        userId: transaction.userId,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        referenceId: `REFUND-${transaction.transactionId}`,
+        reason: 'Booking failed - wallet refund',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 10000,
+      }
+    );
+
+    console.log(`[COMPENSATION] Wallet refund completed for user ${transaction.userId}`);
+  } catch (error) {
+    console.error(`[COMPENSATION] Failed to refund wallet transaction:`, error);
+    console.error(`[COMPENSATION] Manual refund may be required for transaction ${transaction.transactionId}`);
   }
 }
 

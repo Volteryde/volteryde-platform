@@ -4,6 +4,19 @@
 // These interfaces define the data contracts between workflows and activities
 
 /**
+ * Booking Status Enum
+ * Copied from shared-types to avoid rootDir issues in Temporal worker
+ */
+export enum BookingStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  CANCELLED = 'CANCELLED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+/**
  * GPS Location coordinates
  */
 export interface GpsLocation {
@@ -89,3 +102,28 @@ export interface DriverNotification {
   pickupLocation: GpsLocation;
   dropoffLocation: GpsLocation;
 }
+
+/**
+ * Wallet balance details
+ */
+export interface WalletBalance {
+  userId: string;
+  balance: number;
+  currency: string;
+  hasSufficientFunds: boolean;
+}
+
+/**
+ * Wallet transaction details
+ */
+export interface WalletTransaction {
+  transactionId: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  type: 'DEBIT' | 'CREDIT';
+  status: 'SUCCESS' | 'FAILED';
+  timestamp: Date;
+  failureReason?: string;
+}
+

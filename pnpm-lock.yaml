@@ -511,7 +511,7 @@ importers:
         specifier: ^1.8.0
         version: 1.13.2
       '@temporalio/workflow':
-        specifier: ^1.8.0
+        specifier: ^1.13.2
         version: 1.13.2
       axios:
         specifier: ^1.5.0

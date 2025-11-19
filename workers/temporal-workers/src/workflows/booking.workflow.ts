@@ -21,8 +21,10 @@ import type {
   PaymentDetails,
   DriverNotification,
   NotificationPayload,
+  WalletBalance,
+  WalletTransaction,
 } from '../interfaces';
-import { BookingStatus } from '../../../../packages/shared-types/src/booking-status.enum';
+import { BookingStatus } from '../interfaces';
 
 // ============================================================================
 // Activity Proxies
@@ -31,13 +33,14 @@ import { BookingStatus } from '../../../../packages/shared-types/src/booking-sta
 
 const {
   reserveSeat,
-  processPayment,
+  checkWalletBalance,
+  deductFare,
   confirmBooking,
   notifyDriver,
   sendNotification,
   releaseSeatReservation,
-  refundPayment,
-  updateBookingStatus, // Import the new activity
+  refundWalletDeduction,
+  updateBookingStatus,
 } = proxyActivities<typeof activities>({
   startToCloseTimeout: '30 seconds', // Max time for a single activity attempt
   retry: {
@@ -58,13 +61,14 @@ const {
  * This is the main workflow for processing a ride booking in the Volteryde platform.
  * It orchestrates the following steps:
  * 
- * 1. Reserve a seat on a vehicle
- * 2. Process payment through Paystack
- * 3. Confirm the booking and assign a driver
- * 4. Notify the driver and passenger
+ * 1. Check wallet balance
+ * 2. Reserve a seat on a vehicle
+ * 3. Deduct fare from wallet
+ * 4. Confirm the booking and assign a driver
+ * 5. Notify the driver and passenger
  * 
- * If any step fails after payment, the workflow runs compensation logic (Saga pattern):
- * - Refunds the payment
+ * If any step fails after deduction, the workflow runs compensation logic (Saga pattern):
+ * - Refunds the wallet deduction
  * - Releases the seat reservation
  * - Notifies the user of the failure
  * 
@@ -77,16 +81,26 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
   console.log(`[WORKFLOW] Starting booking workflow ${info.workflowId} for user ${request.userId}`);
 
   let reservation: Reservation | null = null;
-  let payment: PaymentDetails | null = null;
-  let shouldCompensate = false;
+  let transaction: WalletTransaction | null = null;
   let bookingStatus: BookingStatus = BookingStatus.PENDING;
   let bookingId: string | null = null; // To store bookingId once available
+  const RIDE_FARE = 12;
 
   try {
     // ========================================================================
-    // Step 1: Reserve Seat
+    // Step 1: Check Wallet Balance
     // ========================================================================
-    console.log(`[WORKFLOW] Step 1: Reserving seat...`);
+    console.log(`[WORKFLOW] Step 1: Checking wallet balance...`);
+    const walletStatus: WalletBalance = await checkWalletBalance(request.userId, RIDE_FARE);
+
+    if (!walletStatus.hasSufficientFunds) {
+      throw new Error(`Insufficient funds. Required ${RIDE_FARE} ${walletStatus.currency}, available ${walletStatus.balance}`);
+    }
+
+    // ========================================================================
+    // Step 2: Reserve Seat
+    // ========================================================================
+    console.log(`[WORKFLOW] Step 2: Reserving seat...`);
     reservation = await reserveSeat(request);
     if (!reservation) {
       throw new Error('Seat reservation failed: no reservation returned');
@@ -99,37 +113,41 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     await sleep('1 second');
 
     // ========================================================================
-    // Step 2: Process Payment
+    // Step 3: Deduct Fare
     // ========================================================================
-    console.log(`[WORKFLOW] Step 2: Processing payment...`);
-    payment = await processPayment(reservation);
+    console.log(`[WORKFLOW] Step 3: Deducting fare from wallet...`);
+    transaction = await deductFare(request.userId, RIDE_FARE, reservation.reservationId);
 
-    if (!payment || payment.status !== 'SUCCESS') {
-      throw new Error(`Payment failed: ${payment ? payment.failureReason || 'Unknown reason' : 'No payment response'}`);
+    if (!transaction || transaction.status !== 'SUCCESS') {
+      throw new Error(`Wallet deduction failed: ${transaction ? transaction.failureReason || 'Unknown reason' : 'No response'}`);
     }
 
-    console.log(`[WORKFLOW] Payment successful: ${payment.paymentId}`);
-    bookingStatus = BookingStatus.CONFIRMED; // Payment successful, now confirmed
-
-    // After successful payment, we need to compensate if anything fails
-    shouldCompensate = true;
+    bookingStatus = BookingStatus.CONFIRMED;
 
     // ========================================================================
-    // Step 3: Confirm Booking
+    // Step 4: Confirm Booking
     // ========================================================================
-    console.log(`[WORKFLOW] Step 3: Confirming booking...`);
-    const booking = await confirmBooking(reservation, payment);
+    console.log(`[WORKFLOW] Step 4: Confirming booking...`);
+
+    const paymentDetails: PaymentDetails = {
+      paymentId: transaction.transactionId,
+      status: transaction.status,
+      amount: transaction.amount,
+      currency: transaction.currency,
+    };
+
+    const booking = await confirmBooking(reservation, paymentDetails);
     bookingId = booking.bookingId;
     bookingStatus = BookingStatus.IN_PROGRESS; // Booking is now in progress
     await updateBookingStatus(bookingId, bookingStatus); // Update DB
     console.log(`[WORKFLOW] Booking confirmed: ${booking.bookingId}`);
 
     // ========================================================================
-    // Step 4: Send Notifications (Non-blocking)
+    // Step 5: Send Notifications (Non-blocking)
     // ========================================================================
     // We run notifications in a non-cancellable scope so they complete
     // even if the workflow is cancelled or times out
-    console.log(`[WORKFLOW] Step 4: Sending notifications...`);
+    console.log(`[WORKFLOW] Step 5: Sending notifications...`);
 
     await CancellationScope.nonCancellable(async () => {
       // Notify driver
@@ -181,7 +199,7 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
     }
 
     // Run compensation logic if needed
-    if (shouldCompensate) {
+    if (transaction && transaction.status === 'SUCCESS') {
       console.log(`[WORKFLOW] Running Saga compensation...`);
 
       // Use non-cancellable scope to ensure compensation runs
@@ -189,14 +207,14 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
       await CancellationScope.nonCancellable(async () => {
         // Compensate in reverse order
         
-        // 1. Refund payment
-        if (payment) {
-          console.log(`[WORKFLOW] Compensating: Refunding payment ${payment.paymentId}`);
+        // 1. Refund wallet deduction
+        if (transaction) {
+          console.log(`[WORKFLOW] Compensating: Refunding wallet transaction ${transaction.transactionId}`);
           try {
-            await refundPayment(payment);
-            console.log(`[WORKFLOW] Payment refunded successfully`);
+            await refundWalletDeduction(transaction);
+            console.log(`[WORKFLOW] Wallet refund successful`);
           } catch (refundError) {
-            console.error(`[WORKFLOW] Failed to refund payment:`, refundError);
+            console.error(`[WORKFLOW] Failed to refund wallet:`, refundError);
             // Continue with other compensation steps
           }
         }
@@ -218,7 +236,7 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
             userId: request.userId,
             type: 'PUSH',
             subject: 'Booking Failed',
-            message: `We're sorry, but your booking could not be completed. ${payment ? 'Your payment has been refunded.' : ''}`,
+            message: `We're sorry, but your booking could not be completed. ${transaction ? 'Your wallet has been refunded.' : ''}`,
             metadata: {
               error: errorMessage,
             },
@@ -230,20 +248,17 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
 
         console.log(`[WORKFLOW] Saga compensation completed`);
       });
-    } else {
-      // No compensation needed - failure before payment
-      console.log(`[WORKFLOW] No compensation needed - failure occurred before payment`);
-
-      if (reservation) {
-        // Still release the reservation if we have one
-        await CancellationScope.nonCancellable(async () => {
-          try {
-            await releaseSeatReservation(reservation!);
-          } catch (releaseError) {
-            console.error(`[WORKFLOW] Failed to release reservation:`, releaseError);
-          }
-        });
-      }
+    } else if (reservation) {
+      // No wallet deduction happened, but release seat if reserved
+      console.log(`[WORKFLOW] No wallet deduction occurred. Releasing seat reservation if present.`);
+      await CancellationScope.nonCancellable(async () => {
+        try {
+          await releaseSeatReservation(reservation!);
+          console.log(`[WORKFLOW] Seat reservation released successfully`);
+        } catch (releaseError) {
+          console.error(`[WORKFLOW] Failed to release reservation:`, releaseError);
+        }
+      });
     }
 
     // Re-throw the error to mark workflow as failed
