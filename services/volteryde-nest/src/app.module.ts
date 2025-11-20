@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { DatabaseModule } from './database/database.module';
+import configuration from './config/configuration';
 import { HealthModule } from './health/health.module';
 import { TemporalModule } from './shared/temporal/temporal.module';
 import { BookingModule } from './booking/booking.module';
@@ -14,30 +15,19 @@ import { RootController } from './root.controller'; // Import RootController
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '../../.env', // Use central .env from monorepo root
+      envFilePath: '../../.env',
+      load: [configuration],
     }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DATABASE_HOST', 'localhost'),
-        port: configService.get('DATABASE_PORT', 5432),
-        username: configService.get('DATABASE_USERNAME', 'postgres'),
-        password: configService.get('DATABASE_PASSWORD', 'postgres'),
-        database: configService.get('DATABASE_NAME', 'volteryde'),
-        autoLoadEntities: true,
-        synchronize: configService.get('NODE_ENV') === 'development',
-      }),
-    }),
+    DatabaseModule,
     TemporalModule,
     HealthModule,
     BookingModule,
     TelematicsModule,
     FleetOperationsModule,
     ChargingInfrastructureModule,
-    FirebaseModule, // Add FirebaseModule to imports
+    FirebaseModule,
   ],
-  controllers: [RootController], // Add RootController
+  controllers: [RootController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }

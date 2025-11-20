@@ -4,7 +4,42 @@
 
 NestJS backend service handling Telematics, Booking, Fleet Operations, and Charging Infrastructure.
 
-**Total Endpoints**: 39+ across 4 domain modules  
+## 🏗️ Centralized Architecture
+
+This service follows a centralized architecture pattern to ensure consistency and maintainability.
+
+### 1. Global Response Interceptor
+All successful responses are automatically wrapped in a standard format:
+```json
+{
+  "data": { ... },
+  "timestamp": "ISO_DATE_STRING",
+  "status": 200
+}
+```
+**Usage:** Simply return the data from your controller. The interceptor handles the rest.
+
+### 2. Global Exception Filter
+All exceptions are caught and formatted into a clean JSON error response.
+**Usage:** Throw standard NestJS exceptions (e.g., `BadRequestException`).
+
+### 3. Centralized Database
+Database connections are managed by `DatabaseModule`.
+**Usage:** Import `DatabaseModule` in your feature module if you need direct access, but typically `TypeOrmModule.forFeature([Entity])` is sufficient.
+
+### 4. Typed Configuration
+Environment variables are type-safe via `ConfigService`.
+**Usage:** Inject `ConfigService` and use `configService.get('database.host')`.
+
+### 5. Current User Decorator
+Access the authenticated user in controllers easily.
+**Usage:**
+```typescript
+@Get()
+getProfile(@CurrentUser() user: User) { ... }
+```
+
+**Total Endpoints**: 39+ across 4 domain modules
 **Implementation Progress**: ~25% (foundation + documentation)
 
 ## Features

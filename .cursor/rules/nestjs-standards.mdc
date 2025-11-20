@@ -1,0 +1,33 @@
+---
+description: Coding standards and centralization mandates for NestJS services in Volteryde Platform
+globs: services/volteryde-nest/**/*.ts
+alwaysApply: true
+---
+
+# NestJS Coding Standards
+
+## Centralized Architecture
+
+### Response Handling
+- **Rule**: Do not manually format responses.
+- **Why**: The `TransformInterceptor` wraps all responses.
+- **Correct**: `return user;`
+- **Incorrect**: `return { data: user, status: 200 };`
+
+### Error Handling
+- **Rule**: Use standard exceptions.
+- **Why**: The `HttpExceptionFilter` formats all errors.
+- **Correct**: `throw new NotFoundException('User not found');`
+- **Incorrect**: `res.status(404).json({ error: 'User not found' });`
+
+### Configuration
+- **Rule**: Use `ConfigService`.
+- **Why**: Ensures type safety and validation.
+- **Correct**: `this.configService.get('port')`
+- **Incorrect**: `process.env.PORT`
+
+### Decorators
+- **Rule**: Use custom decorators.
+- **Why**: Cleaner code and type safety.
+- **Correct**: `(@CurrentUser() user: User)`
+- **Incorrect**: `(@Request() req)` then `req.user`

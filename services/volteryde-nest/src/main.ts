@@ -4,6 +4,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -27,6 +29,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Global response formatting
+  app.useGlobalInterceptors(new TransformInterceptor());
+
+  // Global error handling
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // API prefix - exclude root controller
   app.setGlobalPrefix('api/v1', {
