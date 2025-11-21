@@ -29,6 +29,7 @@
         <dependency>
             <groupId>com.volteryde</groupId>
             <artifactId>shared-library</artifactId>
+            <version>${project.version}</version>
         </dependency>
         
         <!-- Spring Boot Starters -->
