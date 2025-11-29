@@ -8,9 +8,9 @@ spring:
     name: payment-service
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/volteryde_payment
-    username: ${DB_USERNAME:volteryde_payment}
-    password: ${DB_PASSWORD:payment_password}
+    url: jdbc:postgresql://localhost:5432/volteryde_payment_system
+    username: postgres
+    password: NewPost
     driver-class-name: org.postgresql.Driver
     
   jpa:
@@ -21,10 +21,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-stripe:
-  api:
-    key: ${STRIPE_API_KEY:sk_test_1234567890}
-    webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_1234567890}
+paystack:
+  secret-key: ${PAYSTACK_SECRET_KEY:sk_test_9bbb6b82c6c72285fa087721d1e293bdc68f64f1}
+  public-key: ${PAYSTACK_PUBLIC_KEY:pk_test_536e874e899ff0b18f6e5157036e0afe20597782}
+  base-url: ${PAYSTACK_BASE_URL:https://api.paystack.co}
+  webhook-secret: ${PAYSTACK_WEBHOOK_SECRET:whsec_test_1234567890}
+  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:8080/payments/callback}
+  connect-timeout: 5s
+  read-timeout: 10s
+  webhook-tolerance: 5m
 
 eureka:
   client:
@@ -53,7 +58,6 @@ management:
 logging:
   level:
     com.volteryde.payment: DEBUG
-    com.stripe: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

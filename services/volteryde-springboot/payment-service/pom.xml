@@ -22,7 +22,7 @@
     <properties>
         <java.version>17</java.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
-        <stripe.version>24.16.0</stripe.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -30,6 +30,7 @@
         <dependency>
             <groupId>com.volteryde</groupId>
             <artifactId>shared-library</artifactId>
+            <version>${project.version}</version>
         </dependency>
         
         <!-- Spring Boot Starters -->
@@ -62,11 +63,6 @@
         </dependency>
 
         <!-- Payment Gateway -->
-        <dependency>
-            <groupId>com.stripe</groupId>
-            <artifactId>stripe-java</artifactId>
-            <version>${stripe.version}</version>
-        </dependency>
 
         <!-- Spring Cloud -->
         <dependency>
@@ -93,16 +89,25 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+            <version>${testcontainers.version}</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
+            <version>${testcontainers.version}</version>
         </dependency>
     </dependencies>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
