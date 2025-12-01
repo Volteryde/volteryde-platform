@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -28,7 +28,7 @@ export class FirebaseService implements OnModuleInit {
     }
 
     try {
-      const serviceAccount = require(absolutePath);
+      const serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
 
       this.app = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
