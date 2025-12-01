@@ -29,6 +29,7 @@ COPY package.json ./
 
 # Copy pnpm-lock.yaml if it exists
 COPY pnpm-lock.yaml* ./
+COPY .npmrc* ./
 
 # Copy worker package.json
 COPY workers/temporal-workers/package.json ./workers/temporal-workers/
@@ -37,7 +38,9 @@ COPY workers/temporal-workers/package.json ./workers/temporal-workers/
 COPY packages ./packages
 
 # Install all dependencies
-RUN pnpm install
+RUN pnpm config set fetch-retries 5 && \
+    pnpm config set fetch-retry-maxtimeout 120000 && \
+    pnpm install
 
 # Copy worker source code
 COPY workers/temporal-workers ./workers/temporal-workers
