@@ -203,7 +203,7 @@ services:
       - SPRING_REDIS_PORT=6379
       - SERVER_PORT=8080
     ports:
-      - "8081:8080"
+      - "8082:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -256,6 +256,8 @@ services:
     networks:
       - volteryde-network
     restart: unless-stopped
+
+
 
   # ============================================================================
   # Monitoring & Observability (Optional)
