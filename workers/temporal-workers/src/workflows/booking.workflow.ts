@@ -122,7 +122,7 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
       throw new Error(`Wallet deduction failed: ${transaction ? transaction.failureReason || 'Unknown reason' : 'No response'}`);
     }
 
-    bookingStatus = BookingStatus.CONFIRMED;
+
 
     // ========================================================================
     // Step 4: Confirm Booking
