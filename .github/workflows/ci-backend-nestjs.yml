@@ -99,7 +99,11 @@ jobs:
         run: pnpm test:cov || pnpm test || echo "Tests passed"
         working-directory: services/volteryde-nest
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/volteryde_test
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USERNAME: test
+          DATABASE_PASSWORD: test
+          DATABASE_NAME: volteryde_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
       
@@ -116,7 +120,11 @@ jobs:
         run: pnpm test:e2e || echo "E2E tests passed"
         working-directory: services/volteryde-nest
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/volteryde_test
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USERNAME: test
+          DATABASE_PASSWORD: test
+          DATABASE_NAME: volteryde_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         continue-on-error: true

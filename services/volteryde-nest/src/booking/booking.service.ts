@@ -23,21 +23,14 @@ interface BookingRequest {
   passengerCount?: number;
 }
 
-interface BookingConfirmation {
-  bookingId: string;
-  status: 'CONFIRMED' | 'PENDING' | 'FAILED';
-  vehicleId: string;
-  driverId: string;
-  estimatedArrivalTime: Date;
-  fare: number;
-}
+
 
 @Injectable()
 export class BookingService {
   private readonly logger = new Logger(BookingService.name);
   private readonly TASK_QUEUE = 'volteryde-booking';
 
-  constructor(private readonly temporalService: TemporalService) {}
+  constructor(private readonly temporalService: TemporalService) { }
 
   /**
    * Start a new booking workflow
@@ -68,7 +61,7 @@ export class BookingService {
     try {
       // Start the workflow
       const workflowId = `booking-${request.userId}-${Date.now()}`;
-      
+
       const execution = await this.temporalService.startWorkflow(
         'bookRideWorkflow',
         [request],
@@ -111,9 +104,9 @@ export class BookingService {
         workflowId,
         'getBookingStatus',
       );
-      
+
       this.logger.log(`Booking ${workflowId} current status: ${currentStatus}`);
-      
+
       return {
         workflowId,
         status: currentStatus,
@@ -133,7 +126,7 @@ export class BookingService {
       }
 
       this.logger.error(`Error getting booking status:`, error);
-      
+
       return {
         workflowId,
         status: BookingStatus.FAILED, // Default to FAILED if an unknown error occurs

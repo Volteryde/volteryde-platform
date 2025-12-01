@@ -6,3 +6,4 @@ export declare enum BookingStatus {
     COMPLETED = "COMPLETED",
     FAILED = "FAILED"
 }
+//# sourceMappingURL=booking-status.enum.d.ts.map

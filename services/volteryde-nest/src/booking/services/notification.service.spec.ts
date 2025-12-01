@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationService } from './notification.service';
 import { FirebaseService } from '../../firebase/firebase.service';
-import * as admin from 'firebase-admin';
+
 import { Logger } from '@nestjs/common';
 
 // Mock Firebase Admin SDK
@@ -22,7 +22,7 @@ class MockFirebaseService {
 
 describe('NotificationService', () => {
   let service: NotificationService;
-  let firebaseService: FirebaseService;
+
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -37,7 +37,7 @@ describe('NotificationService', () => {
     }).compile();
 
     service = module.get<NotificationService>(NotificationService);
-    firebaseService = module.get<FirebaseService>(FirebaseService);
+
     mockMessagingSend.mockClear(); // Clear mock calls before each test
   });
 

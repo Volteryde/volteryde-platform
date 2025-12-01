@@ -23,6 +23,7 @@ COPY package.json ./
 
 # Copy pnpm-lock.yaml if it exists
 COPY pnpm-lock.yaml* ./
+COPY .npmrc* ./
 
 # Copy service package.json
 COPY services/volteryde-nest/package.json ./services/volteryde-nest/
@@ -31,7 +32,9 @@ COPY services/volteryde-nest/package.json ./services/volteryde-nest/
 COPY packages ./packages
 
 # Install all dependencies
-RUN pnpm install
+RUN pnpm config set fetch-retries 5 && \
+    pnpm config set fetch-retry-maxtimeout 120000 && \
+    pnpm install
 
 # Copy service source code
 COPY services/volteryde-nest ./services/volteryde-nest

@@ -78,8 +78,8 @@ temp/
 *.swp
 
 # Mobile apps (not needed for backend services)
-apps/mobile-driver-app/
-apps/mobile-passenger-app/
+# apps/mobile-driver-app/
+# apps/mobile-passenger-app/
 
 # Keep these essential files
 !package.json

@@ -8,7 +8,7 @@ import { TimestreamService } from './timestream.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
 import { MqttService } from '../../mqtt/mqtt.service'; // Import MqttService
 import { NotificationService } from '../../booking/services/notification.service'; // Import NotificationService
-import { DriverVehicleAssignmentService } from '../../fleet-operations/services/driver-vehicle-assignment.service'; // Import DriverVehicleAssignmentService
+
 import * as ngeohash from 'ngeohash'; // Import ngeohash
 
 @Injectable()
@@ -23,7 +23,7 @@ export class TelematicsService {
     private timestreamService: TimestreamService,
     private mqttService: MqttService, // Inject MqttService
     private notificationService: NotificationService, // Inject NotificationService
-  ) {}
+  ) { }
 
   async updateLocation(data: LocationUpdateDto): Promise<void> {
     this.logger.log(`Updating location for vehicle ${data.vehicleId}`);
