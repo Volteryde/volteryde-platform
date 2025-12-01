@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: volteryde-postgres
+    environment:
+      POSTGRES_DB: volteryde
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - volteryde-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: volteryde-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - volteryde-network
+
+  # Service Discovery (Eureka Server)
+  service-discovery:
+    build: ./service-discovery
+    container_name: volteryde-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - postgres
+    networks:
+      - volteryde-network
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    container_name: volteryde-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery:8761/eureka
+    depends_on:
+      - service-discovery
+    networks:
+      - volteryde-network
+
+  # Authentication Service
+  auth-service:
+    build: ./auth-service
+    container_name: volteryde-auth
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery:8761/eureka
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=volteryde
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - JWT_SECRET=my-secret-key-for-volteryde-platform
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+      - service-discovery
+    networks:
+      - volteryde-network
+
+  # Payment Service
+  payment-service:
+    build: ./payment-service
+    container_name: volteryde-payment
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery:8761/eureka
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=volteryde
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+      - PAYSTACK_SECRET_KEY=your-paystack-secret-key
+    depends_on:
+      - postgres
+      - service-discovery
+    networks:
+      - volteryde-network
+
+  # User Management Service
+  user-management-service:
+    build: ./user-management-service
+    container_name: volteryde-user-management
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://service-discovery:8761/eureka
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=volteryde
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=postgres
+    depends_on:
+      - postgres
+      - service-discovery
+    networks:
+      - volteryde-network
+
+volumes:
+  postgres_data:
+
+networks:
+  volteryde-network:
+    driver: bridge
