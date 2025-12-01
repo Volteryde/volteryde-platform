@@ -34,11 +34,7 @@ frontend:docs:
   - changed-files:
     - any-glob-to-any-file: 'apps/docs-platform/**/*'
 
-frontend:mobile:
-  - changed-files:
-    - any-glob-to-any-file: 
-      - 'apps/mobile-passenger-app/**/*'
-      - 'apps/mobile-driver-app/**/*'
+
 
 # Infrastructure labels
 infrastructure:
