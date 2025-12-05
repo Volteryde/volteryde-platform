@@ -35,7 +35,7 @@
 
 # Driver Apps (Web & Mobile)
 /apps/driver-app/ @volteryde/frontend-team @volteryde/driver-app-team
-/apps/mobile-driver-app/ @volteryde/mobile-team @volteryde/driver-app-team
+
 
 # Support App
 /apps/support-app/ @volteryde/frontend-team @volteryde/support-team
@@ -46,8 +46,7 @@
 # Docs Platform
 /apps/docs-platform/ @volteryde/docs-team @volteryde/frontend-team
 
-# Mobile Passenger App
-/apps/mobile-passenger-app/ @volteryde/mobile-team
+
 
 # =============================================================================
 # Infrastructure & DevOps

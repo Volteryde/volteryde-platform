@@ -9,6 +9,8 @@ import {
 import { RootProvider } from 'fumadocs-ui/provider/react-router';
 import type { Route } from './+types/root';
 import './app.css';
+import { useMqtt } from './hooks/useMqtt'; // Import the useMqtt hook
+import { useEffect, useState } from 'react';
 
 export const links: Route.LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -42,7 +44,45 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const mqttBrokerUrl = import.meta.env.DEV
+    ? 'ws://localhost:9001' // Local Mosquitto over WebSockets
+    : import.meta.env.VITE_MQTT_BROKER_URL_PROD || 'wss://your-aws-iot-endpoint:443'; // Use environment variable for production
+
+  const { isConnected, messages, subscribe } = useMqtt(mqttBrokerUrl);
+  const [latestMessage, setLatestMessage] = useState<any>(null);
+
+  useEffect(() => {
+    if (isConnected) {
+      // Subscribe to all vehicle location updates for the admin dashboard
+      subscribe('volteryde/telematics/live/all/location');
+      subscribe('volteryde/telematics/live/all/diagnostics');
+      subscribe('volteryde/telematics/live/all/alert');
+    }
+  }, [isConnected, subscribe]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setLatestMessage(messages[messages.length - 1]);
+    }
+  }, [messages]);
+
+  return (
+    <>
+      <div style={{ padding: '10px', background: '#f0f0f0', borderBottom: '1px solid #ccc' }}>
+        MQTT Status: {isConnected ? 'Connected' : 'Disconnected'}
+        {latestMessage && (
+          <div style={{ marginTop: '5px', fontSize: '0.8em' }}>
+            Latest MQTT Message:
+            <pre style={{ margin: '0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              Topic: {latestMessage.topic}
+              Payload: {JSON.stringify(latestMessage.parsedPayload || latestMessage.payload, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+      <Outlet />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

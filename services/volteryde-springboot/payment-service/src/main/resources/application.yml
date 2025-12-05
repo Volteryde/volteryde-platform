@@ -1,0 +1,65 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /api/payment
+
+spring:
+  application:
+    name: payment-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/volteryde_payment_system
+    username: postgres
+    password: NewPost
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+paystack:
+  secret-key: ${PAYSTACK_SECRET_KEY:sk_test_9bbb6b82c6c72285fa087721d1e293bdc68f64f1}
+  public-key: ${PAYSTACK_PUBLIC_KEY:pk_test_536e874e899ff0b18f6e5157036e0afe20597782}
+  base-url: ${PAYSTACK_BASE_URL:https://api.paystack.co}
+  webhook-secret: ${PAYSTACK_WEBHOOK_SECRET:whsec_test_1234567890}
+  callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:8080/payments/callback}
+  connect-timeout: 5s
+  read-timeout: 10s
+  webhook-tolerance: 5m
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.volteryde.payment: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/payment-service.log

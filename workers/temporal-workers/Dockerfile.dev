@@ -1,0 +1,61 @@
+# ============================================================================
+# Volteryde Temporal Workers - Development Docker Build
+# ============================================================================
+# This Dockerfile is optimized for development with hot-reload support
+# Using Debian-based image for better compatibility with Temporal native modules
+
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN npm install -g pnpm@8
+
+# Create non-root user
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs nodejs
+
+# Copy monorepo workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+
+# Copy pnpm-lock.yaml if it exists
+COPY pnpm-lock.yaml* ./
+COPY .npmrc* ./
+
+# Copy worker package.json
+COPY workers/temporal-workers/package.json ./workers/temporal-workers/
+
+# Copy shared packages if they exist
+COPY packages ./packages
+
+# Install all dependencies
+RUN pnpm config set fetch-retries 5 && \
+    pnpm config set fetch-retry-maxtimeout 120000 && \
+    pnpm install
+
+# Copy worker source code
+COPY workers/temporal-workers ./workers/temporal-workers
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Working directory for the worker
+WORKDIR /app/workers/temporal-workers
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start in development mode with hot-reload
+CMD ["pnpm", "dev"]

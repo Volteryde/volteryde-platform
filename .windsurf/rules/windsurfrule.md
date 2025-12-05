@@ -120,6 +120,30 @@ terraform apply
 docker-compose up -d
 ```
 
+## CENTRALIZED ARCHITECTURE MANDATES
+
+### 1. Response Handling
+- **NEVER** manually format responses in controllers.
+- Return the data object directly.
+- The `TransformInterceptor` will wrap it in `{ data, timestamp, status }`.
+
+### 2. Error Handling
+- **NEVER** use `try-catch` blocks to return error responses manually.
+- Throw standard NestJS exceptions (e.g., `throw new BadRequestException('Invalid input')`).
+- The `HttpExceptionFilter` will format the error response.
+
+### 3. Configuration
+- **NEVER** use `process.env` directly in services or controllers.
+- Inject `ConfigService` and use the typed configuration (e.g., `configService.get('database.host')`).
+
+### 4. Database Access
+- **ALWAYS** use the centralized `DatabaseModule`.
+- Do not create separate connection providers.
+
+### 5. User Context
+- **ALWAYS** use the `@CurrentUser()` decorator to access the authenticated user in controllers.
+- Do not access `req.user` directly.
+
 ## CODE PATTERNS TO FOLLOW
 
 ### NestJS Testing Pattern

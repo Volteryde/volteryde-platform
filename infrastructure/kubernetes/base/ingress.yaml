@@ -68,6 +68,13 @@ spec:
             name: nestjs-service
             port:
               number: 80
+      - path: /api/v1/route
+        pathType: Prefix
+        backend:
+          service:
+            name: routing-service
+            port:
+              number: 80
   
   # Spring Boot Backend API
   - host: api.volteryde.com

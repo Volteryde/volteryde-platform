@@ -12,7 +12,7 @@ This directory contains all GitHub Actions workflows for the Volteryde Platform'
   - Runs ESLint and Prettier checks
   - Executes unit tests with coverage
   - Runs integration tests
-  - Performs security scans with Snyk
+  - Performs security scans with GitGuardian
   - Uploads coverage to Codecov
 
 #### **ci-backend-java.yml**
@@ -101,7 +101,7 @@ This directory contains all GitHub Actions workflows for the Volteryde Platform'
 #### **security-scan.yml**
 - **Triggers**: Daily at 6 AM UTC, push to `main`/`develop`, PR to `main`, manual dispatch
 - **What it does**:
-  - Dependency security scanning with Snyk
+  - Secret and dependency scanning with GitGuardian
   - Container vulnerability scanning with Trivy
   - Secret detection with Gitleaks
   - CodeQL security analysis
@@ -166,7 +166,7 @@ Configure these secrets in GitHub repository settings:
 - `AWS_ACCOUNT_ID` - AWS account ID
 
 ### Security & Code Quality
-- `SNYK_TOKEN` - Snyk security scanning
+- `GITGUARDIAN_API_KEY` - GitGuardian secret and security scanning
 - `SONAR_TOKEN` - SonarQube code quality
 - `CODECOV_TOKEN` - Codecov coverage reporting
 - `GITLEAKS_LICENSE` - Gitleaks secret detection (if using paid version)
