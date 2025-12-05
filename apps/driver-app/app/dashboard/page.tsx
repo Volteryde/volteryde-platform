@@ -11,7 +11,14 @@ import {
   TripHistoryModal,
   AccountSettingsModal,
 } from "../components";
-import { mockDriver, mockRoute } from "../mockData/driverMock";
+import {
+  mockDriver,
+  mockRoute,
+  pendingBoardingPassengers,
+  alightingPassengers,
+  notifications,
+  passengersOnBoard
+} from "../mockData/driverMock";
 
 export default function DriverDashboard() {
   const [pendingBoardingExpanded, setPendingBoardingExpanded] = useState(false);
@@ -33,123 +40,7 @@ export default function DriverDashboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Sample data for pending boarding passengers
-  const pendingBoardingPassengers = [
-    {
-      id: "1",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-    {
-      id: "2",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-    {
-      id: "3",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-  ];
 
-  // Sample data for alighting passengers
-  const alightingPassengers = [
-    {
-      id: "1",
-      name: "Nana Kofi",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-    {
-      id: "2",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-    {
-      id: "3",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-    },
-  ];
-
-  // Sample data for notifications
-  const notifications = [
-    {
-      id: "1",
-      avatar: "AD",
-      title: "Passenger Boarded",
-      description:
-        "Akosua Darko has successfully boarded the bus at University of Ghana, Stadium Bus Stop.",
-      time: "7m ago",
-      isUnread: true,
-    },
-    {
-      id: "2",
-      avatar: "KM",
-      title: "Upcoming Drop-off",
-      description:
-        "Approaching drop-off point for Kwame Mensah at Adenta Bus Stop.",
-      time: "7m ago",
-      isUnread: true,
-    },
-    {
-      id: "3",
-      avatar: "KB",
-      title: "Trip Cancelled",
-      description: "Kofi Boateng cancelled their trip to Tech Junction.",
-      time: "7m ago",
-      amount: "₵ 12.00",
-      isUnread: true,
-    },
-    {
-      id: "4",
-      avatar: "AD",
-      title: "Passenger Boarded",
-      description:
-        "Akosua Darko has successfully boarded the bus at University of Ghana, Stadium Bus Stop.",
-      time: "7m ago",
-      isUnread: false,
-    },
-  ];
-
-  // Sample data for passengers on board
-  const passengersOnBoard = [
-    {
-      id: "1",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-      status: "onboard",
-    },
-    {
-      id: "2",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-      status: "onboard",
-    },
-    {
-      id: "3",
-      name: "Kwabena Osei",
-      time: "8 min",
-      from: "University of Ghana, Stadium Bus Stop",
-      to: "Accra Mall",
-      status: "onboard",
-    },
-  ];
 
   const handleAcceptRequest = (passengerId: string) => {
     console.log("Accept request for passenger:", passengerId);

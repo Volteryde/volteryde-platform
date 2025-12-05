@@ -45,11 +45,11 @@ export default async function Page({ params }: PageProps) {
   }
 
   const tree = source.pageTree
-  const MDX = (page.data as any).body
+  const MDX = page.data.body as React.ComponentType<any>
 
   return (
     <DocsLayout {...baseOptions()} tree={tree as PageTree.Root}>
-      <DocsPage toc={(page.data as any).toc}>
+      <DocsPage toc={page.data.toc}>
         <DocsTitle>{page.data.title}</DocsTitle>
         <DocsDescription>{page.data.description}</DocsDescription>
         <DocsBody>
