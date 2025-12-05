@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Driver } from "../driverMock";
 
 interface DriverProfileModalProps {
@@ -20,6 +21,8 @@ export default function DriverProfileModal({
   onTripHistoryClick,
   onAccountSettingsClick,
 }: DriverProfileModalProps) {
+  const router = useRouter();
+
   if (!isOpen) return null;
 
   return (
@@ -235,7 +238,13 @@ export default function DriverProfileModal({
             </button>
 
             {/* Logout */}
-            <button className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-red-100 transition-colors">
+            <button
+              onClick={() => {
+                onClose();
+                router.push('/');
+              }}
+              className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-red-100 transition-colors"
+            >
               <svg
                 className="w-5 h-5 text-red-500"
                 fill="none"
