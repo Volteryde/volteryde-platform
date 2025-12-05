@@ -13,6 +13,7 @@ Production-grade electric mobility platform using AWS EKS, RDS PostgreSQL, Elast
 
 **Frontend Applications (9 Apps):**
 
+
 ### Mobile (React Native)
 - `apps/mobile-passenger-app` - Passenger booking and ride tracking
 - `apps/mobile-driver-app` - Driver operations and navigation
