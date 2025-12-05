@@ -250,7 +250,7 @@ export default function DriverDashboard() {
                 />
               </svg>
               <span className="text-sm text-gray-900 font-medium">
-                You're online and ready to receive trip requests.
+                You&apos;re online and ready to receive trip requests.
               </span>
             </div>
           </div>
@@ -561,9 +561,8 @@ export default function DriverDashboard() {
                     </span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-gray-900 transition-transform ${
-                      pendingBoardingExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-gray-900 transition-transform ${pendingBoardingExpanded ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -618,9 +617,8 @@ export default function DriverDashboard() {
                     </span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-gray-900 transition-transform ${
-                      alightingExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-gray-900 transition-transform ${alightingExpanded ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -681,9 +679,8 @@ export default function DriverDashboard() {
                     </span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-gray-900 transition-transform ${
-                      passengersOnBoardExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-gray-900 transition-transform ${passengersOnBoardExpanded ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -711,7 +708,7 @@ export default function DriverDashboard() {
                         status="onboard"
                         primaryAction={{
                           label: "Call",
-                          onClick: () => {},
+                          onClick: () => { },
                           hasIcon: true,
                         }}
                         secondaryAction={{
@@ -766,9 +763,8 @@ export default function DriverDashboard() {
                     </span>
                   </div>
                   <svg
-                    className={`w-5 h-5 text-gray-900 transition-transform ${
-                      notificationsExpanded ? "rotate-180" : ""
-                    }`}
+                    className={`w-5 h-5 text-gray-900 transition-transform ${notificationsExpanded ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -819,28 +815,28 @@ export default function DriverDashboard() {
           passengerName={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.name
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.name
               : undefined
           }
           pickupLocation={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.from
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.from
               : undefined
           }
           dropoffLocation={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.to
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.to
               : undefined
           }
         />
@@ -850,28 +846,28 @@ export default function DriverDashboard() {
           passengerName={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.name
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.name
               : undefined
           }
           pickupLocation={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.from
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.from
               : undefined
           }
           dropoffLocation={
             selectedPassenger
               ? [
-                  ...pendingBoardingPassengers,
-                  ...alightingPassengers,
-                  ...passengersOnBoard,
-                ].find((p) => p.id === selectedPassenger)?.to
+                ...pendingBoardingPassengers,
+                ...alightingPassengers,
+                ...passengersOnBoard,
+              ].find((p) => p.id === selectedPassenger)?.to
               : undefined
           }
         />

@@ -10,8 +10,8 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
+  iconUrl: icon.src,
+  shadowUrl: iconShadow.src,
   iconSize: [25, 41],
   iconAnchor: [12, 41],
 });
@@ -76,7 +76,7 @@ export function DriverMap() {
 
   // MapTiler tile URL (requires API key)
   const mapTilerUrl = `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${MAPTILER_API_KEY}`;
-  
+
   // OpenStreetMap fallback (free, no API key required)
   const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -111,7 +111,7 @@ export function DriverMap() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url={USE_MAPTILER ? mapTilerUrl : osmUrl}
         />
-        
+
         {/* Example marker */}
         <Marker position={center}>
           <Popup>
@@ -121,10 +121,10 @@ export function DriverMap() {
 
         {/* Route layer */}
         {routeData && (
-          <RouteLayer 
-            start={[5.6037, -0.187]} 
-            end={[5.6137, -0.207]} 
-            routeData={routeData} 
+          <RouteLayer
+            start={[5.6037, -0.187]}
+            end={[5.6137, -0.207]}
+            routeData={routeData}
           />
         )}
       </MapContainer>
