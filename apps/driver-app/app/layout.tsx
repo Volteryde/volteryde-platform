@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { RootProvider } from 'fumadocs-ui/provider'
 import './globals.css'
+import { AuthProvider } from './contexts/AuthContext'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -35,7 +36,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} flex flex-col min-h-screen font-sans`}>
-        <RootProvider>{children}</RootProvider>
+        <RootProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </RootProvider>
       </body>
     </html>
   )

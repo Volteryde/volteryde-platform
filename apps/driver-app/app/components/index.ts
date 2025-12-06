@@ -21,6 +21,7 @@ export { PerformanceCard } from "./dashboard/PerformanceCard";
 export { VehicleCard } from "./dashboard/VehicleCard";
 export { StatusBar } from "./dashboard/StatusBar";
 export { QuickActions } from "./dashboard/QuickActions";
+export { TelematicsWidget } from "./dashboard/TelematicsWidget";
 export { DashboardOverlay } from "./dashboard/DashboardOverlay";
 
 // Re-export existing components

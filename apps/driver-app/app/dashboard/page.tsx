@@ -13,7 +13,10 @@ import {
   GoOfflineModal,
   Map,
   type MapRef,
+  TelematicsWidget,
 } from "../components";
+import { useLocationTracker } from "../hooks/useLocationTracker";
+import { useAuth } from "../contexts/AuthContext";
 import {
   mockDriver,
   mockRoute,
@@ -37,14 +40,9 @@ export default function DriverDashboard() {
   const [selectedPassenger, setSelectedPassenger] = useState<string | null>(
     null
   );
-  const [isOnline, setIsOnline] = useState(false);
-  const [isGoOfflineModalOpen, setIsGoOfflineModalOpen] = useState(false);
 
-  // Initial check (can be replaced with API call)
-  useEffect(() => {
-    // Start offline by default or check persistence
-    setIsOnline(false);
-  }, []);
+  const { isOnline, setOnlineStatus } = useAuth();
+  const [isGoOfflineModalOpen, setIsGoOfflineModalOpen] = useState(false);
 
   const handleToggleStatus = () => {
     if (isOnline) {
@@ -52,14 +50,30 @@ export default function DriverDashboard() {
       setIsGoOfflineModalOpen(true);
     } else {
       // If currently offline, go online immediately
-      setIsOnline(true);
+      setOnlineStatus(true);
     }
   };
 
   const confirmGoOffline = () => {
-    setIsOnline(false);
+    setOnlineStatus(false);
     setIsGoOfflineModalOpen(false);
   };
+
+  // Mock Route Data (Synthesized Coordinates for Accra)
+  const mockRouteCoordinates: [number, number][] = [
+    [-0.1870, 5.6037], // Start (Stadium)
+    [-0.1840, 5.6050],
+    [-0.1810, 5.6080],
+    [-0.1780, 5.6120],
+    [-0.1750, 5.6150], // End (Tech Juction)
+  ];
+
+  const mockStops = [
+    { name: "University of Ghana", position: [-0.1870, 5.6037] as [number, number], completed: true },
+    { name: "Accra Mall", position: [-0.1840, 5.6050] as [number, number], completed: true },
+    { name: "Madina", position: [-0.1810, 5.6080] as [number, number], completed: false },
+    { name: "Adenta", position: [-0.1780, 5.6120] as [number, number], completed: false },
+  ];
 
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
@@ -77,7 +91,8 @@ export default function DriverDashboard() {
     }
   }, [sidebarWidth]);
 
-
+  // Use location tracker
+  useLocationTracker();
 
   const handleAcceptRequest = (passengerId: string) => {
     console.log("Accept request for passenger:", passengerId);
@@ -239,7 +254,7 @@ export default function DriverDashboard() {
               Go online to start receiving ride requests and manage your trips. You cannot see the map or passenger details while offline.
             </p>
             <button
-              onClick={() => setIsOnline(true)}
+              onClick={() => setOnlineStatus(true)}
               className="px-8 py-3 bg-brand-secondary text-white font-semibold rounded-lg shadow-lg hover:bg-green-600 transition-colors transform hover:scale-105"
             >
               Go Online
@@ -253,6 +268,8 @@ export default function DriverDashboard() {
                 ref={mapRef}
                 className="absolute inset-0 z-0"
                 padding={{ top: 0, bottom: 200, left: 0, right: 0 }}
+                routeCoordinates={mockRouteCoordinates}
+                stops={mockStops}
               />
 
               {/* Legend */}
@@ -282,15 +299,8 @@ export default function DriverDashboard() {
                     <span className="text-sm text-gray-700">Starting Point</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-brand-secondary rounded flex items-center justify-center">
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
-                      </svg>
+                    <div className="w-5 h-5 bg-brand-secondary rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                     </div>
                     <span className="text-sm text-gray-700">You</span>
                   </div>
@@ -307,7 +317,7 @@ export default function DriverDashboard() {
                     <span className="text-sm text-gray-700">Completed Route</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-gray-800 rounded-full"></div>
+                    <div className="w-4 h-4 bg-gray-600 rounded-full border-2 border-white shadow-sm"></div>
                     <span className="text-sm text-gray-700">Stop</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -378,111 +388,7 @@ export default function DriverDashboard() {
 
               {/* Bottom Stats Bar */}
               <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-6 py-8 z-20">
-                <div className="grid grid-cols-4 gap-6">
-                  {/* Seats Occupied */}
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="w-6 h-6 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                    <div>
-                      <p className="text-xs text-gray-600">Seats Occupied</p>
-                      <p className="text-xl font-bold text-gray-900">32 / 45</p>
-                      <p className="text-xs text-brand-secondary">
-                        13 Seat Available
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Battery Level */}
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="w-6 h-6 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                      />
-                    </svg>
-                    <div>
-                      <p className="text-xs text-gray-600">Battery Level</p>
-                      <p className="text-xl font-bold text-gray-900">87%</p>
-                      <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
-                        <div
-                          className="h-full bg-brand-secondary rounded-full"
-                          style={{ width: "87%" }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Distance to Next Stop */}
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="w-6 h-6 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <div>
-                      <p className="text-xs text-gray-600">
-                        Distance to Next Stop
-                      </p>
-                      <p className="text-xl font-bold text-gray-900">1.2km</p>
-                      <p className="text-xs text-gray-600">Madina Bus Stop</p>
-                    </div>
-                  </div>
-
-                  {/* Estimated Arrival Time */}
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="w-6 h-6 text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <div>
-                      <p className="text-xs text-gray-600">
-                        Estimated Arrival Time
-                      </p>
-                      <p className="text-xl font-bold text-gray-900">2 min</p>
-                    </div>
-                  </div>
-                </div>
+                <TelematicsWidget />
               </div>
             </div>
 
