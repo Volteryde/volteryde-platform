@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import mqtt, { MqttClient, IClientOptions } from 'mqtt';
+import mqtt, { type MqttClient, type IClientOptions } from 'mqtt';
 
 interface MqttMessage {
   topic: string;
@@ -73,7 +73,7 @@ export const useMqtt = (brokerUrl: string, options?: IClientOptions): MqttHookRe
   const publish = (topic: string, payload: string | object, publishOptions?: mqtt.IClientPublishOptions) => {
     if (clientRef.current && isConnected) {
       const message = typeof payload === 'object' ? JSON.stringify(payload) : payload;
-      clientRef.current.publish(topic, message, publishOptions, (err) => {
+      clientRef.current.publish(topic, message, publishOptions || {}, (err) => {
         if (err) {
           console.error(`Failed to publish to ${topic}:`, err);
         } else {
@@ -87,7 +87,7 @@ export const useMqtt = (brokerUrl: string, options?: IClientOptions): MqttHookRe
 
   const subscribe = (topic: string | string[], subscribeOptions?: mqtt.IClientSubscribeOptions) => {
     if (clientRef.current && isConnected) {
-      clientRef.current.subscribe(topic, subscribeOptions, (err, granted) => {
+      clientRef.current.subscribe(topic, subscribeOptions || { qos: 0 }, (err, granted) => {
         if (err) {
           console.error(`Failed to subscribe to ${topic}:`, err);
         } else {
@@ -101,7 +101,7 @@ export const useMqtt = (brokerUrl: string, options?: IClientOptions): MqttHookRe
 
   const unsubscribe = (topic: string | string[]) => {
     if (clientRef.current && isConnected) {
-      clientRef.current.unsubscribe(topic, (err) => {
+      clientRef.current.unsubscribe(topic, (err: Error | null) => {
         if (err) {
           console.error(`Failed to unsubscribe from ${topic}:`, err);
         } else {
