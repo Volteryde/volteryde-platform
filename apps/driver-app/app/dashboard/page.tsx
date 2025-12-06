@@ -12,6 +12,7 @@ import {
   AccountSettingsModal,
   GoOfflineModal,
   Map,
+  type MapRef,
 } from "../components";
 import {
   mockDriver,
@@ -64,6 +65,17 @@ export default function DriverDashboard() {
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MapRef>(null);
+
+  // Resize map when sidebar width changes
+  useEffect(() => {
+    if (mapRef.current) {
+      // Small timeout to allow the layout to update first (layout transition is 300ms/150ms usually, but we are resizing manually via JS so it's instant or rAF based)
+      requestAnimationFrame(() => {
+        mapRef.current?.resize();
+      });
+    }
+  }, [sidebarWidth]);
 
 
 
@@ -237,10 +249,14 @@ export default function DriverDashboard() {
           <div className="flex flex-1 overflow-hidden" ref={containerRef}>
             {/* Map Section */}
             <div className="flex-1 relative bg-gray-100">
-              <Map className="absolute inset-0" />
+              <Map
+                ref={mapRef}
+                className="absolute inset-0 z-0"
+                padding={{ top: 0, bottom: 200, left: 0, right: 0 }}
+              />
 
               {/* Legend */}
-              <div className="absolute left-6 bottom-36 bg-white rounded-xl shadow-lg p-4 w-56">
+              <div className="absolute left-6 bottom-36 bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-4 w-56 z-10">
                 <h3 className="font-bold text-gray-900 mb-3">Legend</h3>
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
@@ -304,8 +320,11 @@ export default function DriverDashboard() {
               </div>
 
               {/* Map Controls */}
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                <button className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50">
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+                <button
+                  onClick={() => mapRef.current?.zoomIn()}
+                  className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+                >
                   <svg
                     className="w-5 h-5"
                     fill="none"
@@ -320,7 +339,10 @@ export default function DriverDashboard() {
                     />
                   </svg>
                 </button>
-                <button className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50">
+                <button
+                  onClick={() => mapRef.current?.zoomOut()}
+                  className="w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+                >
                   <svg
                     className="w-5 h-5"
                     fill="none"
@@ -355,7 +377,7 @@ export default function DriverDashboard() {
               </button>
 
               {/* Bottom Stats Bar */}
-              <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-8">
+              <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-6 py-8 z-20">
                 <div className="grid grid-cols-4 gap-6">
                   {/* Seats Occupied */}
                   <div className="flex items-center gap-3">

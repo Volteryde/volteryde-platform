@@ -25,4 +25,4 @@ export { DashboardOverlay } from "./dashboard/DashboardOverlay";
 
 // Re-export existing components
 export { ClientOnly } from "./ClientOnly";
-export { Map } from "./Map";
+export { Map, type MapRef } from "./Map";
