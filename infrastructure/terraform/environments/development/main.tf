@@ -14,5 +14,5 @@ provider "aws" {
 
 # Placeholder to verify pipeline connectivity
 output "environment" {
-  value = "dev"
+  value = "development"
 }
