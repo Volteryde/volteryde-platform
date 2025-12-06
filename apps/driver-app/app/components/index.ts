@@ -7,6 +7,7 @@ export { default as CancelRideModal } from "./modals/CancelRideModal";
 export { default as DriverDetailsModal } from "./modals/DriverDetailsModal";
 export { default as DriverProfileModal } from "./modals/DriverProfileModal";
 export { default as NotificationsModal } from "./modals/NotificationsModal";
+export { default as GoOfflineModal } from "./modals/GoOfflineModal";
 export { default as ReportPassengerModal } from "./modals/ReportPassengerModal";
 export { default as TripHistoryModal } from "./modals/TripHistoryModal";
 
@@ -24,4 +25,4 @@ export { DashboardOverlay } from "./dashboard/DashboardOverlay";
 
 // Re-export existing components
 export { ClientOnly } from "./ClientOnly";
-// DriverMap is dynamically imported where needed to avoid SSR issues
+export { Map } from "./Map";
