@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View, Text, Image, ImageSourcePropType } from 'react-native';
-import { ArrowUp } from 'lucide-react-native'; // Fallback
+
 import clsx from 'clsx';
 
 // Import Assets
@@ -26,7 +26,7 @@ export const ManeuverBanner: React.FC<ManeuverBannerProps> = ({
 	// Logic: Only show specific turn icons if we are close (<= 300m)
 	const isClose = rawDistance <= 300;
 
-	let iconSource: ImageSourcePropType = IconForward;
+	let iconSource: ImageSourcePropType;
 
 	if (isClose) {
 		if (modifier?.includes('left')) iconSource = IconLeft;

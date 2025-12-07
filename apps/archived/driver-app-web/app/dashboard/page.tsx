@@ -107,9 +107,7 @@ export default function DriverDashboard() {
     console.log("Drop off passenger:", passengerId);
   };
 
-  const handleIssueReport = (passengerId: string) => {
-    console.log("Issue report for passenger:", passengerId);
-  };
+
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);

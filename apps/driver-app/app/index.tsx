@@ -5,14 +5,14 @@ import { useState, useEffect } from 'react';
 import * as Location from 'expo-location';
 import { getDirections, RouteResponse } from '../services/directions';
 import { ManeuverBanner } from '../components/Navigation/ManeuverBanner';
-import { TripSummary, RecenterButton } from '../components/Navigation/TripSummary';
+import { RecenterButton } from '../components/Navigation/TripSummary';
 import { PassengerSidebar } from '../components/Dashboard/PassengerSidebar';
 import { BusMetricsBar } from '../components/Dashboard/BusMetrics';
 
 export default function Dashboard() {
 	const [routeData, setRouteData] = useState<RouteResponse | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [isNavigating, setIsNavigating] = useState(false); // Toggle to show Nav HUD vs Dashboard
+
 
 	useEffect(() => {
 		let isMounted = true;
@@ -29,10 +29,11 @@ export default function Dashboard() {
 				}
 
 				// 2. Get Initial Location for Route Calculation
-				let location = await Location.getLastKnownPositionAsync({});
-				if (!location) {
-					location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-				}
+				// 2. Get Initial Location for Route Calculation
+				// let location = await Location.getLastKnownPositionAsync({});
+				// if (!location) {
+				// 	await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+				// }
 
 				// 3. Calculate Initial Route: Madina to Accra (Ghana)
 				// Madina: -0.1660, 5.6690
@@ -197,7 +198,8 @@ export default function Dashboard() {
 	}
 
 	// Use liveStats if available, else initial stats
-	const displayStats = liveStats || routeData.stats;
+	// Use liveStats if available, else initial stats
+	// const displayStats = liveStats || routeData.stats;
 	const currentInstruction = routeData.instructions[instructionIndex];
 
 	return (
