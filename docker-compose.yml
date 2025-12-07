@@ -244,18 +244,7 @@ services:
       - volteryde-network
     restart: unless-stopped
 
-  routing-service:
-    build:
-      context: .
-      dockerfile: services/routing-service/Dockerfile
-    container_name: volteryde-routing
-    ports:
-      - "5001:5000"
-    volumes:
-      - osrm_data:/data
-    networks:
-      - volteryde-network
-    restart: unless-stopped
+
 
 
 
@@ -300,7 +289,7 @@ volumes:
   zookeeper_data:
   prometheus_data:
   grafana_data:
-  osrm_data:
+
   mosquitto_data:
 
 networks:
