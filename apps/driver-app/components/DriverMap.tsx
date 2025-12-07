@@ -105,12 +105,12 @@ const DriverMap: React.FC<DriverMapProps> = ({ routeGeoJSON, simulatedLocation }
 					followUserMode={!isSimulating ? UserTrackingMode.FollowWithCourse : undefined}
 
 					zoomLevel={18.5}
-					pitch={66}
+					pitch={70}
 					animationDuration={500}
 					// CRITICAL: Shift map center down (bottom padding) and slightly down from top
 					padding={{
-						paddingBottom: 150, // Slightly less padding to keep it centered but low
-						paddingTop: 0,
+						paddingBottom: 120, // Slightly less padding to keep it centered but low
+						paddingTop: 200,
 						paddingLeft: 0,
 						paddingRight: 0,
 					}}
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		width: '100%',
 		height: '100%',
-		backgroundColor: '#000',
+		
 	},
 	map: {
 		flex: 1,
