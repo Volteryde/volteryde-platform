@@ -2,4 +2,5 @@ packages:
   - 'services/*'
   - 'workers/*'
   - 'apps/*'
+  - 'apps/archived/*'
   - 'packages/*'

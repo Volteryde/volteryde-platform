@@ -370,7 +370,10 @@ export default function DriverDashboard() {
               </div>
 
               {/* Recenter Button */}
-              <button className="absolute right-6 bottom-36 w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50">
+              <button
+                onClick={() => mapRef.current?.recenter()}
+                className="absolute right-6 bottom-36 w-10 h-10 bg-white rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50"
+              >
                 <svg
                   className="w-6 h-6"
                   fill="none"
