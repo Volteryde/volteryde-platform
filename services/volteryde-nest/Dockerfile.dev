@@ -55,4 +55,4 @@ WORKDIR /app/services/volteryde-nest
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start in development mode with hot-reload
-CMD ["pnpm", "dev"]
+CMD ["pnpm", "start:dev"]

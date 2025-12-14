@@ -1,0 +1,52 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Install dumb-init
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nodejs -u 1001
+
+# Copy monorepo workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
+COPY .npmrc* ./
+
+# Copy service package.json
+COPY apps/customer-and-support-app/package.json ./apps/customer-and-support-app/
+
+# Copy shared packages
+COPY packages ./packages
+
+# Install dependencies
+RUN pnpm install
+
+# Copy source code
+COPY apps/customer-and-support-app ./apps/customer-and-support-app
+
+# Chown
+RUN chown -R nodejs:nodejs /app
+
+# Switch user
+USER nodejs
+
+# Expose port
+EXPOSE 5173
+
+# Workdir
+WORKDIR /app/apps/customer-and-support-app
+
+# Run postinstall manually (docs generation)
+RUN pnpm fumadocs-mdx
+
+# Entrypoint
+ENTRYPOINT ["dumb-init", "--"]
+
+# CMD
+CMD ["pnpm", "dev", "--host"]

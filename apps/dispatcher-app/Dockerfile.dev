@@ -1,0 +1,49 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Install dumb-init
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nodejs -u 1001
+
+# Copy monorepo workspace files
+COPY pnpm-workspace.yaml ./
+COPY package.json ./
+COPY pnpm-lock.yaml* ./
+COPY .npmrc* ./
+
+# Copy service package.json
+COPY apps/dispatcher-app/package.json ./apps/dispatcher-app/
+
+# Copy shared packages
+COPY packages ./packages
+
+# Install dependencies
+RUN pnpm install
+
+# Copy source code
+COPY apps/dispatcher-app ./apps/dispatcher-app
+
+# Chown
+RUN chown -R nodejs:nodejs /app
+
+# Switch user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Workdir
+WORKDIR /app/apps/dispatcher-app
+
+# Entrypoint
+ENTRYPOINT ["dumb-init", "--"]
+
+# CMD (Bind to 0.0.0.0)
+CMD ["pnpm", "dev"]

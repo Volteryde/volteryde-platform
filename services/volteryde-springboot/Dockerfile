@@ -7,10 +7,9 @@ FROM maven:3.9-amazoncorretto-17-alpine AS builder
 
 WORKDIR /app
 
-COPY services/volteryde-springboot/pom.xml ./
-COPY services/volteryde-springboot/src ./src
+COPY services/volteryde-springboot/ .
 
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests > build.log 2>&1 || (cat build.log && exit 1)
 
 # Stage 2: Production
 FROM bellsoft/liberica-openjre-alpine:17 AS production
@@ -20,9 +19,10 @@ WORKDIR /app
 RUN apk add --no-cache dumb-init
 
 RUN addgroup -g 1001 -S spring && \
-    adduser -S spring -u 1001
+  adduser -S spring -u 1001
 
-COPY --from=builder /app/target/*.jar app.jar
+ARG SERVICE_NAME
+COPY --from=builder /app/${SERVICE_NAME}/target/*.jar app.jar
 
 USER spring
 
