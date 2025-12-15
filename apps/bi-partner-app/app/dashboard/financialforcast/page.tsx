@@ -5,7 +5,6 @@ import {
 	IconNavigation,
 	IconArrowUpRight,
 } from "@tabler/icons-react";
-import { cn } from "@/lib/utils";
 import { TripDistanceChart } from "@/components/charts/trip-distance-chart";
 import { SeasonalDemandChart } from "@/components/charts/seasonal-demand-chart";
 
