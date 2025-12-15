@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
 	IconCurrencyDollar,
@@ -85,48 +87,48 @@ export default function OverviewPage() {
 							}}
 						>
 							<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5E5" />
-							<XAxis 
-								dataKey="name" 
+							<XAxis
+								dataKey="name"
 								axisLine={false}
 								tickLine={false}
 								tick={{ fill: '#737373', fontSize: 12 }}
 								dy={10}
 							/>
-							<YAxis 
+							<YAxis
 								axisLine={false}
 								tickLine={false}
 								tick={{ fill: '#737373', fontSize: 12 }}
 								tickFormatter={(value) => `¢${value / 1000}k`}
 							/>
-							<Tooltip 
-								contentStyle={{ 
-									backgroundColor: '#fff', 
-									borderRadius: '8px', 
+							<Tooltip
+								contentStyle={{
+									backgroundColor: '#fff',
+									borderRadius: '8px',
 									border: '1px solid #E5E5E5',
 									boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
 								}}
 							/>
-							<Legend 
-								verticalAlign="top" 
-								height={36} 
+							<Legend
+								verticalAlign="top"
+								height={36}
 								iconType="circle"
 								formatter={(value) => <span className="text-sm font-semibold text-neutral-600 ml-2">{value}</span>}
 							/>
-							<Line 
-								type="monotone" 
-								dataKey="revenue" 
+							<Line
+								type="monotone"
+								dataKey="revenue"
 								name="Revenue"
-								stroke="#0CCF0E" 
-								strokeWidth={3} 
+								stroke="#0CCF0E"
+								strokeWidth={3}
 								dot={{ r: 4, fill: '#0CCF0E', strokeWidth: 0 }}
 								activeDot={{ r: 6 }}
 							/>
-							<Line 
-								type="monotone" 
-								dataKey="forecast" 
+							<Line
+								type="monotone"
+								dataKey="forecast"
 								name="Forecast"
-								stroke="#A3A3A3" 
-								strokeWidth={2} 
+								stroke="#A3A3A3"
+								strokeWidth={2}
 								strokeDasharray="5 5"
 								dot={{ r: 4, fill: '#A3A3A3', strokeWidth: 0 }}
 								activeDot={{ r: 6 }}
