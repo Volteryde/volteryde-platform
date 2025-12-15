@@ -8,14 +8,14 @@ services:
   # ============================================================================
   # Databases & Cache
   # ============================================================================
-  
+
   postgres:
     image: postgres:15-alpine
     container_name: volteryde-postgres
     environment:
       POSTGRES_DB: volteryde
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_MULTIPLE_DATABASES: volteryde,volteryde_test,temporal
     ports:
       - "5432:5432"
@@ -23,7 +23,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,7 +40,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,7 +51,7 @@ services:
   # ============================================================================
   # Temporal Workflow Engine
   # ============================================================================
-  
+
   temporal:
     image: temporalio/auto-setup:latest
     container_name: volteryde-temporal
@@ -69,7 +69,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
+      test: [ "CMD", "sh", "-c", "nc -z localhost 7233" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -96,7 +96,7 @@ services:
   # ============================================================================
   # Message Queue (Optional - for event-driven architecture)
   # ============================================================================
-  
+
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: volteryde-kafka
@@ -147,7 +147,7 @@ services:
   # ============================================================================
   # Backend Services
   # ============================================================================
-  
+
   nestjs-backend:
     build:
       context: .
@@ -159,7 +159,7 @@ services:
       - DATABASE_HOST=postgres
       - DATABASE_PORT=5432
       - DATABASE_USERNAME=postgres
-      - DATABASE_PASSWORD=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - DATABASE_NAME=volteryde
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
@@ -189,32 +189,114 @@ services:
       - volteryde-network
     restart: unless-stopped
 
-  springboot-backend:
+  service-discovery:
     build:
       context: .
       dockerfile: services/volteryde-springboot/Dockerfile
-    container_name: volteryde-springboot
+      args:
+        SERVICE_NAME: service-discovery
+    container_name: volteryde-service-discovery
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+    container_name: volteryde-api-gateway
+    ports:
+      - "8082:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SERVER_PORT=8080
+    depends_on:
+      - service-discovery
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile
+      args:
+        SERVICE_NAME: auth-service
+    container_name: volteryde-auth-service
     environment:
       - SPRING_PROFILES_ACTIVE=development
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      - SERVER_PORT=8080
-    ports:
-      - "8082:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
+      service-discovery:
+        condition: service_started
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  user-management-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile
+      args:
+        SERVICE_NAME: user-management-service
+    container_name: volteryde-user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_started
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile
+      args:
+        SERVICE_NAME: payment-service
+    container_name: volteryde-payment-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_started
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -244,14 +326,10 @@ services:
       - volteryde-network
     restart: unless-stopped
 
-
-
-
-
   # ============================================================================
   # Monitoring & Observability (Optional)
   # ============================================================================
-  
+
   prometheus:
     image: prom/prometheus:latest
     container_name: volteryde-prometheus
@@ -271,7 +349,7 @@ services:
     image: grafana/grafana:latest
     container_name: volteryde-grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     ports:
       - "3001:3000"
@@ -279,6 +357,82 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Frontend Web Apps
+  # ============================================================================
+
+  bi-partner-app:
+    build:
+      context: .
+      dockerfile: apps/bi-partner-app/Dockerfile.dev
+    container_name: volteryde-bi-partner
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3002:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/bi-partner-app/node_modules
+      - /app/apps/bi-partner-app/.next
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  dispatcher-app:
+    build:
+      context: .
+      dockerfile: apps/dispatcher-app/Dockerfile.dev
+    container_name: volteryde-dispatcher
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3003:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/dispatcher-app/node_modules
+      - /app/apps/dispatcher-app/.next
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  admin-dashboard:
+    build:
+      context: .
+      dockerfile: apps/admin-dashboard/Dockerfile.dev
+    container_name: volteryde-admin-dashboard
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/admin-dashboard/node_modules
+      - /app/apps/admin-dashboard/build
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  customer-and-support-app:
+    build:
+      context: .
+      dockerfile: apps/customer-and-support-app/Dockerfile.dev
+    container_name: volteryde-customer-and-support
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "5174:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/customer-and-support-app/node_modules
+      - /app/apps/customer-and-support-app/build
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -291,6 +445,7 @@ volumes:
   grafana_data:
 
   mosquitto_data:
+
 
 networks:
   volteryde-network:

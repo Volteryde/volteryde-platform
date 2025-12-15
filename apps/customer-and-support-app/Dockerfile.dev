@@ -1,0 +1,55 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Install dumb-init
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nodejs -u 1001
+
+# Copy lockfile and workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+
+# Fetch dependencies (cached step)
+# This layer will be cached unless pnpm-lock.yaml changes
+RUN pnpm fetch
+
+# Copy source code
+# Create .next directory with correct permissions to fix EACCES issues
+RUN mkdir -p apps/customer-and-support-app/.next && chown -R nodejs:nodejs apps/customer-and-support-app/.next
+
+COPY . .
+
+# Install dependencies from offline store
+RUN pnpm install -r
+
+# Run postinstall manually (docs generation)
+RUN pnpm --filter customer-and-support-app exec pnpm fumadocs-mdx || true
+
+# Chown
+RUN chown -R nodejs:nodejs /app
+
+# Switch user
+USER nodejs
+
+# Expose port
+EXPOSE 5173
+
+# Workdir
+WORKDIR /app/apps/customer-and-support-app
+
+# Build the application
+ENV NODE_ENV=production
+RUN pnpm build
+
+# Entrypoint
+ENTRYPOINT ["dumb-init", "--"]
+
+# CMD
+ENV HOST=0.0.0.0
+CMD ["pnpm", "start"]

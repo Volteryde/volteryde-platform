@@ -7,10 +7,28 @@ FROM maven:3.9-amazoncorretto-17-alpine AS builder
 
 WORKDIR /app
 
-COPY services/volteryde-springboot/pom.xml ./
-COPY services/volteryde-springboot/src ./src
+# 1. Copy POMs for dependency caching
+# We copy them individually to ensure we duplicate the structure
+COPY services/volteryde-springboot/pom.xml .
+COPY services/volteryde-springboot/shared-library/pom.xml shared-library/
+COPY services/volteryde-springboot/api-gateway/pom.xml api-gateway/
+COPY services/volteryde-springboot/service-discovery/pom.xml service-discovery/
+COPY services/volteryde-springboot/auth-service/pom.xml auth-service/
+COPY services/volteryde-springboot/user-management-service/pom.xml user-management-service/
+COPY services/volteryde-springboot/payment-service/pom.xml payment-service/
 
-RUN mvn clean package -DskipTests
+# 2. Download dependencies (Cached Layer)
+# dependency:go-offline can sometimes be flaky with large reactors, 
+# 'verify clean --fail-never' or just installing specific deps is sometimes safer,
+# but go-offline is the standard optimization.
+# Attempt to download external dependencies, ignoring failures for missing internal modules (shared-library)
+RUN mvn dependency:resolve dependency:resolve-plugins -B --fail-never
+
+# 3. Copy source code (Frequent Changes)
+COPY services/volteryde-springboot/ .
+
+# 4. Build
+RUN mvn clean package -DskipTests > build.log 2>&1 || (cat build.log && exit 1)
 
 # Stage 2: Production
 FROM bellsoft/liberica-openjre-alpine:17 AS production
@@ -20,9 +38,11 @@ WORKDIR /app
 RUN apk add --no-cache dumb-init
 
 RUN addgroup -g 1001 -S spring && \
-    adduser -S spring -u 1001
+  adduser -S spring -u 1001
 
-COPY --from=builder /app/target/*.jar app.jar
+ARG SERVICE_NAME
+# Ensure we copy from the specific submodule's target
+COPY --from=builder /app/${SERVICE_NAME}/target/*.jar app.jar
 
 USER spring
 

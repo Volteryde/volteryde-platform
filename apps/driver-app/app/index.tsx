@@ -28,12 +28,7 @@ export default function Dashboard() {
 					throw new Error('Permission denied');
 				}
 
-				// 2. Get Initial Location for Route Calculation
-				// 2. Get Initial Location for Route Calculation
-				// let location = await Location.getLastKnownPositionAsync({});
-				// if (!location) {
-				// 	await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-				// }
+
 
 				// 3. Calculate Initial Route: Madina to Accra (Ghana)
 				// Madina: -0.1660, 5.6690
@@ -197,9 +192,7 @@ export default function Dashboard() {
 		);
 	}
 
-	// Use liveStats if available, else initial stats
-	// Use liveStats if available, else initial stats
-	// const displayStats = liveStats || routeData.stats;
+
 	const currentInstruction = routeData.instructions[instructionIndex];
 
 	return (
