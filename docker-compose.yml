@@ -414,6 +414,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/apps/admin-dashboard/node_modules
+      - /app/apps/admin-dashboard/build
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -431,6 +432,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/apps/customer-and-support-app/node_modules
+      - /app/apps/customer-and-support-app/build
     networks:
       - volteryde-network
     restart: unless-stopped

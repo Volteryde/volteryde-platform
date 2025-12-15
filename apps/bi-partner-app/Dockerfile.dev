@@ -12,23 +12,21 @@ RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs && \
 	adduser -S nodejs -u 1001
 
-# Copy monorepo workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json ./
-COPY pnpm-lock.yaml* ./
-COPY .npmrc* ./
+# Copy lockfile and workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
-# Copy service package.json
-COPY apps/bi-partner-app/package.json ./apps/bi-partner-app/
+# Fetch dependencies (cached step)
+# This layer will be cached unless pnpm-lock.yaml changes
+RUN pnpm fetch
 
-# Copy shared packages
-COPY packages ./packages
-
-# Install dependencies
-RUN pnpm install
+# Create .next directory with correct permissions to fix EACCES issues
+RUN mkdir -p apps/bi-partner-app/.next && chown -R nodejs:nodejs apps/bi-partner-app/.next
 
 # Copy source code
-COPY apps/bi-partner-app ./apps/bi-partner-app
+COPY . .
+
+# Install dependencies from offline store
+RUN pnpm install -r
 
 # Chown
 RUN chown -R nodejs:nodejs /app
@@ -42,8 +40,14 @@ EXPOSE 3000
 # Workdir
 WORKDIR /app/apps/bi-partner-app
 
+# Build the application
+ENV NODE_ENV=production
+RUN pnpm build
+
 # Entrypoint
 ENTRYPOINT ["dumb-init", "--"]
 
 # CMD
-CMD ["pnpm", "dev"]
+# CMD
+ENV HOSTNAME="0.0.0.0"
+CMD ["pnpm", "start"]
