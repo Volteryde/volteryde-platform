@@ -4,12 +4,12 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'apps/**'
-      - '.github/workflows/ci-frontend.yml'
+      - "apps/**"
+      - ".github/workflows/ci-frontend.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - 'apps/**'
+      - "apps/**"
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
       docs-platform: ${{ steps.filter.outputs.docs-platform }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -38,7 +38,7 @@ jobs:
             driver-app:
               - 'apps/driver-app/**'
             support-app:
-              - 'apps/support-app/**'
+              - 'apps/customer-and-support-app/**'
             bi-partner-app:
               - 'apps/bi-partner-app/**'
             docs-platform:
@@ -49,39 +49,39 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.admin-dashboard == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
         working-directory: apps/admin-dashboard
         continue-on-error: true
-      
+
       - name: Type check
         run: pnpm type-check || pnpm build || echo "Type check passed"
         working-directory: apps/admin-dashboard
-      
+
       - name: Run tests
         run: pnpm test || echo "Tests passed"
         working-directory: apps/admin-dashboard
         continue-on-error: true
-      
+
       - name: Build application
         run: pnpm build
         working-directory: apps/admin-dashboard
@@ -93,30 +93,30 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.driver-app == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
         working-directory: apps/driver-app
         continue-on-error: true
-      
+
       - name: Build application
         run: pnpm build
         working-directory: apps/driver-app
@@ -126,63 +126,63 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.support-app == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
-        working-directory: apps/support-app
+        working-directory: apps/customer-and-support-app
         continue-on-error: true
-      
+
       - name: Build application
         run: pnpm build
-        working-directory: apps/support-app
+        working-directory: apps/customer-and-support-app
 
   lint-and-test-bi-partner-app:
     name: BI Partner App
     needs: detect-changes
     if: needs.detect-changes.outputs.bi-partner-app == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
         working-directory: apps/bi-partner-app
         continue-on-error: true
-      
+
       - name: Build application
         run: pnpm build
         working-directory: apps/bi-partner-app
@@ -192,30 +192,30 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.docs-platform == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
           version: 8
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
         working-directory: apps/docs-platform
         continue-on-error: true
-      
+
       - name: Build application
         run: pnpm build
         working-directory: apps/docs-platform
@@ -229,13 +229,12 @@ jobs:
       needs.detect-changes.outputs.support-app == 'true' ||
       needs.detect-changes.outputs.bi-partner-app == 'true'
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better secret detection
-      
+          fetch-depth: 0 # Full history for better secret detection
+
       - name: GitGuardian Security Scan
         uses: GitGuardian/ggshield-action@v1
         env:
