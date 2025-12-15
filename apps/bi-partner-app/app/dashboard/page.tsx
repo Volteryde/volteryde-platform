@@ -8,6 +8,25 @@ import {
 	IconArrowDownRight
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
+import {
+	LineChart,
+	Line,
+	XAxis,
+	YAxis,
+	CartesianGrid,
+	Tooltip,
+	ResponsiveContainer,
+	Legend
+} from "recharts";
+
+const data = [
+	{ name: 'Jan', revenue: 24000, forecast: 18000 },
+	{ name: 'Feb', revenue: 38000, forecast: 32000 },
+	{ name: 'Mar', revenue: 42000, forecast: 36000 },
+	{ name: 'Apr', revenue: 48000, forecast: 45000 },
+	{ name: 'May', revenue: 52000, forecast: 50000 },
+	{ name: 'Jun', revenue: 58000, forecast: 62000 },
+];
 
 export default function OverviewPage() {
 	return (
@@ -54,77 +73,66 @@ export default function OverviewPage() {
 			<div className="w-full bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
 				<h2 className="text-xl font-bold text-[#006400] mb-6">Revenue vs Forecast</h2>
 
-				{/* Simple CSS Chart Placeholder to match functionality without Recharts for now */}
-				<div className="relative h-64 w-full flex items-end justify-between px-4 pb-4 border-l border-b border-neutral-200">
-					{/* Y-Axis Labels */}
-					<div className="absolute -left-12 top-0 bottom-0 flex flex-col justify-between text-xs text-neutral-400 py-2">
-						<span>60000</span>
-						<span>40000</span>
-						<span>20000</span>
-						<span>0</span>
-					</div>
-
-					{/* Chart Content Area - simulating the look */}
-					<div className="w-full h-full relative">
-						{/* Grid lines */}
-						<div className="absolute top-0 w-full h-px bg-neutral-100"></div>
-						<div className="absolute top-1/3 w-full h-px bg-neutral-100"></div>
-						<div className="absolute top-2/3 w-full h-px bg-neutral-100"></div>
-
-						{/* Trend Lines (SVG) */}
-						<svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
-							{/* Green Line (Revenue) */}
-							<path
-								d="M0,150 C100,160 200,140 300,80 C400,60 500,70 600,100"
-								fill="none"
-								stroke="#0CCF0E"
-								strokeWidth="2"
-								className="drop-shadow-sm"
+				<div className="h-[400px] w-full">
+					<ResponsiveContainer width="100%" height="100%">
+						<LineChart
+							data={data}
+							margin={{
+								top: 5,
+								right: 30,
+								left: 20,
+								bottom: 5,
+							}}
+						>
+							<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5E5" />
+							<XAxis 
+								dataKey="name" 
+								axisLine={false}
+								tickLine={false}
+								tick={{ fill: '#737373', fontSize: 12 }}
+								dy={10}
 							/>
-							{[
-								{ x: 0, y: 150 }, { x: 150, y: 160 }, { x: 300, y: 80 }, { x: 450, y: 70 }, { x: 600, y: 100 }
-							].map((p, i) => (
-								<circle key={'g' + i} cx={p.x} cy={p.y} r="3" fill="#0CCF0E" />
-							))}
-
-							{/* Grey Line (Forecast) */}
-							<path
-								d="M0,180 C100,150 200,110 300,100 C400,110 500,80 600,50"
-								fill="none"
-								stroke="#A3A3A3"
-								strokeWidth="2"
-								strokeDasharray="4 4"
+							<YAxis 
+								axisLine={false}
+								tickLine={false}
+								tick={{ fill: '#737373', fontSize: 12 }}
+								tickFormatter={(value) => `¢${value / 1000}k`}
 							/>
-							{[
-								{ x: 0, y: 180 }, { x: 150, y: 150 }, { x: 300, y: 100 }, { x: 450, y: 110 }, { x: 600, y: 50 }
-							].map((p, i) => (
-								<circle key={'b' + i} cx={p.x} cy={p.y} r="3" fill="#A3A3A3" />
-							))}
-						</svg>
-					</div>
-
-					{/* X-Axis Labels */}
-					<div className="absolute -bottom-6 left-0 right-0 flex justify-between text-xs text-neutral-400 px-4">
-						<span>0</span>
-						<span>Jan</span>
-						<span>Feb</span>
-						<span>Mar</span>
-						<span>Apr</span>
-						<span>May</span>
-						<span>Jun</span>
-					</div>
-				</div>
-
-				{/* Legend */}
-				<div className="flex gap-4 mt-8 ml-4">
-					<div className="flex items-center gap-2">
-						<div className="w-2 h-2 rounded-full bg-[#0CCF0E]"></div>
-						<span className="text-xs font-semibold text-neutral-700">Revenue</span>
-					</div>
-					<div className="flex items-center gap-2">
-						<div className="w-2 h-2 rounded-full bg-neutral-400"></div>
-						<span className="text-xs font-semibold text-neutral-700">Forecast</span>
-					</div>
+							<Tooltip 
+								contentStyle={{ 
+									backgroundColor: '#fff', 
+									borderRadius: '8px', 
+									border: '1px solid #E5E5E5',
+									boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+								}}
+							/>
+							<Legend 
+								verticalAlign="top" 
+								height={36} 
+								iconType="circle"
+								formatter={(value) => <span className="text-sm font-semibold text-neutral-600 ml-2">{value}</span>}
+							/>
+							<Line 
+								type="monotone" 
+								dataKey="revenue" 
+								name="Revenue"
+								stroke="#0CCF0E" 
+								strokeWidth={3} 
+								dot={{ r: 4, fill: '#0CCF0E', strokeWidth: 0 }}
+								activeDot={{ r: 6 }}
+							/>
+							<Line 
+								type="monotone" 
+								dataKey="forecast" 
+								name="Forecast"
+								stroke="#A3A3A3" 
+								strokeWidth={2} 
+								strokeDasharray="5 5"
+								dot={{ r: 4, fill: '#A3A3A3', strokeWidth: 0 }}
+								activeDot={{ r: 6 }}
+							/>
+						</LineChart>
+					</ResponsiveContainer>
 				</div>
 			</div>
 		</div>
