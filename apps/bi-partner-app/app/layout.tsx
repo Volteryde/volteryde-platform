@@ -17,6 +17,7 @@ export const metadata: Metadata = {
       { rel: 'android-chrome-512x512', url: '/android-chrome-512x512.png' },
     ],
   },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({
