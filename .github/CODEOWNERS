@@ -33,8 +33,7 @@
 # Admin Dashboard
 /apps/admin-dashboard/ @volteryde/frontend-team @volteryde/admin-team
 
-# Driver Apps (Web & Mobile)
-/apps/driver-app/ @volteryde/frontend-team @volteryde/driver-app-team
+
 
 
 # Support App

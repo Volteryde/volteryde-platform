@@ -3,83 +3,77 @@
 # Backend labels
 backend:nestjs:
   - changed-files:
-    - any-glob-to-any-file: 'services/volteryde-nest/**/*'
+      - any-glob-to-any-file: "services/volteryde-nest/**/*"
 
 backend:java:
   - changed-files:
-    - any-glob-to-any-file: 'services/volteryde-springboot/**/*'
+      - any-glob-to-any-file: "services/volteryde-springboot/**/*"
 
 workers:
   - changed-files:
-    - any-glob-to-any-file: 'workers/**/*'
+      - any-glob-to-any-file: "workers/**/*"
 
 # Frontend labels
 frontend:admin-dashboard:
   - changed-files:
-    - any-glob-to-any-file: 'apps/admin-dashboard/**/*'
-
-frontend:driver-app:
-  - changed-files:
-    - any-glob-to-any-file: 'apps/driver-app/**/*'
+      - any-glob-to-any-file: "apps/admin-dashboard/**/*"
 
 frontend:support-app:
   - changed-files:
-    - any-glob-to-any-file: 'apps/support-app/**/*'
+      - any-glob-to-any-file: "apps/support-app/**/*"
 
 frontend:bi-partner-app:
   - changed-files:
-    - any-glob-to-any-file: 'apps/bi-partner-app/**/*'
+      - any-glob-to-any-file: "apps/bi-partner-app/**/*"
 
 frontend:docs:
   - changed-files:
-    - any-glob-to-any-file: 'apps/docs-platform/**/*'
-
-
+      - any-glob-to-any-file: "apps/docs-platform/**/*"
 
 # Infrastructure labels
 infrastructure:
   - changed-files:
-    - any-glob-to-any-file: 'infrastructure/**/*'
+      - any-glob-to-any-file: "infrastructure/**/*"
 
 terraform:
   - changed-files:
-    - any-glob-to-any-file: 'infrastructure/terraform/**/*'
+      - any-glob-to-any-file: "infrastructure/terraform/**/*"
 
 kubernetes:
   - changed-files:
-    - any-glob-to-any-file: 'infrastructure/kubernetes/**/*'
+      - any-glob-to-any-file: "infrastructure/kubernetes/**/*"
 
 # CI/CD labels
 ci/cd:
   - changed-files:
-    - any-glob-to-any-file: '.github/workflows/**/*'
+      - any-glob-to-any-file: ".github/workflows/**/*"
 
 # Documentation labels
 documentation:
   - changed-files:
-    - any-glob-to-any-file:
-      - 'docs/**/*'
-      - '**/*.md'
+      - any-glob-to-any-file:
+          - "docs/**/*"
+          - "**/*.md"
 
 # Dependencies
 dependencies:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/package.json'
-      - '**/pom.xml'
-      - '**/pnpm-lock.yaml'
+      - any-glob-to-any-file:
+          - "**/package.json"
+          - "**/pom.xml"
+          - "**/pnpm-lock.yaml"
 
 # Configuration
 configuration:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/.env.example'
-      - '**/config/**/*'
+      - any-glob-to-any-file:
+          - "**/.env.example"
+          - "**/config/**/*"
 
 # Tests
 tests:
   - changed-files:
-    - any-glob-to-any-file:
-      - '**/*.test.ts'
-      - '**/*.spec.ts'
-      - '**/*Test.java'
+      - any-glob-to-any-file:
+          - "**/*.test.ts"
+          - "**/*.spec.ts"
+          - "**/*Test.java"
