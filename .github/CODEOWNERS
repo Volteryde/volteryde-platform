@@ -11,39 +11,39 @@
 # Global Ownership (Default)
 # =============================================================================
 # These owners will be requested for review on all PRs unless a more specific rule matches
-* @volteryde/platform-leads
+# * @volteryde/platform-leads
 
 # =============================================================================
 # Backend Services
 # =============================================================================
 
 # NestJS Services (Telematics, Booking, Fleet Ops, Charging)
-/services/volteryde-nest/ @volteryde/backend-team @volteryde/nestjs-experts
+# /services/volteryde-nest/ @volteryde/backend-team @volteryde/nestjs-experts
 
 # Java Spring Boot Services (Auth, Payment)
-/services/volteryde-springboot/ @volteryde/backend-team @volteryde/java-experts
+# /services/volteryde-springboot/ @volteryde/backend-team @volteryde/java-experts
 
 # Temporal Workers
-/workers/temporal-workers/ @volteryde/backend-team @volteryde/workflow-experts
+# /workers/temporal-workers/ @volteryde/backend-team @volteryde/workflow-experts
 
 # =============================================================================
 # Frontend Applications
 # =============================================================================
 
 # Admin Dashboard
-/apps/admin-dashboard/ @volteryde/frontend-team @volteryde/admin-team
+# /apps/admin-dashboard/ @volteryde/frontend-team @volteryde/admin-team
 
 
 
 
 # Support App
-/apps/support-app/ @volteryde/frontend-team @volteryde/support-team
+# /apps/support-app/ @volteryde/frontend-team @volteryde/support-team
 
 # BI Partner App
-/apps/bi-partner-app/ @volteryde/frontend-team @volteryde/analytics-team
+# /apps/bi-partner-app/ @volteryde/frontend-team @volteryde/analytics-team
 
 # Docs Platform
-/apps/docs-platform/ @volteryde/docs-team @volteryde/frontend-team
+# /apps/docs-platform/ @volteryde/docs-team @volteryde/frontend-team
 
 
 
@@ -52,105 +52,105 @@
 # =============================================================================
 
 # Terraform Infrastructure
-/infrastructure/terraform/ @volteryde/devops-team @volteryde/platform-leads
+# /infrastructure/terraform/ @volteryde/devops-team @volteryde/platform-leads
 
 # Kubernetes Configurations
-/infrastructure/kubernetes/ @volteryde/devops-team
+# /infrastructure/kubernetes/ @volteryde/devops-team
 
 # Docker Compose
-docker-compose.yml @volteryde/devops-team
-**/Dockerfile @volteryde/devops-team
+# docker-compose.yml @volteryde/devops-team
+# **/Dockerfile @volteryde/devops-team
 
 # =============================================================================
 # CI/CD & GitHub Actions
 # =============================================================================
 
-/.github/workflows/ @volteryde/devops-team @volteryde/platform-leads
-/.github/CODEOWNERS @volteryde/platform-leads
+# /.github/workflows/ @volteryde/devops-team @volteryde/platform-leads
+# /.github/CODEOWNERS @volteryde/platform-leads
 
 # =============================================================================
 # Documentation
 # =============================================================================
 
-/docs/ @volteryde/docs-team
-README.md @volteryde/docs-team @volteryde/platform-leads
-CONTRIBUTING.md @volteryde/platform-leads
+# /docs/ @volteryde/docs-team
+# README.md @volteryde/docs-team @volteryde/platform-leads
+# CONTRIBUTING.md @volteryde/platform-leads
 
 # API Documentation
-/docs/api/ @volteryde/backend-team @volteryde/docs-team
+# /docs/api/ @volteryde/backend-team @volteryde/docs-team
 
 # Architecture Decision Records (ADRs)
-/docs/architecture/ @volteryde/platform-leads @volteryde/architects
+# /docs/architecture/ @volteryde/platform-leads @volteryde/architects
 
 # =============================================================================
 # Configuration Files
 # =============================================================================
 
 # Package management
-package.json @volteryde/platform-leads
-pnpm-workspace.yaml @volteryde/platform-leads
-**/pom.xml @volteryde/java-experts
+# package.json @volteryde/platform-leads
+# pnpm-workspace.yaml @volteryde/platform-leads
+# **/pom.xml @volteryde/java-experts
 
 # Environment configuration
-.env.example @volteryde/devops-team @volteryde/platform-leads
-**/.env.example @volteryde/devops-team
+# .env.example @volteryde/devops-team @volteryde/platform-leads
+# **/.env.example @volteryde/devops-team
 
 # TypeScript/JavaScript configuration
-tsconfig*.json @volteryde/frontend-team @volteryde/backend-team
-*.config.js @volteryde/frontend-team @volteryde/backend-team
-*.config.ts @volteryde/frontend-team @volteryde/backend-team
+# tsconfig*.json @volteryde/frontend-team @volteryde/backend-team
+# *.config.js @volteryde/frontend-team @volteryde/backend-team
+# *.config.ts @volteryde/frontend-team @volteryde/backend-team
 
 # Linting and formatting
-.eslintrc* @volteryde/platform-leads
-.prettierrc* @volteryde/platform-leads
-.editorconfig @volteryde/platform-leads
+# .eslintrc* @volteryde/platform-leads
+# .prettierrc* @volteryde/platform-leads
+# .editorconfig @volteryde/platform-leads
 
 # Git configuration
-.gitignore @volteryde/platform-leads
-.gitattributes @volteryde/platform-leads
+# .gitignore @volteryde/platform-leads
+# .gitattributes @volteryde/platform-leads
 
 # =============================================================================
 # Security & Compliance
 # =============================================================================
 
 # Security-critical files (require approval from security team)
-**/authentication/** @volteryde/security-team @volteryde/java-experts
-**/payment/** @volteryde/security-team @volteryde/java-experts
-**/secrets/** @volteryde/security-team @volteryde/devops-team
+# **/authentication/** @volteryde/security-team @volteryde/java-experts
+# **/payment/** @volteryde/security-team @volteryde/java-experts
+# **/secrets/** @volteryde/security-team @volteryde/devops-team
 
 # =============================================================================
 # Database Migrations
 # =============================================================================
 
 # NestJS migrations
-**/migrations/*.ts @volteryde/backend-team @volteryde/database-team
+# **/migrations/*.ts @volteryde/backend-team @volteryde/database-team
 
 # Java migrations
-**/db/migration/*.sql @volteryde/backend-team @volteryde/database-team
+# **/db/migration/*.sql @volteryde/backend-team @volteryde/database-team
 
 # =============================================================================
 # Shared Packages
 # =============================================================================
 
-/packages/ @volteryde/platform-leads @volteryde/backend-team
+# /packages/ @volteryde/platform-leads @volteryde/backend-team
 
 # =============================================================================
 # Scripts
 # =============================================================================
 
-/scripts/ @volteryde/devops-team
+# /scripts/ @volteryde/devops-team
 
 # =============================================================================
 # Testing
 # =============================================================================
 
 # Test configuration
-**/*.test.ts @volteryde/backend-team @volteryde/frontend-team
-**/*.spec.ts @volteryde/backend-team @volteryde/frontend-team
-**/*Test.java @volteryde/backend-team @volteryde/java-experts
+# **/*.test.ts @volteryde/backend-team @volteryde/frontend-team
+# **/*.spec.ts @volteryde/backend-team @volteryde/frontend-team
+# **/*Test.java @volteryde/backend-team @volteryde/java-experts
 
 # E2E tests
-**/e2e/ @volteryde/qa-team
+# **/e2e/ @volteryde/qa-team
 
 # =============================================================================
 # Notes for Team Leads
