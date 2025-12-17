@@ -14,9 +14,6 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy lockfile and workspace config with ownership
 COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
-# Ensure .next folder exists and has correct permissions (fixes anonymous volume permissions)
-RUN mkdir -p apps/bi-partner-app/.next && chown -R nodejs:nodejs apps/bi-partner-app/.next
-
 # Switch user BEFORE fetching/installing
 USER nodejs
 
@@ -30,11 +27,11 @@ COPY --chown=nodejs:nodejs . .
 RUN pnpm install -r
 
 # Workdir
-WORKDIR /app/apps/bi-partner-app
+WORKDIR /app/apps/docs-platform
 
 # Entrypoint
 ENTRYPOINT ["dumb-init", "--"]
 
 # CMD
-ENV HOSTNAME="0.0.0.0"
+ENV HOST=0.0.0.0
 CMD ["pnpm", "dev"]
