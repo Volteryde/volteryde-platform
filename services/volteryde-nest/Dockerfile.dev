@@ -7,37 +7,29 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@9
+# Install pnpm and system deps
+RUN npm install -g pnpm@9 && \
+    apk add --no-cache dumb-init
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create non-root user
+# Create non-root user and set permissions for /app
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
 
-# Copy lockfile and workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+# Copy lockfile and workspace config with ownership
+COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+
+# Switch to non-root user BEFORE fetching/installing
+USER nodejs
 
 # Fetch dependencies (cached step)
-# This layer will be cached unless pnpm-lock.yaml changes
 RUN pnpm fetch
 
-# Copy source code
-COPY . .
+# Copy source code with ownership
+COPY --chown=nodejs:nodejs . .
 
 # Install dependencies from offline store
 RUN pnpm install -r
-
-# Change ownership
-RUN chown -R nodejs:nodejs /app
-
-# Switch to non-root user
-USER nodejs
-
-# Expose port
-EXPOSE 3000
 
 # Working directory for the service
 WORKDIR /app/services/volteryde-nest

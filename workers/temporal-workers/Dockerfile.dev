@@ -19,37 +19,38 @@ RUN apt-get update && apt-get install -y \
 # Install pnpm
 RUN npm install -g pnpm@8
 
-# Create non-root user
+# Create non-root user and set permissions
 RUN groupadd -g 1001 nodejs && \
-    useradd -r -u 1001 -g nodejs nodejs
+    useradd -r -u 1001 -g nodejs nodejs && \
+    mkdir -p /home/nodejs && \
+    chown -R nodejs:nodejs /home/nodejs && \
+    chown -R nodejs:nodejs /app
 
-# Copy monorepo workspace files
-COPY pnpm-workspace.yaml ./
-COPY package.json ./
+# Copy monorepo workspace files with ownership
+COPY --chown=nodejs:nodejs pnpm-workspace.yaml ./
+COPY --chown=nodejs:nodejs package.json ./
 
 # Copy pnpm-lock.yaml if it exists
-COPY pnpm-lock.yaml* ./
-COPY .npmrc* ./
+COPY --chown=nodejs:nodejs pnpm-lock.yaml* ./
+COPY --chown=nodejs:nodejs .npmrc* ./
+
+# Switch to non-root user BEFORE fetch/install
+USER nodejs
 
 # Copy worker package.json
-COPY workers/temporal-workers/package.json ./workers/temporal-workers/
+COPY --chown=nodejs:nodejs workers/temporal-workers/package.json ./workers/temporal-workers/
 
 # Copy shared packages if they exist
-COPY packages ./packages
+COPY --chown=nodejs:nodejs packages ./packages
 
 # Install all dependencies
+# Note: running as nodejs user now
 RUN pnpm config set fetch-retries 5 && \
     pnpm config set fetch-retry-maxtimeout 120000 && \
     pnpm install
 
 # Copy worker source code
-COPY workers/temporal-workers ./workers/temporal-workers
-
-# Change ownership
-RUN chown -R nodejs:nodejs /app
-
-# Switch to non-root user
-USER nodejs
+COPY --chown=nodejs:nodejs workers/temporal-workers ./workers/temporal-workers
 
 # Working directory for the worker
 WORKDIR /app/workers/temporal-workers

@@ -6,5 +6,9 @@ import mdx from 'fumadocs-mdx/vite';
 import * as MdxConfig from './source.config';
 
 export default defineConfig({
+  server: {
+    port: Number(process.env.PORT) || 3000,
+    host: true,
+  },
   plugins: [mdx(MdxConfig), tailwindcss(), reactRouter(), tsconfigPaths()],
 });

@@ -2,52 +2,39 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@9
-
-# Install dumb-init
-RUN apk add --no-cache dumb-init
+# Install pnpm and system deps
+RUN npm install -g pnpm@9 && \
+	apk add --no-cache dumb-init
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-	adduser -S nodejs -u 1001
+	adduser -S nodejs -u 1001 && \
+	chown -R nodejs:nodejs /app
 
-# Copy lockfile and workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+# Copy lockfile and workspace config with ownership
+COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
-# Fetch dependencies (cached step)
-# This layer will be cached unless pnpm-lock.yaml changes
-RUN pnpm fetch
-
-# Create .next directory with correct permissions to fix EACCES issues
+# Ensure .next folder exists and has correct permissions (fixes anonymous volume permissions)
 RUN mkdir -p apps/dispatcher-app/.next && chown -R nodejs:nodejs apps/dispatcher-app/.next
 
-# Copy source code
-COPY . .
+# Switch user BEFORE fetching/installing
+USER nodejs
+
+# Fetch dependencies
+RUN pnpm fetch
+
+# Copy source code with ownership
+COPY --chown=nodejs:nodejs . .
 
 # Install dependencies from offline store
 RUN pnpm install -r
 
-# Chown
-RUN chown -R nodejs:nodejs /app
-
-# Switch user
-USER nodejs
-
-# Expose port
-EXPOSE 3000
-
 # Workdir
 WORKDIR /app/apps/dispatcher-app
-
-# Build the application
-ENV NODE_ENV=production
-RUN pnpm build
 
 # Entrypoint
 ENTRYPOINT ["dumb-init", "--"]
 
 # CMD
-# CMD
 ENV HOSTNAME="0.0.0.0"
-CMD ["pnpm", "start"]
+CMD ["pnpm", "dev"]
