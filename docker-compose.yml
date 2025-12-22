@@ -440,7 +440,7 @@ services:
       - .:/app
       - /app/node_modules
       - /app/apps/admin-dashboard/node_modules
-      - /app/apps/admin-dashboard/build
+      - /app/apps/admin-dashboard/.next
     networks:
       - volteryde-network
     restart: unless-stopped
