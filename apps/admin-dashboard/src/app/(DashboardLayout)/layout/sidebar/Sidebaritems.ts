@@ -81,6 +81,12 @@ const SidebarContent: MenuItem[] = [
         id: uniqueId(),
         url: '/charging',
       },
+      {
+        name: 'Tickets',
+        icon: 'solar:chat-round-line-linear',
+        id: uniqueId(),
+        url: '/tickets',
+      },
     ],
   },
   {
