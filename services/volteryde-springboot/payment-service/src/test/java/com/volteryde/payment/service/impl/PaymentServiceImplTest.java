@@ -8,11 +8,9 @@ import com.volteryde.payment.entity.PaymentMethodEntity;
 import com.volteryde.payment.entity.PaymentTransactionEntity;
 import com.volteryde.payment.entity.WalletBalanceEntity;
 import com.volteryde.payment.entity.WalletTransactionEntity;
-import com.volteryde.payment.exception.PaymentGatewayException;
 import com.volteryde.payment.exception.PaymentNotFoundException;
 import com.volteryde.payment.model.PaymentProvider;
 import com.volteryde.payment.model.PaymentStatus;
-import com.volteryde.payment.model.WalletTransactionType;
 import com.volteryde.payment.repository.PaymentMethodRepository;
 import com.volteryde.payment.repository.PaymentTransactionRepository;
 import com.volteryde.payment.repository.WalletBalanceRepository;
@@ -45,6 +43,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class PaymentServiceImplTest {
 
     @Mock
@@ -67,38 +66,35 @@ class PaymentServiceImplTest {
     @BeforeEach
     void setUp() {
         paymentService = new PaymentServiceImpl(
-            paymentGatewayClient,
-            paymentTransactionRepository,
-            paymentMethodRepository,
-            walletBalanceRepository,
-            walletTransactionRepository,
-            new ObjectMapper()
-        );
+                paymentGatewayClient,
+                paymentTransactionRepository,
+                paymentMethodRepository,
+                walletBalanceRepository,
+                walletTransactionRepository,
+                new ObjectMapper());
     }
 
     @Test
     void initializePaymentShouldCreatePendingTransactionAndCallGateway() {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
-            new BigDecimal("2500.00"),
-            "NGN",
-            42L,
-            "customer@example.com",
-            "REF-123",
-            null,
-            Map.of("orderId", "ORD-1")
-        );
+                new BigDecimal("2500.00"),
+                "NGN",
+                42L,
+                "customer@example.com",
+                "REF-123",
+                null,
+                Map.of("orderId", "ORD-1"));
 
         when(paymentTransactionRepository.findByReference("REF-123"))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
         when(paymentTransactionRepository.save(any(PaymentTransactionEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentInitializationResponse gatewayResponse = new PaymentInitializationResponse(
-            request.reference(),
-            "https://paystack.com/checkout",
-            "ACCESS-CODE",
-            PaymentStatus.PROCESSING
-        );
+                request.reference(),
+                "https://paystack.com/checkout",
+                "ACCESS-CODE",
+                PaymentStatus.PROCESSING);
         when(paymentGatewayClient.initializePayment(request)).thenReturn(gatewayResponse);
 
         PaymentInitializationResponse response = paymentService.initializePayment(request);
@@ -125,17 +121,16 @@ class PaymentServiceImplTest {
         existing.setCurrency("NGN");
 
         when(paymentTransactionRepository.findByReference("REF-EXISTING"))
-            .thenReturn(Optional.of(existing));
+                .thenReturn(Optional.of(existing));
 
         PaymentInitializationRequest request = new PaymentInitializationRequest(
-            existing.getAmount(),
-            existing.getCurrency(),
-            99L,
-            "existing@example.com",
-            existing.getReference(),
-            null,
-            null
-        );
+                existing.getAmount(),
+                existing.getCurrency(),
+                99L,
+                "existing@example.com",
+                existing.getReference(),
+                null,
+                null);
 
         PaymentInitializationResponse response = paymentService.initializePayment(request);
 
@@ -154,53 +149,51 @@ class PaymentServiceImplTest {
         transaction.setStatus(PaymentStatus.PENDING);
 
         when(paymentTransactionRepository.findByReference("REF-VERIFY"))
-            .thenReturn(Optional.of(transaction));
+                .thenReturn(Optional.of(transaction));
 
         PaystackVerifyResponseDataAuthorization authorization = new PaystackVerifyResponseDataAuthorization(
-            "AUTH-CODE",
-            "card",
-            "1234",
-            "01",
-            "29",
-            "card",
-            "Bank",
-            true,
-            "signature",
-            "John Doe"
-        );
+                "AUTH-CODE",
+                "card",
+                "1234",
+                "01",
+                "29",
+                "card",
+                "Bank",
+                true,
+                "signature",
+                "John Doe");
         PaystackVerifyResponseData data = new PaystackVerifyResponseData(
-            "success",
-            new BigDecimal("1500.00"),
-            "NGN",
-            OffsetDateTime.now(),
-            OffsetDateTime.now(),
-            transaction.getReference(),
-            authorization
-        );
+                "success",
+                new BigDecimal("1500.00"),
+                "NGN",
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
+                transaction.getReference(),
+                authorization);
         PaystackVerifyResponse gatewayResponse = new PaystackVerifyResponse(true, "Approved", data);
 
         when(paymentGatewayClient.verifyPayment("REF-VERIFY")).thenReturn(gatewayResponse);
         when(paymentMethodRepository.findByCustomerIdAndAuthorizationCode(77L, "AUTH-CODE"))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
         when(paymentMethodRepository.save(any(PaymentMethodEntity.class)))
-            .thenAnswer(invocation -> {
-                PaymentMethodEntity entity = invocation.getArgument(0);
-                entity.setId(10L);
-                return entity;
-            });
+                .thenAnswer(invocation -> {
+                    PaymentMethodEntity entity = invocation.getArgument(0);
+                    entity.setId(10L);
+                    return entity;
+                });
 
         WalletBalanceEntity walletBalance = new WalletBalanceEntity();
         walletBalance.setCustomerId(77L);
         walletBalance.setBalance(new BigDecimal("500.00"));
         when(walletBalanceRepository.findByCustomerId(77L)).thenReturn(Optional.of(walletBalance));
         when(walletBalanceRepository.save(any(WalletBalanceEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         when(walletTransactionRepository.save(any(WalletTransactionEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         when(paymentTransactionRepository.save(any(PaymentTransactionEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentVerificationResponse verificationResponse = paymentService.verifyPayment("REF-VERIFY");
 
@@ -213,7 +206,7 @@ class PaymentServiceImplTest {
     @Test
     void verifyPaymentShouldThrowWhenTransactionMissing() {
         when(paymentTransactionRepository.findByReference("UNKNOWN"))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
 
         assertThrows(PaymentNotFoundException.class, () -> paymentService.verifyPayment("UNKNOWN"));
     }
@@ -228,48 +221,46 @@ class PaymentServiceImplTest {
         transaction.setStatus(PaymentStatus.PENDING);
 
         when(paymentTransactionRepository.findByReference("REF-WEBHOOK"))
-            .thenReturn(Optional.of(transaction));
+                .thenReturn(Optional.of(transaction));
 
         PaystackVerifyResponseData data = new PaystackVerifyResponseData(
-            "success",
-            new BigDecimal("500.00"),
-            "NGN",
-            OffsetDateTime.now(),
-            OffsetDateTime.now(),
-            transaction.getReference(),
-            null
-        );
+                "success",
+                new BigDecimal("500.00"),
+                "NGN",
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
+                transaction.getReference(),
+                null);
         PaystackVerifyResponse verifyResponse = new PaystackVerifyResponse(true, "Approved", data);
 
         when(paymentGatewayClient.verifyPayment("REF-WEBHOOK")).thenReturn(verifyResponse);
         when(paymentTransactionRepository.save(any(PaymentTransactionEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(walletBalanceRepository.findByCustomerId(5L))
-            .thenReturn(Optional.of(new WalletBalanceEntity()));
+                .thenReturn(Optional.of(new WalletBalanceEntity()));
         when(walletBalanceRepository.save(any(WalletBalanceEntity.class)))
-            .thenAnswer(invocation -> {
-                WalletBalanceEntity entity = invocation.getArgument(0);
-                if (entity.getBalance() == null) {
-                    entity.setBalance(BigDecimal.ZERO);
-                }
-                return entity;
-            });
+                .thenAnswer(invocation -> {
+                    WalletBalanceEntity entity = invocation.getArgument(0);
+                    if (entity.getBalance() == null) {
+                        entity.setBalance(BigDecimal.ZERO);
+                    }
+                    return entity;
+                });
         when(walletTransactionRepository.save(any(WalletTransactionEntity.class)))
-            .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentMethodRepository.findByCustomerIdAndAuthorizationCode(eq(5L), any()))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
 
         PaystackWebhookEvent event = new PaystackWebhookEvent(
-            "charge.success",
-            Map.of("reference", "REF-WEBHOOK"),
-            "2024-01-01T00:00:00Z",
-            "evt_123",
-            BigDecimal.valueOf(50000)
-        );
+                "charge.success",
+                Map.of("reference", "REF-WEBHOOK"),
+                "2024-01-01T00:00:00Z",
+                "evt_123",
+                BigDecimal.valueOf(50000));
 
         doNothing().when(paymentGatewayClient).validateWebhookSignature("{}", "signature");
         when(paymentGatewayClient.parseWebhookEvent("{}"))
-            .thenReturn(event);
+                .thenReturn(event);
 
         paymentService.handleWebhook("{}", "signature");
 

@@ -163,6 +163,7 @@ services:
       - bi-partner-app
       - customer-and-support-app
       - docs-platform
+      - auth-frontend
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -268,6 +269,12 @@ services:
         condition: service_healthy
       service-discovery:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -434,6 +441,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
+      - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth.localhost
+      - NEXT_PUBLIC_AUTH_API_URL=http://auth-service:8080/api/auth
+      - NEXT_PUBLIC_API_URL=http://api.localhost
     ports:
       - "3003:3000"
     volumes:
@@ -441,6 +451,12 @@ services:
       - /app/node_modules
       - /app/apps/admin-dashboard/node_modules
       - /app/apps/admin-dashboard/.next
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -498,6 +514,34 @@ services:
       - /app/node_modules
       - /app/apps/landing-page/node_modules
       - /app/apps/landing-page/.next
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  auth-frontend:
+    build:
+      context: .
+      dockerfile: apps/auth-frontend/Dockerfile.dev
+    container_name: volteryde-auth-frontend
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth.localhost
+      - NEXT_PUBLIC_AUTH_API_URL=http://auth-service:8080/api/auth
+      - NEXT_PUBLIC_ADMIN_URL=http://admin.localhost
+    ports:
+      - "3007:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/auth-frontend/node_modules
+      - /app/apps/auth-frontend/.next
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped

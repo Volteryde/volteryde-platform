@@ -4,6 +4,7 @@ import com.volteryde.payment.dto.PaymentInitializationRequest;
 import com.volteryde.payment.dto.PaymentInitializationResponse;
 import com.volteryde.payment.dto.PaymentVerificationResponse;
 import com.volteryde.payment.service.PaymentService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +26,29 @@ public class PaymentController {
 
     @PostMapping("/initialize")
     public ResponseEntity<PaymentInitializationResponse> initializePayment(
-        @RequestBody @Valid PaymentInitializationRequest request
-    ) {
-        // TODO: propagate authenticated customerId rather than trusting request payload
-        return ResponseEntity.ok(paymentService.initializePayment(request));
+            @RequestBody @Valid PaymentInitializationRequest request,
+            HttpServletRequest httpRequest) {
+        // Extract authenticated customer ID from request attribute (set by auth filter)
+        // Falls back to request payload if not authenticated (for guest checkout)
+        Long authenticatedCustomerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+
+        PaymentInitializationRequest secureRequest;
+        if (authenticatedCustomerId != null) {
+            // Use authenticated customer ID instead of trusting request payload
+            secureRequest = new PaymentInitializationRequest(
+                    request.amount(),
+                    request.currency(),
+                    authenticatedCustomerId, // Use authenticated ID
+                    request.customerEmail(),
+                    request.reference(),
+                    request.callbackUrl(),
+                    request.metadata());
+        } else {
+            // Guest checkout or no auth - use request payload
+            secureRequest = request;
+        }
+
+        return ResponseEntity.ok(paymentService.initializePayment(secureRequest));
     }
 
     @GetMapping("/{reference}/verify")

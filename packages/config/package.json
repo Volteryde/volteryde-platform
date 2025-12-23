@@ -1,33 +1,22 @@
 {
   "name": "@volteryde/config",
   "version": "1.0.0",
-  "description": "Centralized environment configuration for all Volteryde services",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "dotenv": "^16.3.1",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "typescript": "^5.2.2",
-    "@types/node": "^20.8.0"
-  },
+  "description": "Centralized configuration for Volteryde platform applications",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./env": {
-      "import": "./dist/env.js",
-      "require": "./dist/env.js",
-      "types": "./dist/env.d.ts"
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
     }
-  }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["volteryde", "config", "environment"]
 }
