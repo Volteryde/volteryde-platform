@@ -66,6 +66,9 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
             if (request.metadata() != null) {
                 payload.put("metadata", request.metadata());
             }
+            if (request.authorizationCode() != null) {
+                payload.put("authorization_code", request.authorizationCode());
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -172,5 +175,42 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
             hexString.append(hex);
         }
         return hexString.toString();
+    }
+
+    private static final String REFUND_ENDPOINT = "/refund";
+
+    @Override
+    public com.volteryde.payment.service.model.PaystackRefundResponse initiateRefund(String transactionReference,
+            BigDecimal amount, String reason) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("transaction", transactionReference);
+            if (amount != null) {
+                payload.put("amount", toLowestDenomination(amount));
+            }
+            if (reason != null) {
+                payload.put("customer_note", reason);
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<com.volteryde.payment.service.model.PaystackRefundResponse> response = restTemplate
+                    .postForEntity(
+                            REFUND_ENDPOINT,
+                            entity,
+                            com.volteryde.payment.service.model.PaystackRefundResponse.class);
+
+            com.volteryde.payment.service.model.PaystackRefundResponse responseBody = response.getBody();
+            if (responseBody == null || !responseBody.status()) {
+                throw new PaymentGatewayException("Failed to initiate refund: " +
+                        (responseBody != null ? responseBody.message() : "empty response"));
+            }
+
+            return responseBody;
+        } catch (RestClientException ex) {
+            throw new PaymentGatewayException("Error initiating refund", ex);
+        }
     }
 }

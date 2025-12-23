@@ -1,14 +1,18 @@
+# syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde Java Spring Boot - Multi-stage Docker Build
 # ============================================================================
+# Uses BuildKit cache mounts for faster Maven builds
 
 # Stage 1: Builder
 FROM maven:3.9-amazoncorretto-17-alpine AS builder
 
 WORKDIR /app
 
+# Configure Maven for faster builds
+ENV MAVEN_OPTS="-Xmx512m -XX:+UseContainerSupport"
+
 # 1. Copy POMs for dependency caching
-# We copy them individually to ensure we duplicate the structure
 COPY services/volteryde-springboot/pom.xml .
 COPY services/volteryde-springboot/shared-library/pom.xml shared-library/
 COPY services/volteryde-springboot/api-gateway/pom.xml api-gateway/
@@ -17,31 +21,32 @@ COPY services/volteryde-springboot/auth-service/pom.xml auth-service/
 COPY services/volteryde-springboot/user-management-service/pom.xml user-management-service/
 COPY services/volteryde-springboot/payment-service/pom.xml payment-service/
 
-# 2. Download dependencies (Cached Layer)
-# dependency:go-offline can sometimes be flaky with large reactors, 
-# 'verify clean --fail-never' or just installing specific deps is sometimes safer,
-# but go-offline is the standard optimization.
-# Attempt to download external dependencies, ignoring failures for missing internal modules (shared-library)
-RUN mvn dependency:resolve dependency:resolve-plugins -B --fail-never
+# 2. Download dependencies with BuildKit cache mount
+# This caches Maven dependencies between builds
+RUN --mount=type=cache,target=/root/.m2/repository \
+  mvn dependency:resolve dependency:resolve-plugins -B --fail-never || true
 
-# 3. Copy source code (Frequent Changes)
+# 3. Copy source code
 COPY services/volteryde-springboot/ .
 
-# 4. Build
-RUN mvn clean package -DskipTests > build.log 2>&1 || (cat build.log && exit 1)
+# 4. Build with cache mount and retry logic
+RUN --mount=type=cache,target=/root/.m2/repository \
+  mvn clean package -DskipTests -B -q \
+  || mvn clean package -DskipTests -B -q \
+  || (mvn clean package -DskipTests -B && echo "Build successful")
 
 # Stage 2: Production
 FROM bellsoft/liberica-openjre-alpine:17 AS production
 
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init wget
 
 RUN addgroup -g 1001 -S spring && \
   adduser -S spring -u 1001
 
 ARG SERVICE_NAME
-# Ensure we copy from the specific submodule's target
+# Copy the built jar
 COPY --from=builder /app/${SERVICE_NAME}/target/*.jar app.jar
 
 USER spring

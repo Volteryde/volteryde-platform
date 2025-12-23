@@ -42,7 +42,7 @@ export function isDevelopment(): boolean {
  */
 export function getAuthServiceUrl(): string {
   return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ||
-    (isDevelopment() ? 'http://localhost:3008' : 'https://auth.volteryde.org');
+    (isDevelopment() ? 'http://localhost:3007' : 'https://auth.volteryde.org');
 }
 
 /**

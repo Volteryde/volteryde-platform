@@ -64,6 +64,7 @@ class PaystackPaymentGatewayClientTest {
                 "user@example.com",
                 "REF-100",
                 "https://callback",
+                null,
                 Map.of("orderId", "ORD-1"));
 
         PaystackInitializeResponseData data = new PaystackInitializeResponseData(
@@ -99,6 +100,7 @@ class PaystackPaymentGatewayClientTest {
                 "user@example.com",
                 "REF-FAIL",
                 null,
+                null,
                 null);
 
         PaystackInitializeResponse response = new PaystackInitializeResponse(false, "Failure", null);
@@ -119,6 +121,7 @@ class PaystackPaymentGatewayClientTest {
                 3L,
                 "user@example.com",
                 "REF-ERROR",
+                null,
                 null,
                 null);
 

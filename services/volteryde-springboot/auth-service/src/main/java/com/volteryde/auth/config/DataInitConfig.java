@@ -44,6 +44,7 @@ public class DataInitConfig {
 			case PARTNER -> "Business intelligence and partner portal access";
 			case DRIVER -> "Driver app access and route management";
 			case FLEET_MANAGER -> "Fleet and vehicle management";
+			case PASSENGER -> "Passenger app access and booking management";
 		};
 	}
 }

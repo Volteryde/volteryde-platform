@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
  * Handles login, registration, token refresh, and password management
  */
 @RestController
-@RequestMapping("/api/auth")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class AuthController {
 
@@ -167,5 +166,34 @@ public class AuthController {
 			return xForwardedFor.split(",")[0].trim();
 		}
 		return request.getRemoteAddr();
+	}
+
+	/**
+	 * Initiate phone signup
+	 */
+	@PostMapping("/signup/phone/init")
+	public ResponseEntity<Void> initiatePhoneSignup(@Valid @RequestBody PhoneInitRequest request) {
+		authService.initiatePhoneSignup(request);
+		return ResponseEntity.ok().build();
+	}
+
+	/**
+	 * Verify phone OTP
+	 */
+	@PostMapping("/signup/phone/verify")
+	public ResponseEntity<PhoneVerifyResponse> verifyPhoneSignup(@Valid @RequestBody PhoneVerifyRequest request) {
+		return ResponseEntity.ok(authService.verifyPhoneSignup(request));
+	}
+
+	/**
+	 * Complete signup profile
+	 */
+	@PostMapping("/signup/complete")
+	public ResponseEntity<AuthResponse> completeSignup(
+			@Valid @RequestBody SignupCompleteRequest request,
+			HttpServletRequest httpRequest) {
+		String deviceInfo = httpRequest.getHeader("User-Agent");
+		String ipAddress = getClientIp(httpRequest);
+		return ResponseEntity.ok(authService.completeProfile(request, deviceInfo, ipAddress));
 	}
 }

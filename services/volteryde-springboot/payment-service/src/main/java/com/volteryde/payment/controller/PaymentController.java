@@ -42,6 +42,7 @@ public class PaymentController {
                     request.customerEmail(),
                     request.reference(),
                     request.callbackUrl(),
+                    request.authorizationCode(),
                     request.metadata());
         } else {
             // Guest checkout or no auth - use request payload
@@ -54,5 +55,30 @@ public class PaymentController {
     @GetMapping("/{reference}/verify")
     public ResponseEntity<PaymentVerificationResponse> verifyPayment(@PathVariable String reference) {
         return ResponseEntity.ok(paymentService.verifyPayment(reference));
+    }
+
+    @PostMapping("/payment-methods")
+    public ResponseEntity<com.volteryde.payment.dto.PaymentMethodResponse> addPaymentMethod(
+            @RequestBody @Valid com.volteryde.payment.dto.PaymentMethodRequest request,
+            HttpServletRequest httpRequest) {
+        Long customerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        if (customerId == null)
+            return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(paymentService.addPaymentMethod(customerId, request));
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<java.util.List<com.volteryde.payment.entity.PaymentTransactionEntity>> getTransactions(
+            HttpServletRequest httpRequest) {
+        Long customerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        if (customerId == null)
+            return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(paymentService.getTransactions(customerId));
+    }
+
+    @PostMapping("/refunds")
+    public ResponseEntity<com.volteryde.payment.dto.RefundResponse> refundTransaction(
+            @RequestBody @Valid com.volteryde.payment.dto.RefundRequest request) {
+        return ResponseEntity.ok(paymentService.refundTransaction(request));
     }
 }

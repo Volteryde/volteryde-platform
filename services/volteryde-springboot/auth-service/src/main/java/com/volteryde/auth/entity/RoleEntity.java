@@ -27,7 +27,8 @@ public class RoleEntity {
 		SUPPORT_AGENT,
 		PARTNER,
 		DRIVER,
-		FLEET_MANAGER
+		FLEET_MANAGER,
+		PASSENGER
 	}
 
 	// Constructors

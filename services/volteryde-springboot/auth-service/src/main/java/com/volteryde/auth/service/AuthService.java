@@ -11,6 +11,8 @@ import com.volteryde.auth.repository.InviteCodeRepository;
 import com.volteryde.auth.repository.RefreshTokenRepository;
 import com.volteryde.auth.repository.RoleRepository;
 import com.volteryde.auth.repository.UserRepository;
+import com.volteryde.auth.repository.PhoneVerificationRepository;
+import com.volteryde.auth.entity.PhoneVerificationEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +42,8 @@ public class AuthService {
 	private final JwtService jwtService;
 	private final PasswordEncoder passwordEncoder;
 	private final EmailService emailService;
+	private final ActivityLogService activityLogService;
+	private final PhoneVerificationRepository phoneVerificationRepository;
 
 	public AuthService(
 			UserRepository userRepository,
@@ -48,7 +52,9 @@ public class AuthService {
 			InviteCodeRepository inviteCodeRepository,
 			JwtService jwtService,
 			PasswordEncoder passwordEncoder,
-			EmailService emailService) {
+			EmailService emailService,
+			ActivityLogService activityLogService,
+			PhoneVerificationRepository phoneVerificationRepository) {
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.refreshTokenRepository = refreshTokenRepository;
@@ -56,30 +62,61 @@ public class AuthService {
 		this.jwtService = jwtService;
 		this.passwordEncoder = passwordEncoder;
 		this.emailService = emailService;
+		this.activityLogService = activityLogService;
+		this.phoneVerificationRepository = phoneVerificationRepository;
 	}
 
 	/**
 	 * Authenticate user and return tokens
+	 * Supports login via Access ID (VLT-XXXXXX) or Email
 	 */
 	public AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress) {
-		logger.info("Login attempt for email: {}", request.getEmail());
+		String identifier = request.getIdentifier();
+		logger.info("Login attempt for identifier: {}", identifier);
 
-		UserEntity user = userRepository.findByEmail(request.getEmail())
-				.orElseThrow(() -> new AuthException("Invalid email or password"));
+		try {
+			// Find user by access ID or email
+			UserEntity user;
+			if (request.isAccessId()) {
+				// Login via Access ID (VLT-XXXXXX format)
+				user = userRepository.findByAccessId(identifier.toUpperCase())
+						.orElseThrow(() -> {
+							activityLogService.logLoginFailed(identifier, ipAddress, deviceInfo, "Invalid Access ID");
+							return new AuthException("Invalid Access ID or Passcode");
+						});
+			} else {
+				// Login via Email
+				user = userRepository.findByEmail(identifier)
+						.orElseThrow(() -> {
+							activityLogService.logLoginFailed(identifier, ipAddress, deviceInfo, "User not found");
+							return new AuthException("Invalid Access ID or Passcode");
+						});
+			}
 
-		if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-			throw new AuthException("Invalid email or password");
+			if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+				activityLogService.logLoginFailed(identifier, ipAddress, deviceInfo, "Invalid password");
+				throw new AuthException("Invalid Access ID or Passcode");
+			}
+
+			if (!user.getEnabled()) {
+				activityLogService.logLoginFailed(identifier, ipAddress, deviceInfo, "Account disabled");
+				throw new AuthException("Account is disabled");
+			}
+
+			// Update last login
+			user.setLastLoginAt(LocalDateTime.now());
+			userRepository.save(user);
+
+			// Log successful login
+			activityLogService.logLoginSuccess(user, ipAddress, deviceInfo);
+
+			return generateAuthResponse(user, deviceInfo, ipAddress);
+		} catch (AuthException e) {
+			throw e; // Re-throw, already logged
+		} catch (Exception e) {
+			activityLogService.logLoginFailed(identifier, ipAddress, deviceInfo, "Unexpected error: " + e.getMessage());
+			throw e;
 		}
-
-		if (!user.getEnabled()) {
-			throw new AuthException("Account is disabled");
-		}
-
-		// Update last login
-		user.setLastLoginAt(LocalDateTime.now());
-		userRepository.save(user);
-
-		return generateAuthResponse(user, deviceInfo, ipAddress);
 	}
 
 	/**
@@ -117,6 +154,9 @@ public class AuthService {
 
 		user = userRepository.save(user);
 		logger.info("User registered successfully: {}", user.getId());
+
+		// Log registration activity
+		activityLogService.logRegistration(user, ipAddress, deviceInfo);
 
 		return generateAuthResponse(user, deviceInfo, ipAddress);
 	}
@@ -242,6 +282,7 @@ public class AuthService {
 	private UserDto mapToUserDto(UserEntity user) {
 		UserDto dto = new UserDto();
 		dto.setId(user.getId());
+		dto.setAccessId(user.getAccessId());
 		dto.setEmail(user.getEmail());
 		dto.setFirstName(user.getFirstName());
 		dto.setLastName(user.getLastName());
@@ -274,5 +315,101 @@ public class AuthService {
 					logger.warn("Invalid or expired invite code: {}", inviteCode);
 					return UserRole.DRIVER;
 				});
+	}
+
+	/**
+	 * Initiate phone signup - send OTP
+	 */
+	public void initiatePhoneSignup(PhoneInitRequest request) {
+		String phone = request.getPhone();
+
+		if (userRepository.existsByPhoneNumber(phone)) {
+			throw new AuthException("Phone number already registered. Please login.");
+		}
+
+		String code = String.valueOf((int) ((Math.random() * 900000) + 100000));
+
+		PhoneVerificationEntity verification = new PhoneVerificationEntity();
+		verification.setPhone(phone);
+		verification.setCode(code);
+		verification.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+		verification.setVerified(false);
+		phoneVerificationRepository.save(verification);
+
+		logger.info("OTP generated for {}: {}", phone, code);
+		// TODO: Integrate SMS Service
+	}
+
+	/**
+	 * Verify phone OTP
+	 */
+	public PhoneVerifyResponse verifyPhoneSignup(PhoneVerifyRequest request) {
+		PhoneVerificationEntity verification = phoneVerificationRepository
+				.findTopByPhoneAndCodeAndExpiresAtAfterAndVerifiedFalse(request.getPhone(), request.getCode(),
+						LocalDateTime.now())
+				.orElseThrow(() -> new AuthException("Invalid or expired OTP"));
+
+		verification.setVerified(true);
+		verification.setVerifiedAt(LocalDateTime.now());
+		phoneVerificationRepository.save(verification);
+
+		String signupToken = jwtService.generateSignupToken(request.getPhone());
+		return new PhoneVerifyResponse(true, signupToken, "Phone verified successfully");
+	}
+
+	/**
+	 * Complete profile creation
+	 */
+	public AuthResponse completeProfile(SignupCompleteRequest request, String deviceInfo, String ipAddress) {
+		// Validate Token
+		if (!jwtService.validateToken(request.getSignupToken())) {
+			throw new AuthException("Invalid or expired verification token");
+		}
+
+		String scope = jwtService.extractScope(request.getSignupToken());
+		if (!"SIGNUP_VERIFIED".equals(scope)) {
+			throw new AuthException("Invalid token purpose");
+		}
+
+		String phone = jwtService.extractUserId(request.getSignupToken()); // phone is subject
+
+		if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+			throw new AuthException("Email already in use");
+		}
+
+		// Create User
+		UserEntity user = new UserEntity();
+		user.setEmail(request.getEmail());
+		user.setPhoneNumber(phone);
+		user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+		user.setFirstName(request.getFirstName());
+		user.setLastName(request.getLastName());
+		// Generate Access ID
+		user.setAccessId("VR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+		user.setEnabled(true);
+		user.setEmailVerified(false);
+
+		// Assign Role
+		Set<RoleEntity> roles = new HashSet<>();
+		RoleEntity role = roleRepository.findByName(UserRole.PASSENGER)
+				.orElseGet(() -> roleRepository.save(new RoleEntity(UserRole.PASSENGER)));
+
+		if (request.getUserType() != null) {
+			try {
+				UserRole requestedRole = UserRole.valueOf(request.getUserType());
+				role = roleRepository.findByName(requestedRole)
+						.orElseGet(() -> roleRepository.save(new RoleEntity(requestedRole)));
+			} catch (IllegalArgumentException e) {
+				logger.warn("Invalid role requested: {}", request.getUserType());
+			}
+		}
+		roles.add(role);
+		user.setRoles(roles);
+
+		user = userRepository.save(user);
+
+		activityLogService.logRegistration(user, ipAddress, deviceInfo);
+
+		return generateAuthResponse(user, deviceInfo, ipAddress);
 	}
 }

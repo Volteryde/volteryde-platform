@@ -14,4 +14,7 @@ public interface PaymentGatewayClient {
     void validateWebhookSignature(String payload, String signatureHeader);
 
     PaystackWebhookEvent parseWebhookEvent(String payload);
+
+    com.volteryde.payment.service.model.PaystackRefundResponse initiateRefund(String transactionReference,
+            java.math.BigDecimal amount, String reason);
 }

@@ -8,6 +8,7 @@ import java.util.List;
 public class UserDto {
 
 	private String id;
+	private String accessId;
 	private String email;
 	private String firstName;
 	private String lastName;
@@ -28,6 +29,14 @@ public class UserDto {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	public String getAccessId() {
+		return accessId;
+	}
+
+	public void setAccessId(String accessId) {
+		this.accessId = accessId;
 	}
 
 	public String getEmail() {

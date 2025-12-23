@@ -157,4 +157,27 @@ public class JwtService {
 				.parseSignedClaims(token)
 				.getPayload();
 	}
+
+	public String generateSignupToken(String phone) {
+		Date issuedAt = new Date();
+		// Signup token valid for 30 minutes
+		Date expiration = new Date(issuedAt.getTime() + 1800000);
+
+		Map<String, Object> claims = new HashMap<>();
+		claims.put("scope", "SIGNUP_VERIFIED");
+		claims.put("phone", phone);
+
+		return Jwts.builder()
+				.subject(phone)
+				.claims(claims)
+				.issuedAt(issuedAt)
+				.expiration(expiration)
+				.issuer("auth.volteryde.org")
+				.signWith(getSigningKey())
+				.compact();
+	}
+
+	public String extractScope(String token) {
+		return extractAllClaims(token).get("scope", String.class);
+	}
 }

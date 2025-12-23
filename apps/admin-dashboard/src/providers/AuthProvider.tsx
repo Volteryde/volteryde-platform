@@ -143,8 +143,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	}, []);
 
 	const logout = useCallback(async () => {
+		// Clear localStorage tokens
 		localStorage.removeItem(`${STORAGE_PREFIX}access_token`);
 		localStorage.removeItem(`${STORAGE_PREFIX}refresh_token`);
+		localStorage.removeItem(`${STORAGE_PREFIX}expires_at`);
+
+		// Clear cookies (used by middleware)
+		document.cookie = 'volteryde_auth_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 
 		setState({
 			user: null,
@@ -153,12 +158,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			error: null,
 		});
 
-		// Redirect to auth service using centralized config
+		// Redirect to auth platform login page with logout flag
 		if (typeof window !== 'undefined') {
-			const loginUrl = new URL('/login', config.authServiceUrl);
-			loginUrl.searchParams.set('app', 'admin-dashboard');
-			loginUrl.searchParams.set('redirect', window.location.href);
-			window.location.href = loginUrl.toString();
+			// For local development, always use localhost:3007
+			// For production, use the environment variable
+			const isLocalhost = window.location.hostname === 'localhost' ||
+				window.location.hostname.endsWith('.localhost');
+			const authUrl = isLocalhost
+				? 'http://localhost:3007'
+				: (process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'https://auth.volteryde.org');
+			// Add logout=true so auth-frontend clears its tokens too
+			window.location.href = `${authUrl}/login?logout=true`;
 		}
 	}, []);
 
