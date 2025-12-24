@@ -14,9 +14,8 @@ public interface WalletService {
 
     /**
      * Deposit real funds (e.g. from Paystack).
-     * Requires signature validation.
      */
-	WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId, String signature);
+	WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId);
 
     /**
      * Add promo/support funds.
