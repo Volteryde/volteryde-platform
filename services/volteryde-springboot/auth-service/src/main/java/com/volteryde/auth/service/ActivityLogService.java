@@ -233,6 +233,8 @@ public class ActivityLogService {
 	 * Get single activity log by ID
 	 */
 	public ActivityLogEntity getLogById(Long id) {
+		if (id == null)
+			return null;
 		return activityLogRepository.findById(id).orElse(null);
 	}
 

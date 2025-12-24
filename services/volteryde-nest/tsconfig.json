@@ -26,11 +26,14 @@
     }
   },
   "include": [
-    "src/**/*",
-    "src/**/*.spec.ts",
-    "test/**/*",
+    "volteryde-api/**/*",
+    "telematics/**/*",
+    "fleet/**/*",
+    "charging/**/*",
+    "booking/**/*",
+    "notifications/**/*",
     "libs/**/*",
-    "apps/**/*"
+    "test/**/*"
   ],
   "exclude": [
     "node_modules",

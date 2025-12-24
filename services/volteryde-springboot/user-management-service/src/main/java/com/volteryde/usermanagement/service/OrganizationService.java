@@ -19,6 +19,9 @@ public class OrganizationService {
 	}
 
 	public Organization create(Organization organization) {
+		if (organization == null) {
+			throw new IllegalArgumentException("Organization cannot be null");
+		}
 		return organizationRepository.save(organization);
 	}
 }

@@ -4,8 +4,8 @@
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BookingController } from './booking.controller';
-import { BookingService } from './booking.service';
+import { BookingController } from './controllers/booking.controller';
+import { BookingService } from './services/booking.service';
 import { BookingInternalController } from './controllers/booking-internal.controller';
 import { NotificationsInternalController } from './controllers/notifications-internal.controller';
 import { TemporalModule } from '../shared/temporal/temporal.module';
@@ -24,4 +24,4 @@ import { NotificationService } from './services/notification.service';
   providers: [BookingService, BookingInternalService, NotificationService],
   exports: [BookingService, NotificationService],
 })
-export class BookingModule {}
+export class BookingModule { }

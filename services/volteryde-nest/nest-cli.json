@@ -1,67 +1,67 @@
 {
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
-  "sourceRoot": "apps/volteryde-api/src",
+  "sourceRoot": "volteryde-api/src",
   "compilerOptions": {
     "deleteOutDir": true,
     "webpack": true,
-    "tsConfigPath": "apps/volteryde-api/tsconfig.app.json"
+    "tsConfigPath": "volteryde-api/tsconfig.app.json"
   },
   "monorepo": true,
-  "root": "apps/volteryde-api",
+  "root": "volteryde-api",
   "projects": {
     "volteryde-api": {
       "type": "application",
-      "root": "apps/volteryde-api",
+      "root": "volteryde-api",
       "entryFile": "main",
-      "sourceRoot": "apps/volteryde-api/src",
+      "sourceRoot": "volteryde-api/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/volteryde-api/tsconfig.app.json"
+        "tsConfigPath": "volteryde-api/tsconfig.app.json"
       }
     },
     "telematics": {
       "type": "application",
-      "root": "apps/telematics",
+      "root": "telematics",
       "entryFile": "main",
-      "sourceRoot": "apps/telematics/src",
+      "sourceRoot": "telematics/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/telematics/tsconfig.app.json"
+        "tsConfigPath": "telematics/tsconfig.app.json"
       }
     },
     "fleet": {
       "type": "application",
-      "root": "apps/fleet",
+      "root": "fleet",
       "entryFile": "main",
-      "sourceRoot": "apps/fleet/src",
+      "sourceRoot": "fleet/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/fleet/tsconfig.app.json"
+        "tsConfigPath": "fleet/tsconfig.app.json"
       }
     },
     "charging": {
       "type": "application",
-      "root": "apps/charging",
+      "root": "charging",
       "entryFile": "main",
-      "sourceRoot": "apps/charging/src",
+      "sourceRoot": "charging/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/charging/tsconfig.app.json"
+        "tsConfigPath": "charging/tsconfig.app.json"
       }
     },
     "booking": {
       "type": "application",
-      "root": "apps/booking",
+      "root": "booking",
       "entryFile": "main",
-      "sourceRoot": "apps/booking/src",
+      "sourceRoot": "booking/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/booking/tsconfig.app.json"
+        "tsConfigPath": "booking/tsconfig.app.json"
       }
     },
     "notifications": {
       "type": "application",
-      "root": "apps/notifications",
+      "root": "notifications",
       "entryFile": "main",
-      "sourceRoot": "apps/notifications/src",
+      "sourceRoot": "notifications/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/notifications/tsconfig.app.json"
+        "tsConfigPath": "notifications/tsconfig.app.json"
       }
     }
   }

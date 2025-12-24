@@ -2,8 +2,6 @@ package com.volteryde.payment.service.impl;
 
 import com.volteryde.payment.dto.WalletBalanceResponse;
 import com.volteryde.payment.dto.WalletTransactionResponse;
-import com.volteryde.payment.dto.WalletTopupRequest;
-import com.volteryde.payment.dto.WalletTopupResponse;
 import com.volteryde.payment.entity.WalletTransactionEntity;
 import com.volteryde.payment.model.WalletTransactionType;
 import com.volteryde.payment.entity.WalletBalanceEntity;
@@ -12,7 +10,6 @@ import com.volteryde.payment.repository.WalletTransactionRepository;
 import com.volteryde.payment.service.WalletService;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

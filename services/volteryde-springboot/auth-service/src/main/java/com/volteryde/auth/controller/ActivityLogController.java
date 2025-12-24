@@ -68,8 +68,9 @@ public class ActivityLogController {
 		String userAgent = httpRequest.getHeader("User-Agent");
 
 		UserEntity user = null;
-		if (request.getUserId() != null) {
-			user = userRepository.findById(request.getUserId()).orElse(null);
+		String userId = request.getUserId();
+		if (userId != null) {
+			user = userRepository.findById(userId).orElse(null);
 		} else if (request.getUserEmail() != null) {
 			user = userRepository.findByEmail(request.getUserEmail()).orElse(null);
 		}

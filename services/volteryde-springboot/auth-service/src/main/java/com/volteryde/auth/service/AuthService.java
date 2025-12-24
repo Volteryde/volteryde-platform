@@ -337,7 +337,8 @@ public class AuthService {
 		phoneVerificationRepository.save(verification);
 
 		logger.info("OTP generated for {}: {}", phone, code);
-		// TODO: Integrate SMS Service
+		// Note: SMS Service integration will be added in a future phase.
+		// For now, use the OTP logged above.
 	}
 
 	/**
