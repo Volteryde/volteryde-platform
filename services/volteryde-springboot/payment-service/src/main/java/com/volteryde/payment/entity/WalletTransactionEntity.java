@@ -26,12 +26,28 @@ public class WalletTransactionEntity {
     @Column(length = 256)
     private String description;
 
+    @Column(name = "reference_id", unique = true)
+    private String referenceId;
+
+    /**
+     * Cryptographic signature of the transaction details to prevent tampering.
+     */
+    @Column(nullable = false, length = 512)
+    private String signature;
+
+    /**
+     * Indicates if this affects REAL or PROMO balance.
+     */
+    @Column(name = "balance_type", nullable = false)
+    private String balanceType; // "REAL" or "PROMO"
+
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
     @PrePersist
     void onCreate() {
         createdAt = OffsetDateTime.now();
+        if (balanceType == null) balanceType = "REAL"; // Default to REAL for backward compatibility if needed
     }
 
     public Long getId() {
@@ -80,5 +96,29 @@ public class WalletTransactionEntity {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getReferenceId() {
+        return referenceId;
+    }
+
+    public void setReferenceId(String referenceId) {
+        this.referenceId = referenceId;
+    }
+
+    public String getSignature() {
+        return signature;
+    }
+
+    public void setSignature(String signature) {
+        this.signature = signature;
+    }
+
+    public String getBalanceType() {
+        return balanceType;
+    }
+
+    public void setBalanceType(String balanceType) {
+        this.balanceType = balanceType;
     }
 }
