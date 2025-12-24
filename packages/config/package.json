@@ -16,7 +16,12 @@
     "lint": "eslint src/"
   },
   "devDependencies": {
+    "@types/node": "^25.0.3",
     "typescript": "^5.0.0"
   },
-  "keywords": ["volteryde", "config", "environment"]
+  "keywords": [
+    "volteryde",
+    "config",
+    "environment"
+  ]
 }

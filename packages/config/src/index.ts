@@ -14,8 +14,8 @@ export type Environment = 'development' | 'staging' | 'production';
  * Get the current environment
  */
 export function getEnvironment(): Environment {
-  const env = process.env.NODE_ENV || 'development';
-  if (env === 'production' || env === 'staging') return env;
+  const env = (process.env.NODE_ENV as string) || 'development';
+  if (env === 'production' || env === 'staging') return env as Environment;
   return 'development';
 }
 

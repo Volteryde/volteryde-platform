@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "description": "Production-grade electric mobility platform monorepo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Volteryde/volteryde-platform.git"
+  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
