@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../entities/booking.entity';
 import { Reservation } from '../entities/reservation.entity';
-import { BookingStatus } from '../../../../../libs/shared/src/enums/booking-status.enum';
+import { BookingStatus } from '../../../../libs/shared/src/enums/booking-status.enum';
 
 @Injectable()
 export class BookingInternalService {

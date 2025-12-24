@@ -5,7 +5,7 @@
 
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { TemporalService } from '../shared/temporal/temporal.service';
-import { BookingStatus } from '../../../../libs/shared/src/enums/booking-status.enum';
+import { BookingStatus } from '../../../libs/shared/src/enums/booking-status.enum';
 
 // Import types from temporal-workers (shared in monorepo)
 interface GpsLocation {
