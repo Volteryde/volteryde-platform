@@ -1,0 +1,54 @@
+# ============================================================================
+# Volteryde Auth Frontend - Development Dockerfile
+# ============================================================================
+# Best practices: non-root user, dumb-init, layer caching, healthcheck
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm and system deps
+RUN npm install -g pnpm@9 && \
+	apk add --no-cache dumb-init curl
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nodejs -u 1001 && \
+	chown -R nodejs:nodejs /app
+
+# Copy lockfile and workspace config with ownership
+COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+
+# Ensure .next folder exists and has correct permissions
+RUN mkdir -p apps/auth-frontend/.next && chown -R nodejs:nodejs apps/auth-frontend/.next
+
+# Switch user BEFORE fetching/installing
+USER nodejs
+
+# Fetch dependencies
+RUN pnpm fetch
+
+# Copy source code with ownership
+COPY --chown=nodejs:nodejs . .
+
+# Install dependencies from offline store
+RUN pnpm install -r
+
+# Workdir
+WORKDIR /app/apps/auth-frontend
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+	CMD curl -f http://localhost:3000/ || exit 1
+
+# Environment
+ENV NODE_ENV=development
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+
+EXPOSE 3000
+
+# Entrypoint with proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+CMD ["pnpm", "dev"]

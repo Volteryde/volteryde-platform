@@ -37,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings({ "null", "unchecked" })
 class PaystackPaymentGatewayClientTest {
 
     @Mock
@@ -57,24 +58,24 @@ class PaystackPaymentGatewayClientTest {
     @Test
     void initializePaymentShouldCallPaystackAndReturnInitializationResponse() {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
-            new BigDecimal("1000.00"),
-            "NGN",
-            1L,
-            "user@example.com",
-            "REF-100",
-            "https://callback",
-            Map.of("orderId", "ORD-1")
-        );
+                new BigDecimal("1000.00"),
+                "NGN",
+                1L,
+                "user@example.com",
+                "REF-100",
+                "https://callback",
+                null,
+                Map.of("orderId", "ORD-1"));
 
         PaystackInitializeResponseData data = new PaystackInitializeResponseData(
-            "https://paystack/checkout",
-            "ACCESS-CODE",
-            "REF-100"
-        );
+                "https://paystack/checkout",
+                "ACCESS-CODE",
+                "REF-100");
         PaystackInitializeResponse response = new PaystackInitializeResponse(true, "OK", data);
 
-        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class), eq(PaystackInitializeResponse.class)))
-            .thenReturn(ResponseEntity.ok(response));
+        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class),
+                eq(PaystackInitializeResponse.class)))
+                .thenReturn(ResponseEntity.ok(response));
 
         PaymentInitializationResponse initializationResponse = paystackClient.initializePayment(request);
 
@@ -83,7 +84,8 @@ class PaystackPaymentGatewayClientTest {
         assertThat(initializationResponse.accessCode()).isEqualTo("ACCESS-CODE");
 
         ArgumentCaptor<HttpEntity<Map<String, Object>>> captor = ArgumentCaptor.forClass(HttpEntity.class);
-        verify(restTemplate).postForEntity(eq("/transaction/initialize"), captor.capture(), eq(PaystackInitializeResponse.class));
+        verify(restTemplate).postForEntity(eq("/transaction/initialize"), captor.capture(),
+                eq(PaystackInitializeResponse.class));
         HttpEntity<Map<String, Object>> sentEntity = captor.getValue();
         assertThat(sentEntity.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON);
         assertThat(sentEntity.getBody()).containsEntry("reference", "REF-100");
@@ -92,64 +94,64 @@ class PaystackPaymentGatewayClientTest {
     @Test
     void initializePaymentShouldThrowWhenGatewayRespondsWithFailure() {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
-            BigDecimal.TEN,
-            "NGN",
-            2L,
-            "user@example.com",
-            "REF-FAIL",
-            null,
-            null
-        );
+                BigDecimal.TEN,
+                "NGN",
+                2L,
+                "user@example.com",
+                "REF-FAIL",
+                null,
+                null,
+                null);
 
         PaystackInitializeResponse response = new PaystackInitializeResponse(false, "Failure", null);
-        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class), eq(PaystackInitializeResponse.class)))
-            .thenReturn(ResponseEntity.badRequest().body(response));
+        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class),
+                eq(PaystackInitializeResponse.class)))
+                .thenReturn(ResponseEntity.badRequest().body(response));
 
         assertThatThrownBy(() -> paystackClient.initializePayment(request))
-            .isInstanceOf(PaymentGatewayException.class)
-            .hasMessageContaining("Failed to initialize");
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessageContaining("Failed to initialize");
     }
 
     @Test
     void initializePaymentShouldWrapRestClientExceptions() {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
-            BigDecimal.ONE,
-            "NGN",
-            3L,
-            "user@example.com",
-            "REF-ERROR",
-            null,
-            null
-        );
+                BigDecimal.ONE,
+                "NGN",
+                3L,
+                "user@example.com",
+                "REF-ERROR",
+                null,
+                null,
+                null);
 
-        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class), eq(PaystackInitializeResponse.class)))
-            .thenThrow(new RestClientException("network error"));
+        when(restTemplate.postForEntity(eq("/transaction/initialize"), any(HttpEntity.class),
+                eq(PaystackInitializeResponse.class)))
+                .thenThrow(new RestClientException("network error"));
 
         assertThatThrownBy(() -> paystackClient.initializePayment(request))
-            .isInstanceOf(PaymentGatewayException.class)
-            .hasMessageContaining("Error initializing");
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessageContaining("Error initializing");
     }
 
     @Test
     void verifyPaymentShouldReturnGatewayResponseOnSuccess() {
         PaystackVerifyResponseData data = new PaystackVerifyResponseData(
-            "success",
-            new BigDecimal("1000.00"),
-            "NGN",
-            OffsetDateTime.now(),
-            OffsetDateTime.now(),
-            "REF-VERIFY",
-            null
-        );
+                "success",
+                new BigDecimal("1000.00"),
+                "NGN",
+                OffsetDateTime.now(),
+                OffsetDateTime.now(),
+                "REF-VERIFY",
+                null);
         PaystackVerifyResponse response = new PaystackVerifyResponse(true, "Approved", data);
 
         when(restTemplate.exchange(
-            eq("/transaction/verify/{reference}"),
-            eq(HttpMethod.GET),
-            eq(null),
-            eq(PaystackVerifyResponse.class),
-            eq("REF-VERIFY")
-        )).thenReturn(ResponseEntity.ok(response));
+                eq("/transaction/verify/{reference}"),
+                eq(HttpMethod.GET),
+                eq(null),
+                eq(PaystackVerifyResponse.class),
+                eq("REF-VERIFY"))).thenReturn(ResponseEntity.ok(response));
 
         PaystackVerifyResponse result = paystackClient.verifyPayment("REF-VERIFY");
 
@@ -160,31 +162,29 @@ class PaystackPaymentGatewayClientTest {
     void verifyPaymentShouldThrowWhenGatewayStatusIsFalse() {
         PaystackVerifyResponse response = new PaystackVerifyResponse(false, "Declined", null);
         when(restTemplate.exchange(
-            eq("/transaction/verify/{reference}"),
-            eq(HttpMethod.GET),
-            eq(null),
-            eq(PaystackVerifyResponse.class),
-            eq("REF-DECLINE")
-        )).thenReturn(ResponseEntity.ok(response));
+                eq("/transaction/verify/{reference}"),
+                eq(HttpMethod.GET),
+                eq(null),
+                eq(PaystackVerifyResponse.class),
+                eq("REF-DECLINE"))).thenReturn(ResponseEntity.ok(response));
 
         assertThatThrownBy(() -> paystackClient.verifyPayment("REF-DECLINE"))
-            .isInstanceOf(PaymentGatewayException.class)
-            .hasMessageContaining("verification failed");
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessageContaining("verification failed");
     }
 
     @Test
     void verifyPaymentShouldWrapRestClientExceptions() {
         when(restTemplate.exchange(
-            eq("/transaction/verify/{reference}"),
-            eq(HttpMethod.GET),
-            eq(null),
-            eq(PaystackVerifyResponse.class),
-            eq("REF-ERR")
-        )).thenThrow(new RestClientException("timeout"));
+                eq("/transaction/verify/{reference}"),
+                eq(HttpMethod.GET),
+                eq(null),
+                eq(PaystackVerifyResponse.class),
+                eq("REF-ERR"))).thenThrow(new RestClientException("timeout"));
 
         assertThatThrownBy(() -> paystackClient.verifyPayment("REF-ERR"))
-            .isInstanceOf(PaymentGatewayException.class)
-            .hasMessageContaining("Error verifying");
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessageContaining("Error verifying");
     }
 
     @Test
@@ -201,15 +201,15 @@ class PaystackPaymentGatewayClientTest {
         String signature = "invalid";
 
         assertThatThrownBy(() -> paystackClient.validateWebhookSignature(payload, signature))
-            .isInstanceOf(InvalidWebhookSignatureException.class)
-            .hasMessageContaining("Invalid Paystack webhook signature");
+                .isInstanceOf(InvalidWebhookSignatureException.class)
+                .hasMessageContaining("Invalid Paystack webhook signature");
     }
 
     @Test
     void validateWebhookSignatureShouldThrowWhenSignatureMissing() {
         assertThatThrownBy(() -> paystackClient.validateWebhookSignature("{}", null))
-            .isInstanceOf(InvalidWebhookSignatureException.class)
-            .hasMessageContaining("Missing Paystack webhook signature");
+                .isInstanceOf(InvalidWebhookSignatureException.class)
+                .hasMessageContaining("Missing Paystack webhook signature");
     }
 
     @Test
@@ -227,8 +227,8 @@ class PaystackPaymentGatewayClientTest {
         String payload = "{invalid";
 
         assertThatThrownBy(() -> paystackClient.parseWebhookEvent(payload))
-            .isInstanceOf(PaymentGatewayException.class)
-            .hasMessageContaining("Unable to parse Paystack webhook payload");
+                .isInstanceOf(PaymentGatewayException.class)
+                .hasMessageContaining("Unable to parse Paystack webhook payload");
     }
 
     private String computeSignature(String payload) {

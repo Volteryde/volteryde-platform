@@ -16,7 +16,8 @@ services:
       POSTGRES_DB: volteryde
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_MULTIPLE_DATABASES: volteryde,volteryde_test,temporal
+      # Database per Domain Strategy
+      POSTGRES_MULTIPLE_DATABASES: volteryde,volteryde_test,temporal,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db
     ports:
       - "5432:5432"
     volumes:
@@ -43,6 +44,33 @@ services:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
+      retries: 5
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Time-Series Database (Telematics Domain)
+  # ============================================================================
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: volteryde-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-volteryde_secure_password}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-volteryde}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telematics}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: "curl -f http://localhost:8086/health || exit 1"
+      interval: 30s
+      timeout: 10s
       retries: 5
     networks:
       - volteryde-network
@@ -157,12 +185,26 @@ services:
     volumes:
       - ./infrastructure/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - landing-page
-      - admin-dashboard
-      - dispatcher-app
-      - bi-partner-app
-      - customer-and-support-app
-      - docs-platform
+      # Frontend apps
+      landing-page:
+        condition: service_started
+      admin-dashboard:
+        condition: service_started
+      dispatcher-app:
+        condition: service_started
+      bi-partner-app:
+        condition: service_started
+      customer-and-support-app:
+        condition: service_started
+      docs-platform:
+        condition: service_started
+      auth-frontend:
+        condition: service_started
+      # Spring Boot backend services (required for nginx upstream resolution)
+      auth-service:
+        condition: service_started
+      api-gateway:
+        condition: service_started
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -171,42 +213,127 @@ services:
   # Backend Services
   # ============================================================================
 
-  nestjs-backend:
+  telematics-service:
     build:
       context: .
       dockerfile: services/volteryde-nest/Dockerfile.dev
-    container_name: volteryde-nestjs
+    container_name: volteryde-telematics
+    command: npm run start:dev -- telematics
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/volteryde
-      - DATABASE_HOST=postgres
-      - DATABASE_PORT=5432
-      - DATABASE_USERNAME=postgres
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - DATABASE_NAME=volteryde
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/telematics_db
+      - DATABASE_NAME=telematics_db
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_NAMESPACE=default
-      - TEMPORAL_API_KEY=
-      - TEMPORAL_CLIENT_CERT=
-      - TEMPORAL_CLIENT_KEY=
-      - KAFKA_BROKERS=kafka:9092
-      - MQTT_BROKER_URL=mqtt://mosquitto:1883
-      - PORT=3000
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-volteryde}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-telematics}
+      - PORT=3001
     ports:
-      - "3010:3000"
+      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      temporal:
+      influxdb:
         condition: service_healthy
     volumes:
-      # Mount the entire monorepo for proper pnpm workspace support
       - .:/app
-      # Prevent node_modules from being overwritten
       - /app/node_modules
+
+  fleet-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
+    container_name: volteryde-fleet
+    command: npm run start:dev -- fleet
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fleet_db
+      - DATABASE_NAME=fleet_db
+      - REDIS_URL=redis://redis:6379
+      - PORT=3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  charging-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
+    container_name: volteryde-charging
+    command: npm run start:dev -- charging
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/charging_db
+      - DATABASE_NAME=charging_db
+      - REDIS_URL=redis://redis:6379
+      - PORT=3003
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
+    container_name: volteryde-booking
+    command: npm run start:dev -- booking
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/booking_db
+      - DATABASE_NAME=booking_db
+      - REDIS_URL=redis://redis:6379
+      - PORT=3004
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
+    container_name: volteryde-notifications
+    command: npm run start:dev -- notifications
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/user_db
+      - DATABASE_NAME=user_db
+      - REDIS_URL=redis://redis:6379
+      - PORT=3005
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+
       - /app/services/volteryde-nest/node_modules
     networks:
       - volteryde-network
@@ -253,9 +380,11 @@ services:
       args:
         SERVICE_NAME: auth-service
     container_name: volteryde-auth-service
+    ports:
+      - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=development
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
@@ -268,6 +397,12 @@ services:
         condition: service_healthy
       service-discovery:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/api/auth/actuator/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -281,7 +416,7 @@ services:
     container_name: volteryde-user-service
     environment:
       - SPRING_PROFILES_ACTIVE=development
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/user_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
@@ -307,7 +442,7 @@ services:
     container_name: volteryde-payment-service
     environment:
       - SPRING_PROFILES_ACTIVE=development
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/volteryde
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
@@ -431,16 +566,25 @@ services:
       context: .
       dockerfile: apps/admin-dashboard/Dockerfile.dev
     container_name: volteryde-admin-dashboard
+    user: "1000:1000"  # Match host user UID:GID
     environment:
       - NODE_ENV=development
       - PORT=3000
+      - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth.localhost
+      - NEXT_PUBLIC_AUTH_API_URL=http://auth-service:8080/api/auth
+      - NEXT_PUBLIC_API_URL=http://api.localhost
     ports:
       - "3003:3000"
     volumes:
       - .:/app
       - /app/node_modules
       - /app/apps/admin-dashboard/node_modules
-      - /app/apps/admin-dashboard/.next
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -502,14 +646,43 @@ services:
       - volteryde-network
     restart: unless-stopped
 
+  auth-frontend:
+    build:
+      context: .
+      dockerfile: apps/auth-frontend/Dockerfile.dev
+    container_name: volteryde-auth-frontend
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - NEXT_PUBLIC_AUTH_SERVICE_URL=http://auth.localhost
+      - NEXT_PUBLIC_AUTH_API_URL=http://auth-service:8080/api/auth
+      - NEXT_PUBLIC_ADMIN_URL=http://admin.localhost
+    ports:
+      - "3007:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/auth-frontend/node_modules
+      - /app/apps/auth-frontend/.next
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
   zookeeper_data:
   prometheus_data:
   grafana_data:
-
+  
   mosquitto_data:
+  influxdb_data:
 
 
 networks:

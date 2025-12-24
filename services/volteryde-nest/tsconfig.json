@@ -18,11 +18,21 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@app/shared/*": [
+        "libs/shared/src/*"
+      ]
+    }
   },
   "include": [
-    "src/**/*",
-    "src/**/*.spec.ts",
+    "volteryde-api/**/*",
+    "telematics/**/*",
+    "fleet/**/*",
+    "charging/**/*",
+    "booking/**/*",
+    "notifications/**/*",
+    "libs/**/*",
     "test/**/*"
   ],
   "exclude": [

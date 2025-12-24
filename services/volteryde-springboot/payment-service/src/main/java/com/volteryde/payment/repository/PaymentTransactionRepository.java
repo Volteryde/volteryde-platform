@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransactionEntity, Long> {
 
     Optional<PaymentTransactionEntity> findByReference(String reference);
+
+    java.util.List<PaymentTransactionEntity> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 }

@@ -28,11 +28,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
+@SuppressWarnings("null")
 public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PaystackPaymentGatewayClient.class);
@@ -43,7 +43,8 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
     private final PaystackProperties properties;
     private final ObjectMapper objectMapper;
 
-    public PaystackPaymentGatewayClient(RestTemplate restTemplate, PaystackProperties properties, ObjectMapper objectMapper) {
+    public PaystackPaymentGatewayClient(RestTemplate restTemplate, PaystackProperties properties,
+            ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -65,21 +66,23 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
             if (request.metadata() != null) {
                 payload.put("metadata", request.metadata());
             }
+            if (request.authorizationCode() != null) {
+                payload.put("authorization_code", request.authorizationCode());
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
 
             ResponseEntity<PaystackInitializeResponse> response = restTemplate.postForEntity(
-                INITIALIZE_ENDPOINT,
-                entity,
-                PaystackInitializeResponse.class
-            );
+                    INITIALIZE_ENDPOINT,
+                    entity,
+                    PaystackInitializeResponse.class);
 
             PaystackInitializeResponse responseBody = response.getBody();
             if (responseBody == null || !responseBody.status()) {
                 throw new PaymentGatewayException("Failed to initialize Paystack payment: " +
-                    (responseBody != null ? responseBody.message() : "no response body"));
+                        (responseBody != null ? responseBody.message() : "no response body"));
             }
 
             PaystackInitializeResponseData data = responseBody.data();
@@ -88,11 +91,10 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
             }
 
             return new PaymentInitializationResponse(
-                data.reference(),
-                data.authorizationUrl(),
-                data.accessCode(),
-                null
-            );
+                    data.reference(),
+                    data.authorizationUrl(),
+                    data.accessCode(),
+                    null);
         } catch (RestClientException ex) {
             throw new PaymentGatewayException("Error initializing Paystack payment", ex);
         }
@@ -102,12 +104,11 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
     public PaystackVerifyResponse verifyPayment(String reference) {
         try {
             ResponseEntity<PaystackVerifyResponse> response = restTemplate.exchange(
-                VERIFY_ENDPOINT,
-                HttpMethod.GET,
-                null,
-                PaystackVerifyResponse.class,
-                reference
-            );
+                    VERIFY_ENDPOINT,
+                    HttpMethod.GET,
+                    null,
+                    PaystackVerifyResponse.class,
+                    reference);
 
             PaystackVerifyResponse responseBody = response.getBody();
             if (responseBody == null) {
@@ -154,9 +155,8 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
         try {
             Mac hmacSha512 = Mac.getInstance("HmacSHA512");
             SecretKeySpec secretKey = new SecretKeySpec(
-                properties.getSecretKey().getBytes(StandardCharsets.UTF_8),
-                "HmacSHA512"
-            );
+                    properties.getSecretKey().getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512");
             hmacSha512.init(secretKey);
             byte[] rawHmac = hmacSha512.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             return bytesToHex(rawHmac);
@@ -175,5 +175,42 @@ public class PaystackPaymentGatewayClient implements PaymentGatewayClient {
             hexString.append(hex);
         }
         return hexString.toString();
+    }
+
+    private static final String REFUND_ENDPOINT = "/refund";
+
+    @Override
+    public com.volteryde.payment.service.model.PaystackRefundResponse initiateRefund(String transactionReference,
+            BigDecimal amount, String reason) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("transaction", transactionReference);
+            if (amount != null) {
+                payload.put("amount", toLowestDenomination(amount));
+            }
+            if (reason != null) {
+                payload.put("customer_note", reason);
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<com.volteryde.payment.service.model.PaystackRefundResponse> response = restTemplate
+                    .postForEntity(
+                            REFUND_ENDPOINT,
+                            entity,
+                            com.volteryde.payment.service.model.PaystackRefundResponse.class);
+
+            com.volteryde.payment.service.model.PaystackRefundResponse responseBody = response.getBody();
+            if (responseBody == null || !responseBody.status()) {
+                throw new PaymentGatewayException("Failed to initiate refund: " +
+                        (responseBody != null ? responseBody.message() : "empty response"));
+            }
+
+            return responseBody;
+        } catch (RestClientException ex) {
+            throw new PaymentGatewayException("Error initiating refund", ex);
+        }
     }
 }

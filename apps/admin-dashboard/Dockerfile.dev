@@ -1,38 +1,42 @@
+# ============================================================================
+# Volteryde Admin Dashboard - Development Dockerfile
+# ============================================================================
+# For development with hot-reload. Uses user directive from docker-compose.
+
 FROM node:20-alpine
 
 WORKDIR /app
 
 # Install pnpm and system deps
 RUN npm install -g pnpm@9 && \
-	apk add --no-cache dumb-init
+	apk add --no-cache dumb-init curl
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-	adduser -S nodejs -u 1001 && \
-	chown -R nodejs:nodejs /app
-
-# Copy lockfile and workspace config with ownership
-COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
-
-# Switch user BEFORE fetching/installing
-USER nodejs
+# Copy lockfile and workspace config
+COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
 # Fetch dependencies
 RUN pnpm fetch
 
-# Copy source code with ownership
-COPY --chown=nodejs:nodejs . .
+# Copy source code
+COPY . .
 
-# Install dependencies from offline store
-# This runs postinstall scripts (e.g. fumadocs-mdx) automatically if configured
+# Install dependencies
 RUN pnpm install -r
+
+# Make .next directory writable (will be overwritten by bind mount but good for initial)
+RUN mkdir -p /app/apps/admin-dashboard/.next && chmod 777 /app/apps/admin-dashboard/.next
 
 # Workdir
 WORKDIR /app/apps/admin-dashboard
 
+# Environment
+ENV NODE_ENV=development
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+
+EXPOSE 3000
+
 # Entrypoint
 ENTRYPOINT ["dumb-init", "--"]
 
-# CMD
-ENV HOST=0.0.0.0
 CMD ["pnpm", "dev"]

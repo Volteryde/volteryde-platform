@@ -1,13 +1,68 @@
 {
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
-  "sourceRoot": "src",
-  "root": ".",
+  "sourceRoot": "volteryde-api/src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": false,
-    "tsConfigPath": "tsconfig.build.json",
-    "assets": [],
-    "watchAssets": false
+    "webpack": true,
+    "tsConfigPath": "volteryde-api/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "volteryde-api",
+  "projects": {
+    "volteryde-api": {
+      "type": "application",
+      "root": "volteryde-api",
+      "entryFile": "main",
+      "sourceRoot": "volteryde-api/src",
+      "compilerOptions": {
+        "tsConfigPath": "volteryde-api/tsconfig.app.json"
+      }
+    },
+    "telematics": {
+      "type": "application",
+      "root": "telematics",
+      "entryFile": "main",
+      "sourceRoot": "telematics/src",
+      "compilerOptions": {
+        "tsConfigPath": "telematics/tsconfig.app.json"
+      }
+    },
+    "fleet": {
+      "type": "application",
+      "root": "fleet",
+      "entryFile": "main",
+      "sourceRoot": "fleet/src",
+      "compilerOptions": {
+        "tsConfigPath": "fleet/tsconfig.app.json"
+      }
+    },
+    "charging": {
+      "type": "application",
+      "root": "charging",
+      "entryFile": "main",
+      "sourceRoot": "charging/src",
+      "compilerOptions": {
+        "tsConfigPath": "charging/tsconfig.app.json"
+      }
+    },
+    "booking": {
+      "type": "application",
+      "root": "booking",
+      "entryFile": "main",
+      "sourceRoot": "booking/src",
+      "compilerOptions": {
+        "tsConfigPath": "booking/tsconfig.app.json"
+      }
+    },
+    "notifications": {
+      "type": "application",
+      "root": "notifications",
+      "entryFile": "main",
+      "sourceRoot": "notifications/src",
+      "compilerOptions": {
+        "tsConfigPath": "notifications/tsconfig.app.json"
+      }
+    }
   }
 }

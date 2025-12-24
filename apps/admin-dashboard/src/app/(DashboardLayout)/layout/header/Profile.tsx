@@ -13,16 +13,23 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import { useAuth } from '@/providers/AuthProvider'
 
 const Profile = () => {
+  const { logout, user } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <div className='relative group/menu ps-15 shrink-0'>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <span className='hover:text-primary hover:bg-lightprimary rounded-full flex justify-center items-center cursor-pointer group-hover/menu:bg-lightprimary group-hover/menu:text-primary'>
             <Image
-              src='/images/profile/user-1.jpg'
-              alt='logo'
+              src={user?.avatarUrl || '/images/profile/user-1.jpg'}
+              alt='Profile'
               height={35}
               width={35}
               className='rounded-full'
@@ -56,8 +63,12 @@ const Profile = () => {
           <DropdownMenuSeparator className='my-2' />
 
           <div className='px-4'>
-            <Button variant='outline' asChild className='w-full rounded-md'>
-              <Link href='/auth/login'>Logout</Link>
+            <Button
+              variant='outline'
+              className='w-full rounded-md'
+              onClick={handleLogout}
+            >
+              Logout
             </Button>
           </div>
         </DropdownMenuContent>

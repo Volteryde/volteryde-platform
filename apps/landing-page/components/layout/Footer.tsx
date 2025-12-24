@@ -71,9 +71,14 @@ export function Footer() {
 				<div className="pt-8 border-t border-black/10 flex flex-col md:flex-row justify-between items-end md:items-center gap-4 text-xs font-semibold text-black/60">
 					<p>© 2025 Volteryde Inc. All systems nominal.</p>
 
-					<Link href="/admin/login" className="hover:text-black/100 transition-colors mr-1">
+					<a
+						href={process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3007'}
+						className="hover:text-black/100 transition-colors mr-1"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						Employee Portal
-					</Link>
+					</a>
 				</div>
 
 			</div>
