@@ -127,3 +127,27 @@ export interface WalletTransaction {
   failureReason?: string;
 }
 
+/**
+ * Charging Session Start Request
+ */
+export interface StartChargingSessionRequest {
+  stationId: string;
+  connectorId: string;
+  vehicleId: string;
+  userId: string;
+}
+
+/**
+ * Charging Session details
+ */
+export interface ChargingSession {
+  id: string;
+  stationId: string;
+  connectorId: string;
+  userId: string;
+  vehicleId: string;
+  startTime: Date;
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  energyConsumedKwh?: number;
+  cost?: number;
+}

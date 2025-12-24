@@ -35,10 +35,19 @@ export class ChargingInfrastructureController {
   }
 
   @Post('sessions/start')
-  @ApiOperation({ summary: 'Start a new charging session' })
-  @ApiResponse({ status: 201, description: 'Session started successfully' })
+  @ApiOperation({ summary: 'Start a new charging session (Trigger Workflow)' })
+  @ApiResponse({ status: 201, description: 'Session workflow started' })
   async startSession(@Body() startSessionDto: StartSessionDto) {
+    // This now triggers the workflow
     return await this.chargingService.startSession(startSessionDto);
+  }
+
+  @Post('internal/sessions/start')
+  @ApiOperation({ summary: 'Internal: Start session (Called by Worker)' })
+  @ApiResponse({ status: 201, description: 'Session started in DB' })
+  async internalStartSession(@Body() startSessionDto: StartSessionDto) {
+    // This does the actual DB work
+    return await this.chargingService.internalStartSession(startSessionDto);
   }
 
   @Patch('sessions/:sessionId/stop')
