@@ -12,7 +12,22 @@ public interface WalletService {
 
 	List<WalletTransactionResponse> getHistory(Long customerId);
 
-	WalletBalanceEntity credit(Long customerId, BigDecimal amount);
+    /**
+     * Deposit real funds (e.g. from Paystack).
+     */
+	WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId);
 
-	WalletBalanceEntity debit(Long customerId, BigDecimal amount);
+    /**
+     * Add promo/support funds.
+     * Only callable by admin/support (controlled by Controller security, but we sign the transaction here).
+     */
+	WalletBalanceEntity addSupportFunds(Long customerId, BigDecimal amount, String reason, String adminId);
+
+	/**
+	 * Debit funds (consumes Promo first, then Real).
+	 */
+	WalletBalanceEntity debit(Long customerId, BigDecimal amount, String referenceId);
+
+	// Deprecated simple credit
+	WalletBalanceEntity credit(Long customerId, BigDecimal amount);
 }
