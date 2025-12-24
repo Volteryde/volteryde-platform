@@ -27,6 +27,13 @@ public class WalletBalanceEntity {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal promoBalance;
 
+    /**
+     * Cryptographic signature of the balance state.
+     * Prevents manual DB tampering.
+     */
+    @Column(nullable = false, length = 512)
+    private String signature;
+
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -40,6 +47,7 @@ public class WalletBalanceEntity {
         updatedAt = now;
         if (realBalance == null) realBalance = BigDecimal.ZERO;
         if (promoBalance == null) promoBalance = BigDecimal.ZERO;
+        // Signature must be set by the service before saving
     }
 
     @PreUpdate
@@ -82,6 +90,14 @@ public class WalletBalanceEntity {
 
     public void setPromoBalance(BigDecimal promoBalance) {
         this.promoBalance = promoBalance;
+    }
+
+    public String getSignature() {
+        return signature;
+    }
+
+    public void setSignature(String signature) {
+        this.signature = signature;
     }
 
     public OffsetDateTime getCreatedAt() {

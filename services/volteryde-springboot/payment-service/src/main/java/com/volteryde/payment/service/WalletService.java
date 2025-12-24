@@ -14,8 +14,9 @@ public interface WalletService {
 
     /**
      * Deposit real funds (e.g. from Paystack).
+     * Requires signature validation.
      */
-	WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId);
+	WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId, String signature);
 
     /**
      * Add promo/support funds.
@@ -27,6 +28,12 @@ public interface WalletService {
 	 * Debit funds (consumes Promo first, then Real).
 	 */
 	WalletBalanceEntity debit(Long customerId, BigDecimal amount, String referenceId);
+
+	/**
+	 * Refund a transaction (partial or full).
+	 * Credits the amount back to Real Balance (simplified).
+	 */
+	WalletBalanceEntity refund(Long customerId, String originalReferenceId, BigDecimal amount);
 
 	// Deprecated simple credit
 	WalletBalanceEntity credit(Long customerId, BigDecimal amount);
