@@ -39,9 +39,8 @@ public class WalletController {
 
 	@GetMapping("/{customerId}/balance")
 	public ResponseEntity<WalletBalanceResponse> internalGetBalance(
-	        @PathVariable Long customerId,
-	        @RequestHeader(value = "X-Internal-Service-Key", required = false) String internalKey) {
-	    // TODO: Verify internalKey
+	        @PathVariable Long customerId) {
+	    // TODO: Internal key verification can be added here if needed
 		return ResponseEntity.ok(walletService.getBalance(customerId));
 	}
 
