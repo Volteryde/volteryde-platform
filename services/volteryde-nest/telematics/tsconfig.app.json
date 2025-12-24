@@ -1,7 +1,7 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../dist/apps/telematics",
+    "outDir": "../dist/telematics",
     "module": "commonjs",
     "declaration": false,
     "target": "ES2021",
@@ -12,7 +12,7 @@
   },
   "include": [
     "src/**/*",
-    "../../libs/shared/src/**/*"
+    "../libs/shared/src/**/*"
   ],
   "exclude": [
     "node_modules",

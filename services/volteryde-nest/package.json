@@ -5,7 +5,7 @@
   "main": "dist/services/volteryde-nest/src/main.js",
   "scripts": {
     "dev": "nest build && node dist/services/volteryde-nest/src/main",
-    "build": "nest build",
+    "build": "nest build volteryde-api && nest build telematics && nest build fleet && nest build charging && nest build booking && nest build notifications",
     "start": "node dist/services/volteryde-nest/src/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
