@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../entities/booking.entity';
 import { Reservation } from '../entities/reservation.entity';
-import { BookingStatus } from '../../../../../packages/shared-types/src/booking-status.enum';
+import { BookingStatus } from '../../../../../libs/shared/src/enums/booking-status.enum';
 
 @Injectable()
 export class BookingInternalService {
@@ -19,7 +19,7 @@ export class BookingInternalService {
     private bookingRepository: Repository<Booking>,
     @InjectRepository(Reservation)
     private reservationRepository: Repository<Reservation>,
-  ) {}
+  ) { }
 
   async reserveSeat(data: {
     userId: string;

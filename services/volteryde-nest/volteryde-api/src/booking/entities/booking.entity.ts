@@ -3,7 +3,7 @@
 // ============================================================================
 // TypeORM entity for bookings
 
-import { BookingStatus } from '../../../../../packages/shared-types/src/booking-status.enum';
+import { BookingStatus } from '../../../../../libs/shared/src/enums/booking-status.enum';
 import {
   Entity,
   Column,
