@@ -151,6 +151,26 @@ export class TemporalService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Signal a workflow
+   *
+   * @param workflowId - The workflow ID
+   * @param signalName - The signal name
+   * @param args - Signal arguments
+   */
+  async signalWorkflow(workflowId: string, signalName: string, ...args: any[]): Promise<void> {
+    const client = this.getClient();
+
+    try {
+      const handle = client.workflow.getHandle(workflowId);
+      await handle.signal(signalName, ...args);
+      this.logger.log(`✓ Signal '${signalName}' sent to workflow: ${workflowId}`);
+    } catch (error) {
+      this.logger.error(`Failed to signal workflow ${workflowId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Get workflow result
    * 
    * @param workflowId - The workflow ID

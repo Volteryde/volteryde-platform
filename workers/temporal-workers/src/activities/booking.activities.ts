@@ -176,6 +176,45 @@ export async function deductFare(userId: string, amount: number, bookingId: stri
 }
 
 /**
+ * Activity: Refund partial wallet deduction (Cancellation Penalty Logic)
+ *
+ * This activity refunds a specific amount to the user's wallet.
+ *
+ * @param transaction - The original wallet transaction
+ * @param amount - The amount to refund
+ */
+export async function refundPartialWalletDeduction(transaction: WalletTransaction, amount: number): Promise<void> {
+  console.log(`[ACTIVITY] Refunding partial amount ${amount} for transaction ${transaction.transactionId}`);
+
+  try {
+    // Call the Spring Boot Wallet API to refund funds
+    // Using new endpoint: POST /api/v1/wallet/refund
+    await axios.post(
+      `${SPRINGBOOT_API_URL}/api/v1/wallet/refund`,
+      {
+        userId: transaction.userId,
+        amount,
+        currency: transaction.currency,
+        originalReferenceId: transaction.transactionId,
+        reason: 'Cancellation Refund (Partial)',
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Service-Key': INTERNAL_SERVICE_KEY,
+        },
+        timeout: 10000,
+      }
+    );
+
+    console.log(`[ACTIVITY] Wallet partial refund successful: ${amount}`);
+  } catch (error) {
+    console.error(`[ACTIVITY] Wallet partial refund failed:`, error);
+    throw new Error(`Wallet partial refund failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Activity: Reserve a seat for the booking
  * 
  * This activity communicates with the Booking domain in NestJS
