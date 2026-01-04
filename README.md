@@ -12,20 +12,31 @@ Located in `services/volteryde-springboot/`, these services manage identity and 
 *   **Payment Service**: Implements a **Dual-Ledger Wallet System** with cryptographic integrity.
     *   **Real Balance**: Reflects actual cash deposits (e.g., Paystack).
     *   **Promo Balance**: Reflects system credits/compensations.
-    *   **Security**: All transactions are signed with HMAC-SHA256 to prevent database tampering.
+    *   **Security Protocol (Validator & Signer)**:
+        *   Every transaction is validated and cryptographically signed using **HMAC-SHA256**.
+        *   Transactions are signed with `(customerId, amount, type, referenceId)`.
+        *   Balance states are signed with `(customerId, realBalance, promoBalance)`.
+        *   Any manual tampering with the database breaks the signature chain, causing the system to freeze the account (`SecurityException`).
 *   **Auth Service**: Centralized authentication.
 *   **User Management**: Customer profile management.
 
 ### ⚡ Operational Core (NestJS + Temporal)
 Located in `services/volteryde-nest/` and `workers/temporal-workers/`. These services manage the physical world (Rides, Charging, Fleet) using the "Code Never Fails" pattern.
 
-*   **Workflow-First Design**: Critical operations (Booking, Charging) are orchestrated by **Temporal Workflows**, ensuring resilience against failures.
+*   **Workflow-First Design**: Critical operations are orchestrated by **Temporal Workflows**, ensuring resilience against failures.
 *   **Services**:
-    *   `booking`: Manages ride requests, performs pre-booking balance checks (gated by 10 GHS threshold).
-    *   `charging`: Manages EV charging sessions via reliable workflows.
+    *   `booking`: Manages ride requests. Includes a **Pre-Booking Gated Check** that verifies the user has at least 10 GHS liquidity by querying the Payment Service directly.
+    *   `charging`: Manages EV charging sessions via reliable workflows (`chargeVehicleWorkflow`).
     *   `fleet`: Vehicle and driver management.
     *   `telematics`: Real-time tracking and IoT data.
     *   `notifications`: Centralized notification dispatch.
+
+### 🔄 Internal Communication
+*   **Temporal Activities**: The Temporal Worker (Node.js) executes business logic by making HTTP calls back to internal endpoints on the NestJS and Spring Boot services.
+*   **Security**: These internal calls are secured via `X-Internal-Service-Key`.
+*   **Endpoints**:
+    *   NestJS exposes `/internal/*` endpoints for workflow triggers.
+    *   Spring Boot exposes `/api/v1/wallet/deduct`, `/credit`, and `/refund` specifically for Temporal Activities.
 
 ### 💻 Frontend Applications
 Located in `apps/`. Modern web applications built with **React Router 7**, **Vite**, and **Tailwind CSS**.
@@ -56,9 +67,9 @@ To ensure financial integrity, we do not simply "hold" money; we mirror verified
 *   **Security Protocol**: Every transaction is validated and cryptographically signed. If a DB row is tampered with, the signature validation fails, freezing the account.
 
 ### 2. Reliable Workflows (Temporal)
-*   **Booking Saga**: Handles the entire booking lifecycle including seat reservation, atomic wallet deduction, and driver assignment.
-    *   **Smart Cancellation**: Implements a **Time-Decay Penalty** logic (0% -> 10% -> 20% penalty based on elapsed time) via Temporal Signals.
-*   **Charging Orchestration**: Manages charging sessions statefully, ensuring sessions are correctly started and stopped even in the event of service restarts.
+*   **Booking Saga (`volteryde-booking` queue)**: Handles the entire booking lifecycle including seat reservation, atomic wallet deduction, and driver assignment.
+    *   **Smart Cancellation**: Implements a **Time-Decay Penalty** logic (0% -> 10% -> 20% penalty based on elapsed time) via Temporal Signals (`cancelRideSignal`).
+*   **Charging Orchestration (`volteryde-charging` queue)**: Manages charging sessions statefully, ensuring sessions are correctly started and stopped even in the event of service restarts.
 
 ### 3. Pre-Booking Thresholds
 *   Users must meet a minimum liquidity threshold (10 GHS) before initiating a booking workflow, reducing system noise from unfunded requests.
