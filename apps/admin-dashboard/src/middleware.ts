@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getAuthServiceUrl } from '@volteryde/config';
 
-// Auth service URL - localhost:3007 for dev, env var for production
-const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ||
-	(process.env.NODE_ENV === 'production' ? 'https://auth.volteryde.org' : 'http://localhost:3007');
+// Auth service URL
+const AUTH_SERVICE_URL = getAuthServiceUrl();
 
 // Paths that don't require authentication
 const PUBLIC_PATHS = ['/_next', '/favicon.ico', '/api/health'];

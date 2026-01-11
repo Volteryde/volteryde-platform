@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  transpilePackages: ['@volteryde/config'],
 };
 
 export default nextConfig;

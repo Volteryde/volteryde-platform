@@ -24,6 +24,12 @@ public class CorsConfig {
 		// Allow all Volteryde domains
 		config.setAllowedOriginPatterns(Arrays.asList(
 				"http://localhost:*",
+				"http://localhost:4000",
+				"http://localhost:4001",
+				"http://localhost:4002",
+				"http://localhost:4003",
+				"http://localhost:4004",
+				"http://localhost:4005",
 				"https://localhost:*",
 				"https://*.volteryde.org",
 				"https://volteryde.org"));

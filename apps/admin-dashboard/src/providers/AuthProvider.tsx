@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import { getConfig } from '@volteryde/config';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getConfig, getAuthServiceUrl } from '@volteryde/config';
 
 // Get centralized config
 const config = getConfig();
@@ -47,27 +48,40 @@ interface AuthProviderProps {
 	children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-	const [state, setState] = useState<AuthState>({
-		user: null,
-		isAuthenticated: false,
-		isLoading: true,
-		error: null,
-	});
+import { Suspense } from 'react';
 
-	// Initialize auth state from storage
+// Inner component to handle URL params
+function AuthInitializer({ children, setAuthState }: { children: ReactNode; setAuthState: (state: Partial<AuthState>) => void }) {
+	const searchParams = useSearchParams();
+	const router = useRouter();
+
 	useEffect(() => {
 		const initAuth = async () => {
 			try {
-				const token = localStorage.getItem(`${STORAGE_PREFIX}access_token`);
+				let token = localStorage.getItem(`${STORAGE_PREFIX}access_token`);
+				const codeParam = searchParams.get('code');
+
+				// If code param exists, it takes precedence (new login)
+				if (codeParam) {
+					token = codeParam;
+					localStorage.setItem(`${STORAGE_PREFIX}access_token`, token);
+
+					// Clean URL - remove code param without refresh
+					const url = new URL(window.location.href);
+					url.searchParams.delete('code');
+					window.history.replaceState({}, '', url.pathname + url.search);
+				}
 
 				if (!token) {
-					setState(prev => ({ ...prev, isLoading: false }));
+					setAuthState({ isLoading: false });
 					return;
 				}
 
 				// Decode token to get user info
-				const [, payload] = token.split('.');
+				const parts = token.split('.');
+				if (parts.length < 2) throw new Error('Invalid token format');
+				const payload = parts[1];
+
 				const decoded = JSON.parse(atob(payload));
 
 				const user: AuthUser = {
@@ -80,19 +94,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					emailVerified: decoded.emailVerified ?? true,
 				};
 
-				setState({
+				setAuthState({
 					user,
 					isAuthenticated: true,
 					isLoading: false,
 					error: null,
 				});
 			} catch {
-				setState(prev => ({ ...prev, isLoading: false }));
+				setAuthState({ isLoading: false });
 			}
 		};
 
 		initAuth();
-	}, []);
+	}, [searchParams, setAuthState]);
+
+	return <>{children}</>;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+	const [state, setState] = useState<AuthState>({
+		user: null,
+		isAuthenticated: false,
+		isLoading: true,
+		error: null,
+	});
 
 	const login = useCallback(async (email: string, password: string) => {
 		setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -160,13 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 		// Redirect to auth platform login page with logout flag
 		if (typeof window !== 'undefined') {
-			// For local development, always use localhost:3007
-			// For production, use the environment variable
-			const isLocalhost = window.location.hostname === 'localhost' ||
-				window.location.hostname.endsWith('.localhost');
-			const authUrl = isLocalhost
-				? 'http://localhost:3007'
-				: (process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'https://auth.volteryde.org');
+			const authUrl = getAuthServiceUrl();
 			// Add logout=true so auth-frontend clears its tokens too
 			window.location.href = `${authUrl}/login?logout=true`;
 		}
@@ -180,6 +199,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		return roles.some(role => state.user?.roles.includes(role));
 	}, [state.user]);
 
+	const updateAuthState = useCallback((newState: Partial<AuthState>) => {
+		setState(prev => ({ ...prev, ...newState }));
+	}, []);
+
 	const contextValue: AuthContextValue = useMemo(
 		() => ({
 			...state,
@@ -191,12 +214,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		[state, login, logout, hasRole, hasAnyRole]
 	);
 
-	// Show loading state
+	// Show loading state while initially loading (handled by inner component via state)
 	if (state.isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-			</div>
+			<Suspense fallback={
+				<div className="min-h-screen flex items-center justify-center bg-background">
+					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+				</div>
+			}>
+				<AuthInitializer setAuthState={updateAuthState}>
+					<div className="min-h-screen flex items-center justify-center bg-background">
+						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+					</div>
+				</AuthInitializer>
+			</Suspense>
 		);
 	}
 

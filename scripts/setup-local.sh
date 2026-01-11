@@ -56,7 +56,7 @@ if [ -d "workers/temporal-workers" ]; then
 fi
 
 # Frontend apps
-for app in admin-dashboard driver-app support-app bi-partner-app docs-platform; do
+for app in admin-dashboard driver-app support-app bi-partner-app; do
   if [ -d "apps/$app" ]; then
     echo "Installing $app dependencies..."
     cd "apps/$app"

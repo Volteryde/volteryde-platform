@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Booking } from '../entities/booking.entity';
 import { Reservation } from '../entities/reservation.entity';
 import { BookingStatus } from '../../../../libs/shared/src/enums/booking-status.enum';
+import { GtfsService } from '../../gtfs/services/gtfs.service';
 
 @Injectable()
 export class BookingInternalService {
@@ -19,6 +20,7 @@ export class BookingInternalService {
     private bookingRepository: Repository<Booking>,
     @InjectRepository(Reservation)
     private reservationRepository: Repository<Reservation>,
+    private gtfsService: GtfsService,
   ) { }
 
   async reserveSeat(data: {
@@ -26,14 +28,36 @@ export class BookingInternalService {
     vehicleId?: string;
     seatId?: string;
   }): Promise<Reservation> {
-    this.logger.log(`Reserving seat for user ${data.userId}`);
+    this.logger.log(`Reserving seat for user ${data.userId} on trip ${data.tripId}`);
+
+    // Call GTFS Service to reserve segments
+    // This handles inventory check and locking
+    const segmentReservations = await this.gtfsService.reserveSegments(
+      data.tripId,
+      data.fromStopId,
+      data.toStopId,
+      `TEMP-${Date.now()}`, // Temp booking ID until confirmed
+      data.userId
+    );
+
+    // For backward compatibility with current mock, verify at least one reservation returned
+    if (!segmentReservations || segmentReservations.length === 0) {
+      throw new Error('Failed to reserve segments');
+    }
+
+    // Return the first segment reservation as a proxy for the whole journey
+    // In a real scenario, we'd return a JourneyReservation object wrapping all segments
+    const primaryReservation = segmentReservations[0];
+
+    // Creates a legacy reservation record for compatibility (optional, depending on architecture)
     const reservation = this.reservationRepository.create({
       userId: data.userId,
-      vehicleId: data.vehicleId,
-      seatId: data.seatId,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      vehicleId: data.vehicleId || 'ASSIGNED-BY-FLEET',
+      seatId: data.seatId || 'ANY',
+      expiresAt: primaryReservation.expiresAt,
       status: 'RESERVED',
     });
+
     return await this.reservationRepository.save(reservation);
   }
 

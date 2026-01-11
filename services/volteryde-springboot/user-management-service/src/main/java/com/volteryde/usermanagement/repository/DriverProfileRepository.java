@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface DriverProfileRepository extends JpaRepository<DriverProfile, UUID> {
 	Optional<DriverProfile> findByUserId(UUID userId);
 
+	Optional<DriverProfile> findByUser(com.volteryde.usermanagement.model.User user);
+
 	Optional<DriverProfile> findByLicenseNumber(String licenseNumber);
 }

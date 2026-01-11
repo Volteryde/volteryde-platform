@@ -27,6 +27,8 @@ public class RegisterRequest {
 
 	private String organizationId;
 
+	private String accessId;
+
 	private String inviteCode;
 
 	// Getters and Setters
@@ -76,6 +78,24 @@ public class RegisterRequest {
 
 	public void setOrganizationId(String organizationId) {
 		this.organizationId = organizationId;
+	}
+
+	public String getAccessId() {
+		return accessId;
+	}
+
+	public void setAccessId(String accessId) {
+		this.accessId = accessId;
+	}
+
+	private String role;
+
+	public String getRole() {
+		return role;
+	}
+
+	public void setRole(String role) {
+		this.role = role;
 	}
 
 	public String getInviteCode() {

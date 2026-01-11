@@ -1,4 +1,5 @@
 "use client";
+import { getAuthServiceUrl } from '@volteryde/config';
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
@@ -87,14 +88,32 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
 					</div>
 					<div>
 						{/* Logout Link */}
-						<SidebarLink
-							link={{
-								label: "Logout",
-								href: "/",
-								icon: <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700" />
+						{/* Logout Button */}
+						<div
+							className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 rounded-md text-neutral-700"
+							onClick={() => {
+								// 1. Clear Cookies
+								document.cookie = 'volteryde_auth_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+								// 2. Clear Local Storage (if any)
+								localStorage.removeItem('volteryde_auth_access_token');
+
+								const authUrl = getAuthServiceUrl();
+
+								window.location.href = `${authUrl}/login?logout=true`;
 							}}
-							className="hover:bg-gray-100 rounded-md px-2"
-						/>
+						>
+							<IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700" />
+							{(open) && (
+								<motion.span
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									className="text-neutral-700 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+								>
+									Logout
+								</motion.span>
+							)}
+						</div>
 					</div>
 				</SidebarBody>
 			</Sidebar>
@@ -103,7 +122,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
 					{children}
 				</div>
 			</div>
-		</div>
+		</div >
 	);
 }
 

@@ -7,16 +7,25 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 		TypeOrmModule.forRootAsync({
 			imports: [ConfigModule],
 			inject: [ConfigService],
-			useFactory: (configService: ConfigService) => ({
-				type: 'postgres',
-				host: configService.get<string>('database.host'),
-				port: configService.get<number>('database.port'),
-				username: configService.get<string>('database.username'),
-				password: configService.get<string>('database.password'),
-				database: configService.get<string>('database.name'),
-				autoLoadEntities: true,
-				synchronize: configService.get<string>('nodeEnv') === 'development',
-			}),
+			useFactory: (configService: ConfigService) => {
+				const dbConfig = {
+					host: configService.get<string>('database.host'),
+					port: configService.get<number>('database.port'),
+					username: configService.get<string>('database.username'),
+					password: configService.get<string>('database.password'),
+					database: configService.get<string>('database.name'),
+				};
+				console.log('DB Connection Config:', dbConfig);
+				return {
+					type: 'postgres',
+					...dbConfig,
+					password: process.env.DATABASE_PASSWORD || 'postgres',
+					database: process.env.DATABASE_NAME || 'volteryde',
+					autoLoadEntities: true,
+					synchronize: false,
+					logging: true,
+				};
+			},
 		}),
 	],
 	exports: [TypeOrmModule],

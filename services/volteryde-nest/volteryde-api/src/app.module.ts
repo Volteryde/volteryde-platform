@@ -8,8 +8,9 @@ import { BookingModule } from './booking/booking.module';
 import { TelematicsModule } from './telematics/telematics.module';
 import { FleetOperationsModule } from './fleet-operations/fleet-operations.module';
 import { ChargingInfrastructureModule } from './charging-infrastructure/charging-infrastructure.module';
-import { FirebaseModule } from './firebase/firebase.module'; // Import FirebaseModule
-import { RootController } from './root.controller'; // Import RootController
+import { FirebaseModule } from './firebase/firebase.module';
+import { GtfsModule } from './gtfs/gtfs.module';
+import { RootController } from './root.controller';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RootController } from './root.controller'; // Import RootController
     FleetOperationsModule,
     ChargingInfrastructureModule,
     FirebaseModule,
+    GtfsModule,
   ],
   controllers: [RootController],
   providers: [],

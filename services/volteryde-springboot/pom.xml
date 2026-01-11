@@ -24,6 +24,7 @@
         <module>service-discovery</module>
         <module>api-gateway</module>
         <module>auth-service</module>
+        <module>client-auth-service</module>
         <module>payment-service</module>
         <module>user-management-service</module>
     </modules>

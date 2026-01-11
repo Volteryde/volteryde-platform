@@ -11,4 +11,7 @@ export default defineConfig({
     host: true,
   },
   plugins: [mdx(MdxConfig), tailwindcss(), reactRouter(), tsconfigPaths()],
+  define: {
+    'process.env': process.env,
+  },
 });

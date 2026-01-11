@@ -35,6 +35,9 @@ export interface BookingRequest {
   vehicleType?: 'STANDARD' | 'PREMIUM' | 'SHUTTLE';
   scheduledTime?: Date;
   passengerCount?: number;
+  tripId?: string;
+  fromStopId?: string;
+  toStopId?: string;
 }
 
 /**

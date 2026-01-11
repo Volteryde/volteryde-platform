@@ -1,6 +1,7 @@
 package com.volteryde.usermanagement.service;
 
 import com.volteryde.usermanagement.dto.UserDto;
+import com.volteryde.usermanagement.model.AccountStatus;
 import com.volteryde.usermanagement.model.User;
 import com.volteryde.usermanagement.model.UserRole;
 import com.volteryde.usermanagement.repository.UserRepository;
@@ -49,7 +50,7 @@ public class UserServiceTest {
 				.firstName("John")
 				.lastName("Doe")
 				.role(UserRole.CLIENT)
-				.isActive(true)
+				.status(AccountStatus.ACTIVE)
 				.build();
 	}
 
