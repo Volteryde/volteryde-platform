@@ -25,6 +25,9 @@ export class BookingInternalService {
 
   async reserveSeat(data: {
     userId: string;
+    tripId: string;
+    fromStopId: string;
+    toStopId: string;
     vehicleId?: string;
     seatId?: string;
   }): Promise<Reservation> {
