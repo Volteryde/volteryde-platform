@@ -24,7 +24,6 @@ jobs:
 
       support-app: ${{ steps.filter.outputs.support-app }}
       bi-partner-app: ${{ steps.filter.outputs.bi-partner-app }}
-      docs-platform: ${{ steps.filter.outputs.docs-platform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,13 +34,12 @@ jobs:
           filters: |
             admin-dashboard:
               - 'apps/admin-dashboard/**'
+              - 'packages/api-client/**'
 
             support-app:
               - 'apps/customer-and-support-app/**'
             bi-partner-app:
               - 'apps/bi-partner-app/**'
-            docs-platform:
-              - 'apps/docs-platform/**'
 
   lint-and-test-admin-dashboard:
     name: Admin Dashboard
@@ -66,6 +64,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Build packages
+        run: pnpm --filter @volteryde/api-client build
 
       - name: Run ESLint
         run: pnpm lint || echo "Linting completed"
@@ -152,39 +153,6 @@ jobs:
       - name: Build application
         run: pnpm build
         working-directory: apps/bi-partner-app
-
-  lint-and-test-docs-platform:
-    name: Docs Platform
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs-platform == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Run ESLint
-        run: pnpm lint || echo "Linting completed"
-        working-directory: apps/docs-platform
-        continue-on-error: true
-
-      - name: Build application
-        run: pnpm build
-        working-directory: apps/docs-platform
 
   security-scan-frontend:
     name: Security Scan - Frontend
