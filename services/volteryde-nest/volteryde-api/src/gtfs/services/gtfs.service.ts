@@ -6,7 +6,7 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThanOrEqual, MoreThanOrEqual, In } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import {
 	Agency,
 	Stop,

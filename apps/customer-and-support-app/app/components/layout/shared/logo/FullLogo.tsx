@@ -1,6 +1,4 @@
 
-import { Link } from 'react-router';
-
 const FullLogo = () => {
 	return (
 		<div className="flex items-center gap-2">

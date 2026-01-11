@@ -12,7 +12,6 @@ import {
 	Index,
 	ManyToOne,
 	JoinColumn,
-	OneToMany,
 } from 'typeorm';
 import { Trip } from './trip.entity';
 import { Stop } from './stop.entity';

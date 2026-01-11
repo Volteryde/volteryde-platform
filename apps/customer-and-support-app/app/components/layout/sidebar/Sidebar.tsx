@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router';
 // import { useTheme } from 'next-themes'; // Simplifying for now
 import SidebarContent from './Sidebaritems';
@@ -7,10 +6,8 @@ import SimpleBar from 'simplebar-react';
 import { Icon } from '@iconify/react';
 import FullLogo from '../shared/logo/FullLogo';
 import {
-	AMLogo,
 	AMMenu,
 	AMMenuItem,
-	AMSidebar,
 	AMSubmenu,
 } from 'tailwind-sidebar';
 import 'tailwind-sidebar/styles.css';
@@ -110,11 +107,6 @@ const renderSidebarItems = (
 // If it renders the component, we need to pass `to` prop.
 // Check Admin usage: link={item.url}.
 // I will try mapping `link` to `to` via a wrapper or just use `to`.
-
-const RRLink = (props: any) => {
-	const { link, ...rest } = props;
-	return <Link to={link || '#'} {...rest} />;
-}
 
 const renderSidebarItemsRR = (
 	items: any[],

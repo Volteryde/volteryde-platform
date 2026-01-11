@@ -6,10 +6,9 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TimestreamService } from './timestream.service';
-import { LocationUpdateDto, ChargingState, OccupancyStatus } from '../dto/location-update.dto';
+import { LocationUpdateDto, ChargingState } from '../dto/location-update.dto';
 import {
   VehiclePositionDto,
-  TripUpdateDto,
   BatteryAlertDto,
   BatteryAlertType,
 } from '../dto/vehicle-position.dto';
