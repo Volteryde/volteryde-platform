@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+import { getAuthServiceUrl } from '@volteryde/config';
 
 type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DISPATCHER' | 'SUPPORT_AGENT' | 'PARTNER' | 'DRIVER' | 'FLEET_MANAGER';
 
@@ -102,12 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		});
 
 		// Redirect to auth platform with logout flag
+
+		// Redirect to auth platform with logout flag
 		if (typeof window !== 'undefined') {
-			const isLocalhost = window.location.hostname === 'localhost' ||
-				window.location.hostname.endsWith('.localhost');
-			const authUrl = isLocalhost
-				? 'http://localhost:3007'
-				: (process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'https://auth.volteryde.org');
+			const authUrl = getAuthServiceUrl();
 			window.location.href = `${authUrl}/login?logout=true`;
 		}
 	}, []);

@@ -13,9 +13,10 @@ import { Booking } from './entities/booking.entity';
 import { Reservation } from './entities/reservation.entity';
 import { BookingInternalService } from './services/booking-internal.service';
 import { NotificationService } from './services/notification.service';
+import { GtfsModule } from '../gtfs/gtfs.module';
 
 @Module({
-  imports: [TemporalModule, TypeOrmModule.forFeature([Booking, Reservation])],
+  imports: [TemporalModule, TypeOrmModule.forFeature([Booking, Reservation]), GtfsModule],
   controllers: [
     BookingController,
     BookingInternalController,
@@ -24,4 +25,4 @@ import { NotificationService } from './services/notification.service';
   providers: [BookingService, BookingInternalService, NotificationService],
   exports: [BookingService, NotificationService],
 })
-export class BookingModule {}
+export class BookingModule { }

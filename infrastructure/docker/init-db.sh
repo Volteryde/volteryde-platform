@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# PostgreSQL Multiple Databases Initialization Script
+# PostgreSQL Multiple Databases Initialization Script with PostGIS
 # ============================================================================
 
 set -e
@@ -13,6 +13,13 @@ function create_user_and_database() {
 	    CREATE DATABASE $database;
 	    GRANT ALL PRIVILEGES ON DATABASE $database TO $POSTGRES_USER;
 EOSQL
+
+	# Enable PostGIS on each database
+	echo "Enabling PostGIS extension on '$database'"
+	psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$database" <<-EOSQL
+	    CREATE EXTENSION IF NOT EXISTS postgis;
+	    CREATE EXTENSION IF NOT EXISTS postgis_topology;
+EOSQL
 }
 
 if [ -n "$POSTGRES_MULTIPLE_DATABASES" ]; then
@@ -20,5 +27,5 @@ if [ -n "$POSTGRES_MULTIPLE_DATABASES" ]; then
 	for db in $(echo $POSTGRES_MULTIPLE_DATABASES | tr ',' ' '); do
 		create_user_and_database $db
 	done
-	echo "Multiple databases created"
+	echo "Multiple databases created with PostGIS enabled"
 fi

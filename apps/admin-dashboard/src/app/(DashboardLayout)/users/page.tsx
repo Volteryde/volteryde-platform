@@ -4,6 +4,7 @@ import PageContainer from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { UserTable } from './components/UserTable';
+import { CreateUserDialog } from './components/CreateUserDialog';
 import { Separator } from '@/components/ui/separator';
 import { Heading } from '@/components/ui/heading';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +23,12 @@ export default function UsersPage() {
 		{ label: 'Users', value: 'USER', color: 'data-[state=active]:bg-slate-600' },
 	];
 
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	const handleUserCreated = () => {
+		setRefreshKey(prev => prev + 1);
+	};
+
 	return (
 		<PageContainer scrollable={true}>
 			<div className="flex flex-1 flex-col space-y-4">
@@ -30,9 +37,7 @@ export default function UsersPage() {
 						title={`User Management`}
 						description="Manage users, roles, and permissions."
 					/>
-					<Button>
-						<Plus className="mr-2 h-4 w-4" /> Add Bi-Partner
-					</Button>
+					<CreateUserDialog onUserCreated={handleUserCreated} />
 				</div>
 				<Separator />
 
@@ -50,7 +55,7 @@ export default function UsersPage() {
 					</TabsList>
 				</Tabs>
 
-				<UserTable roleFilter={currentRole} />
+				<UserTable roleFilter={currentRole} key={refreshKey} />
 			</div>
 		</PageContainer>
 	);

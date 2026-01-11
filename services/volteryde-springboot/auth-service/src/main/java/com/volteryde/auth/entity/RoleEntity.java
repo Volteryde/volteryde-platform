@@ -27,8 +27,7 @@ public class RoleEntity {
 		SUPPORT_AGENT,
 		PARTNER,
 		DRIVER,
-		FLEET_MANAGER,
-		PASSENGER
+		FLEET_MANAGER
 	}
 
 	// Constructors
@@ -39,7 +38,8 @@ public class RoleEntity {
 		this.name = name;
 	}
 
-	public RoleEntity(UserRole name, String description) {
+	public RoleEntity(UserRole name,
+			String description) {
 		this.name = name;
 		this.description = description;
 	}

@@ -437,3 +437,5 @@ load-test-results/
 # !.github/
 # !.mvn/wrapper/maven-wrapper.jar
 # !gradle/wrapper/gradle-wrapper.jar
+.env.central
+.env.example

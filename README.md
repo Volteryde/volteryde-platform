@@ -41,13 +41,13 @@ Located in `services/volteryde-nest/` and `workers/temporal-workers/`. These ser
 ### 💻 Frontend Applications
 Located in `apps/`. Modern web applications built with **React Router 7**, **Vite**, and **Tailwind CSS**.
 
-*   `customer-and-support-app`: Main portal for customers to book rides and support agents to manage tickets.
-*   `admin-dashboard`: Super admin platform management.
-*   `dispatcher-app`: Dispatching interface for fleet operations.
-*   `auth-frontend`: Unified login/signup interface.
-*   `bi-partner-app`: Business Intelligence dashboard for partners.
-*   `landing-page`: Public facing marketing site.
-*   `docs-platform`: Documentation portal.
+*   `customer-and-support-app`: Main portal for customers to book rides and support agents to manage tickets. (Port: 4004)
+*   `admin-dashboard`: Super admin platform management. (Port: 4002)
+*   `dispatcher-app`: Dispatching interface for fleet operations. (Port: 4005)
+*   `auth-frontend`: Unified login/signup interface. (Port: 4001)
+*   `bi-partner-app`: Business Intelligence dashboard for partners. (Port: 4003)
+*   `landing-page`: Public facing marketing site. (Port: 4000)
+
 
 ### 🛠️ Shared Libraries
 Located in `packages/`.
@@ -57,6 +57,12 @@ Located in `packages/`.
 *   `config`: Shared configuration.
 
 ---
+
+### 🔐 Default Credentials (Development)
+*   **System Admin**:
+    *   Email: `test@volteryde.com`
+    *   Password: `P@s$1234`
+    *   Access ID: `VR-A001`
 
 ## 🚀 Key Features Implemented
 
@@ -153,4 +159,4 @@ volteryde-platform/
 3.  Submit a Pull Request.
 
 ---
-**Built with ❤️ by the Volteryde Team**
+**Built by the Volteryde Team**

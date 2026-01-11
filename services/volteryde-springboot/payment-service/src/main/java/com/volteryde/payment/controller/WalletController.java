@@ -23,6 +23,9 @@ public class WalletController {
 	private final WalletService walletService;
 	private final PaymentService paymentService;
 
+	@org.springframework.beans.factory.annotation.Value("${volteryde.internal.service-key:}")
+	private String internalServiceKey;
+
 	public WalletController(WalletService walletService, PaymentService paymentService) {
 		this.walletService = walletService;
 		this.paymentService = paymentService;
@@ -39,9 +42,12 @@ public class WalletController {
 
 	@GetMapping("/{customerId}/balance")
 	public ResponseEntity<WalletBalanceResponse> internalGetBalance(
-	        @PathVariable Long customerId,
-	        @RequestHeader(value = "X-Internal-Service-Key", required = false) String internalKey) {
-	    // TODO: Verify internalKey
+			@PathVariable Long customerId,
+			@RequestHeader(value = "X-Internal-Service-Key", required = false) String internalKey) {
+		// Verify internal service key
+		if (internalServiceKey == null || internalServiceKey.isBlank() || !internalServiceKey.equals(internalKey)) {
+			return ResponseEntity.status(403).build();
+		}
 		return ResponseEntity.ok(walletService.getBalance(customerId));
 	}
 
@@ -67,26 +73,28 @@ public class WalletController {
 
 	@PostMapping("/deduct")
 	public ResponseEntity<?> deduct(@RequestBody WalletOperationRequest request) {
-	    // Internal API
-	    return ResponseEntity.ok(walletService.debit(request.userId(), request.amount(), request.referenceId()));
+		// Internal API
+		return ResponseEntity.ok(walletService.debit(request.userId(), request.amount(), request.referenceId()));
 	}
 
 	@PostMapping("/credit")
 	public ResponseEntity<?> credit(@RequestBody WalletOperationRequest request) {
-	    // Internal API - maps to depositRealFunds (simulating credit/refund)
-	    // We generate a self-signed signature here or accept one?
-	    // Since this is internal API called by Worker, we trust it and sign it ourselves in the service.
-	    String sig = "INTERNAL-SIG-" + System.currentTimeMillis();
-	    return ResponseEntity.ok(walletService.depositRealFunds(request.userId(), request.amount(), request.referenceId(), sig));
+		// Internal API - maps to depositRealFunds (simulating credit/refund)
+		// We generate a self-signed signature here or accept one?
+		// Since this is internal API called by Worker, we trust it and sign it
+		// ourselves in the service.
+		String sig = "INTERNAL-SIG-" + System.currentTimeMillis();
+		return ResponseEntity
+				.ok(walletService.depositRealFunds(request.userId(), request.amount(), request.referenceId(), sig));
 	}
 
 	@PostMapping("/refund")
 	public ResponseEntity<?> refund(@RequestBody WalletOperationRequest request) {
-	    // Internal API
-	    if (request.originalReferenceId() == null) {
-	        return ResponseEntity.badRequest().body("originalReferenceId is required");
-	    }
-	    return ResponseEntity.ok(walletService.refund(request.userId(), request.originalReferenceId(), request.amount()));
+		// Internal API
+		if (request.originalReferenceId() == null) {
+			return ResponseEntity.badRequest().body("originalReferenceId is required");
+		}
+		return ResponseEntity.ok(walletService.refund(request.userId(), request.originalReferenceId(), request.amount()));
 	}
 
 	private Long getAuthenticatedUserId(HttpServletRequest request) {

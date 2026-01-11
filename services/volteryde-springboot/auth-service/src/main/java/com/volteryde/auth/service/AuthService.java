@@ -44,6 +44,7 @@ public class AuthService {
 	private final EmailService emailService;
 	private final ActivityLogService activityLogService;
 	private final PhoneVerificationRepository phoneVerificationRepository;
+	private final com.volteryde.auth.client.UserServiceClient userServiceClient;
 
 	public AuthService(
 			UserRepository userRepository,
@@ -54,7 +55,8 @@ public class AuthService {
 			PasswordEncoder passwordEncoder,
 			EmailService emailService,
 			ActivityLogService activityLogService,
-			PhoneVerificationRepository phoneVerificationRepository) {
+			PhoneVerificationRepository phoneVerificationRepository,
+			com.volteryde.auth.client.UserServiceClient userServiceClient) {
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.refreshTokenRepository = refreshTokenRepository;
@@ -64,6 +66,7 @@ public class AuthService {
 		this.emailService = emailService;
 		this.activityLogService = activityLogService;
 		this.phoneVerificationRepository = phoneVerificationRepository;
+		this.userServiceClient = userServiceClient;
 	}
 
 	/**
@@ -138,15 +141,33 @@ public class AuthService {
 		user.setPhoneNumber(request.getPhoneNumber());
 		user.setOrganizationId(request.getOrganizationId());
 		user.setEnabled(true);
+		if (request.getAccessId() != null) {
+			user.setAccessId(request.getAccessId());
+		}
 		user.setEmailVerified(false);
 		user.setEmailVerificationToken(UUID.randomUUID().toString());
 
-		// Assign default role based on invite code or default to DRIVER
+		// Assign role
 		Set<RoleEntity> roles = new HashSet<>();
-		UserRole defaultRole = determineDefaultRole(request.getInviteCode());
-		RoleEntity role = roleRepository.findByName(defaultRole)
+		UserRole roleEnum;
+
+		if (request.getRole() != null && !request.getRole().isEmpty()) {
+			// Explicit role requested (internal or admin use)
+			try {
+				roleEnum = UserRole.valueOf(request.getRole());
+			} catch (IllegalArgumentException e) {
+				logger.warn("Invalid role requested: {}, falling back to default", request.getRole());
+				roleEnum = determineDefaultRole(request.getInviteCode());
+			}
+		} else {
+			// Default logic
+			roleEnum = determineDefaultRole(request.getInviteCode());
+		}
+
+		final UserRole finalRoleEnum = roleEnum;
+		RoleEntity role = roleRepository.findByName(finalRoleEnum)
 				.orElseGet(() -> {
-					RoleEntity newRole = new RoleEntity(defaultRole);
+					RoleEntity newRole = new RoleEntity(finalRoleEnum, ipAddress);
 					return roleRepository.save(newRole);
 				});
 		roles.add(role);
@@ -154,6 +175,26 @@ public class AuthService {
 
 		user = userRepository.save(user);
 		logger.info("User registered successfully: {}", user.getId());
+
+		// Create user profile in User Management Service
+		try {
+			com.volteryde.auth.dto.CreateUserRequest createUserRequest = new com.volteryde.auth.dto.CreateUserRequest(
+					user.getEmail(),
+					user.getId(), // Pass Auth Service ID as authId
+					user.getFirstName(),
+					user.getLastName(),
+					user.getPhoneNumber(),
+					finalRoleEnum.name(),
+					"AUTH_SERVICE");
+
+			userServiceClient.createUser(createUserRequest);
+			logger.info("User profile created in User Management Service for authId: {}", user.getId());
+		} catch (Exception e) {
+			logger.error("Failed to create user profile in User Management Service: {}", e.getMessage());
+			// Note: We don't rollback registration here, but in production, we might want
+			// to
+			// implement eventual consistency (e.g., via message queue) or rollback.
+		}
 
 		// Log registration activity
 		activityLogService.logRegistration(user, ipAddress, deviceInfo);
@@ -392,8 +433,8 @@ public class AuthService {
 
 		// Assign Role
 		Set<RoleEntity> roles = new HashSet<>();
-		RoleEntity role = roleRepository.findByName(UserRole.PASSENGER)
-				.orElseGet(() -> roleRepository.save(new RoleEntity(UserRole.PASSENGER)));
+		RoleEntity role = roleRepository.findByName(UserRole.DRIVER)
+				.orElseGet(() -> roleRepository.save(new RoleEntity(UserRole.DRIVER)));
 
 		if (request.getUserType() != null) {
 			try {
@@ -408,6 +449,28 @@ public class AuthService {
 		user.setRoles(roles);
 
 		user = userRepository.save(user);
+
+		// Create user profile in User Management Service
+		try {
+			final UserRole finalRole = user.getRoles().stream()
+					.map(RoleEntity::getName)
+					.findFirst()
+					.orElse(UserRole.DRIVER);
+
+			com.volteryde.auth.dto.CreateUserRequest createUserRequest = new com.volteryde.auth.dto.CreateUserRequest(
+					user.getEmail(),
+					user.getId(),
+					user.getFirstName(),
+					user.getLastName(),
+					user.getPhoneNumber(),
+					finalRole.name(),
+					"AUTH_SERVICE");
+
+			userServiceClient.createUser(createUserRequest);
+			logger.info("User profile created in User Management Service for authId: {}", user.getId());
+		} catch (Exception e) {
+			logger.error("Failed to create user profile in User Management Service: {}", e.getMessage());
+		}
 
 		activityLogService.logRegistration(user, ipAddress, deviceInfo);
 

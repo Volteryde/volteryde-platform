@@ -1,0 +1,80 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: client-auth-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/client_auth_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  security:
+    jwt:
+      secret: ${JWT_SECRET:volteryde-secure-jwt-secret-key-256-bits-minimum}
+      expiration: 3600000 # 1 hour in milliseconds
+      refresh-expiration: 604800000 # 7 days in milliseconds
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# OTP Configuration
+# Using Gatekeeper Pro API for OTP generation and verification
+otp:
+  expiration-minutes: 10  # Gatekeeper Pro uses 10-minute expiration
+  length: 6
+  use-external-provider: true  # Use Gatekeeper Pro API for OTP
+
+# SMS Provider Configuration (Gatekeeper Pro)
+# API handles both OTP generation and SMS delivery in one call
+sms:
+  provider:
+    api-url: ${SMS_PROVIDER_URL:https://api.gatekeeperpro.live}
+    api-key: ${SMS_PROVIDER_API_KEY}
+    project-name: ${SMS_PROVIDER_PROJECT_NAME:Volteryde}
+    sender-name: ${SMS_PROVIDER_SENDER_NAME:Volteryde}
+
+# Austin: Google OAuth Configuration
+# The web client ID is used for token validation on the backend
+# All platform tokens (web, iOS, Android) are validated against these
+google:
+  web-client-id: ${GOOGLE_WEB_CLIENT_ID:348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
+  ios-client-id: ${GOOGLE_IOS_CLIENT_ID:348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
+  android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:348743430414-nr958v7e30840kc58029g3qq5t72bbpj.apps.googleusercontent.com}
+
+# Terms & Conditions Configuration
+terms:
+  current-version: "1.0"
+  privacy-version: "1.0"
+
+# Logging
+logging:
+  level:
+    com.volteryde.clientauth: DEBUG
+    org.springframework.security: INFO

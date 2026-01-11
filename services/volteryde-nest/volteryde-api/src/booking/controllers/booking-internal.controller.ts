@@ -22,7 +22,7 @@ import { BookingInternalService } from '../services/booking-internal.service';
 @Controller('api/v1/booking/internal')
 @UseGuards(InternalServiceGuard)
 export class BookingInternalController {
-  constructor(private bookingInternalService: BookingInternalService) {}
+  constructor(private bookingInternalService: BookingInternalService) { }
 
   @Post('reserve-seat')
   @HttpCode(HttpStatus.OK)
@@ -37,6 +37,9 @@ export class BookingInternalController {
       userId: string;
       vehicleId?: string;
       seatId?: string;
+      tripId: string;
+      fromStopId: string;
+      toStopId: string;
     },
   ) {
     return await this.bookingInternalService.reserveSeat(data);

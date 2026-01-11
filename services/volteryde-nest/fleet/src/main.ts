@@ -17,7 +17,11 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+      /^(http:\/\/localhost:[0-9]+)$/,
+      /^(https:\/\/.*\.volteryde\.org)$/,
+      'https://volteryde.org'
+    ],
     credentials: true,
   });
 
@@ -53,7 +57,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  
+
   console.log(`🚀 Volteryde NestJS service running on port ${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }

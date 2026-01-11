@@ -41,8 +41,8 @@ export function isDevelopment(): boolean {
  * Get the auth service URL
  */
 export function getAuthServiceUrl(): string {
-  return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ||
-    (isDevelopment() ? 'http://localhost:3007' : 'https://auth.volteryde.org');
+  return process.env.NEXT_PUBLIC_AUTH_FRONTEND_URL ||
+    (isDevelopment() ? 'http://localhost:4001' : 'https://auth.volteryde.org');
 }
 
 /**
@@ -58,7 +58,7 @@ export function getAuthApiUrl(): string {
  */
 export function getAdminUrl(): string {
   return process.env.NEXT_PUBLIC_ADMIN_URL ||
-    (isDevelopment() ? 'http://localhost:3000' : 'https://admin.volteryde.org');
+    (isDevelopment() ? 'http://localhost:4002' : 'https://admin.volteryde.org');
 }
 
 /**
@@ -66,7 +66,7 @@ export function getAdminUrl(): string {
  */
 export function getLandingUrl(): string {
   return process.env.NEXT_PUBLIC_LANDING_URL ||
-    (isDevelopment() ? 'http://localhost:3001' : 'https://volteryde.org');
+    (isDevelopment() ? 'http://localhost:4000' : 'https://volteryde.org');
 }
 
 /**
@@ -83,6 +83,38 @@ export function getDocsUrl(): string {
 export function getApiUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL ||
     (isDevelopment() ? 'http://localhost:8080' : 'https://api.volteryde.org');
+}
+
+/**
+ * Get the user management API URL
+ */
+export function getUserApiUrl(): string {
+  return process.env.NEXT_PUBLIC_USER_API_URL ||
+    (isDevelopment() ? 'http://localhost:8082' : 'https://users.volteryde.org');
+}
+
+/**
+ * Get the partner app URL
+ */
+export function getPartnersUrl(): string {
+  return process.env.NEXT_PUBLIC_PARTNERS_URL ||
+    (isDevelopment() ? 'http://localhost:4003' : 'https://partners.volteryde.org');
+}
+
+/**
+ * Get the customer support app URL
+ */
+export function getSupportUrl(): string {
+  return process.env.NEXT_PUBLIC_SUPPORT_URL ||
+    (isDevelopment() ? 'http://localhost:4004' : 'https://support.volteryde.org');
+}
+
+/**
+ * Get the dispatcher app URL
+ */
+export function getDispatchUrl(): string {
+  return process.env.NEXT_PUBLIC_DISPATCH_URL ||
+    (isDevelopment() ? 'http://localhost:4005' : 'https://dispatch.volteryde.org');
 }
 
 // ============================================================================
@@ -102,6 +134,10 @@ export interface VolterdeConfig {
   landingUrl: string;
   docsUrl: string;
   apiUrl: string;
+  userApiUrl: string;
+  partnersUrl: string;
+  supportUrl: string;
+  dispatchUrl: string;
 
   // Feature Flags
   enableAnalytics: boolean;
@@ -137,6 +173,10 @@ export function getConfig(): VolterdeConfig {
     landingUrl: getLandingUrl(),
     docsUrl: getDocsUrl(),
     apiUrl: getApiUrl(),
+    userApiUrl: getUserApiUrl(),
+    partnersUrl: getPartnersUrl(),
+    supportUrl: getSupportUrl(),
+    dispatchUrl: getDispatchUrl(),
 
     // Feature Flags
     enableAnalytics: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true',

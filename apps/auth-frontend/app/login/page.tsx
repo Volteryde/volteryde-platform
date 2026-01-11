@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, X, Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { getAdminUrl, getAuthApiUrl, getDispatchUrl, getPartnersUrl, getSupportUrl } from '@volteryde/config';
 
 const MainContainer = styled.div`
   width: 100%;
@@ -238,7 +239,38 @@ function LoginContent() {
 	const redirectUrl = searchParams.get('redirect') || '/';
 	const appId = searchParams.get('app') || 'admin';
 
-	const [role, setRole] = useState<'admin' | 'bi-partner' | 'customer-care' | 'system-support' | 'dispatcher'>('admin');
+	// Map app ID to role
+	const appToRoleMap: Record<string, 'admin' | 'bi-partner' | 'customer-care' | 'system-support' | 'dispatcher'> = {
+		'admin-dashboard': 'admin',
+		'admin': 'admin',
+		'bi-partner': 'bi-partner',
+		'bi-partner-app': 'bi-partner',
+		'dispatcher': 'dispatcher',
+		'dispatcher-app': 'dispatcher',
+		'customer-care': 'customer-care',
+		'customer-and-support-app': 'customer-care',
+		'system-support': 'system-support',
+	};
+
+	const initialRole = appToRoleMap[appId] || 'admin';
+
+	const [role, setRole] = useState<'admin' | 'bi-partner' | 'customer-care' | 'system-support' | 'dispatcher'>(initialRole);
+
+	// Sync role with URL param
+	useEffect(() => {
+		if (appId && appToRoleMap[appId]) {
+			setRole(appToRoleMap[appId]);
+		}
+	}, [appId]);
+
+	const roles = [
+		{ id: 'admin', label: 'Admin', prefix: 'VR-A' },
+		{ id: 'bi-partner', label: 'BI-Partner', prefix: 'VR-P' },
+		{ id: 'customer-care', label: 'Customer Care', prefix: 'VR-CC' },
+		{ id: 'system-support', label: 'System Support', prefix: 'VR-SC' },
+		{ id: 'dispatcher', label: 'Dispatcher', prefix: 'VR-DP' },
+	] as const;
+
 	const [isLoading, setIsLoading] = useState(false);
 	const [showLogo, setShowLogo] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -290,9 +322,13 @@ function LoginContent() {
 
 				if (Date.now() < expiry) {
 					// Token is valid - redirect to admin (or the requested redirect URL)
-					const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3003';
+					const adminUrl = getAdminUrl();
 					const targetUrl = redirectUrl !== '/' ? redirectUrl : adminUrl;
-					window.location.href = targetUrl;
+
+					// Add auth code to URL to prevent loop
+					const callbackUrl = new URL(targetUrl);
+					callbackUrl.searchParams.set('code', token);
+					window.location.href = callbackUrl.toString();
 					return;
 				} else {
 					// Token expired - clear it
@@ -323,7 +359,7 @@ function LoginContent() {
 		setError(null);
 
 		try {
-			const authApiUrl = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8081';
+			const authApiUrl = getAuthApiUrl();
 			const response = await fetch(`${authApiUrl}/api/auth/login`, {
 				method: 'POST',
 				headers: {
@@ -349,10 +385,10 @@ function LoginContent() {
 
 			// Redirect based on role or back to app
 			// Use env vars for production, fallback to localhost for development
-			const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3003';
-			const partnersUrl = process.env.NEXT_PUBLIC_PARTNERS_URL || 'http://localhost:3004';
-			const supportUrl = process.env.NEXT_PUBLIC_SUPPORT_URL || 'http://localhost:3005';
-			const dispatchUrl = process.env.NEXT_PUBLIC_DISPATCH_URL || 'http://localhost:3006';
+			const adminUrl = getAdminUrl();
+			const partnersUrl = getPartnersUrl();
+			const supportUrl = getSupportUrl();
+			const dispatchUrl = getDispatchUrl();
 
 			const roleRedirects: Record<string, string> = {
 				'admin': adminUrl,
@@ -362,7 +398,10 @@ function LoginContent() {
 				'dispatcher': dispatchUrl,
 			};
 
-			const targetUrl = redirectUrl !== '/' ? redirectUrl : roleRedirects[role] || roleRedirects['admin'];
+			// User requested: "it should take the role that i select"
+			// We prioritize the selected role's dashboard URL over the 'redirect' param to ensure 
+			// the user actually goes to the app matching their selected role.
+			const targetUrl = roleRedirects[role];
 
 			// Add auth code to URL
 			const callbackUrl = new URL(targetUrl);
@@ -380,13 +419,7 @@ function LoginContent() {
 		setIsRecoverSubmitted(true);
 	};
 
-	const roles = [
-		{ id: 'admin', label: 'Admin', prefix: 'VR-A' },
-		{ id: 'bi-partner', label: 'BI-Partner', prefix: 'VR-P' },
-		{ id: 'customer-care', label: 'Customer Care', prefix: 'VR-CC' },
-		{ id: 'system-support', label: 'System Support', prefix: 'VR-SC' },
-		{ id: 'dispatcher', label: 'Dispatcher', prefix: 'VR-DP' },
-	] as const;
+
 
 	return (
 		<MainContainer>
@@ -497,13 +530,7 @@ function LoginContent() {
 							/>
 						</LabelInputContainer>
 
-						<div className="flex justify-between items-center mb-8">
-							<Link
-								href={`/register?redirect=${encodeURIComponent(redirectUrl)}&app=${appId}`}
-								className="text-sm font-medium text-neutral-600 hover:text-neutral-800 underline decoration-neutral-400 underline-offset-4 transition-colors"
-							>
-								Create Account
-							</Link>
+						<div className="flex justify-end items-center mb-8">
 							<button
 								type="button"
 								onClick={() => setIsRecoverOpen(true)}

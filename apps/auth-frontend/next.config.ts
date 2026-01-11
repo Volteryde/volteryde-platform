@@ -5,6 +5,7 @@ const nextConfig = {
 	env: {
 		AUTH_API_URL: process.env.AUTH_API_URL || 'http://localhost:8081',
 	},
+	transpilePackages: ['@volteryde/config'],
 };
 
 export default nextConfig;

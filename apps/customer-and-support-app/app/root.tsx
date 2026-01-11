@@ -47,8 +47,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { RequireAuth } from './components/RequireAuth';
+import FullLayout from './components/layout/FullLayout';
+
 export default function App() {
-  return <Outlet />;
+  return (
+    <RequireAuth>
+      <FullLayout />
+    </RequireAuth>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

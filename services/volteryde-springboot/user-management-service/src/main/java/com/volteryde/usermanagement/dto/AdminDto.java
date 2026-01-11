@@ -34,6 +34,18 @@ public class AdminDto {
 	}
 
 	@Data
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class CreateUserRequest {
+		private String email;
+		private String password;
+		private String firstName;
+		private String lastName;
+		private String phoneNumber;
+		private String role; // e.g., ADMIN, SUPPORT, etc.
+	}
+
+	@Data
 	@Builder
 	public static class DriverResponse {
 		private UUID userId;

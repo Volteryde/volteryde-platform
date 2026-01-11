@@ -13,7 +13,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Security configuration for the auth service
@@ -56,19 +55,15 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(List.of(
-				"http://localhost:3007",
-				"http://localhost:3008",
-				"http://localhost:3003",
-				"http://auth.localhost",
-				"http://admin.localhost",
-				"https://auth.volteryde.org",
-				"https://admin.volteryde.org",
-				"https://partners.volteryde.org",
-				"https://support.volteryde.org",
-				"https://dispatch.volteryde.org"));
-		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(Arrays.asList("*"));
+		// Use setAllowedOriginPatterns for flexibility with allowCredentials(true)
+		configuration.setAllowedOriginPatterns(Arrays.asList(
+				"http://localhost:*",
+				"https://*.volteryde.org",
+				"http://*.volteryde.org"));
+		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept",
+				"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+		configuration.setExposedHeaders(Arrays.asList("Authorization"));
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
 

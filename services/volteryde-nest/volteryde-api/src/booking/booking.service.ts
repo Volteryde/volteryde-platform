@@ -21,6 +21,10 @@ interface BookingRequest {
   vehicleType?: 'STANDARD' | 'PREMIUM' | 'SHUTTLE';
   scheduledTime?: Date;
   passengerCount?: number;
+  // GTFS specific fields
+  tripId?: string;
+  fromStopId?: string;
+  toStopId?: string;
 }
 
 

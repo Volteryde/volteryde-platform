@@ -27,4 +27,11 @@ public class AdminController {
 		adminService.onboardFleetManager(request);
 		return new ResponseEntity<>(HttpStatus.CREATED);
 	}
+
+	@PostMapping("/users")
+	@PreAuthorize("hasAnyAuthority('ADMIN', 'SUPER_ADMIN')")
+	public ResponseEntity<com.volteryde.usermanagement.model.User> createUser(
+			@RequestBody AdminDto.CreateUserRequest request) {
+		return new ResponseEntity<>(adminService.createUser(request), HttpStatus.CREATED);
+	}
 }

@@ -2,10 +2,16 @@
 // Telematics Service
 // ============================================================================
 // Business logic for vehicle tracking, diagnostics, and analytics
+// Enhanced with EV battery monitoring and GTFS trip linking
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TimestreamService } from './timestream.service';
-import { LocationUpdateDto } from '../dto/location-update.dto';
+import { LocationUpdateDto, ChargingState } from '../dto/location-update.dto';
+import {
+  VehiclePositionDto,
+  BatteryAlertDto,
+  BatteryAlertType,
+} from '../dto/vehicle-position.dto';
 import * as ngeohash from 'ngeohash';
 
 @Injectable()
@@ -13,6 +19,16 @@ export class TelematicsService {
   private readonly logger = new Logger(TelematicsService.name);
   private readonly MAX_ALLOWED_SPEED_KPH = 150;
   private readonly MAX_ACCURACY_THRESHOLD_METERS = 50;
+
+  // EV Battery Thresholds
+  private readonly LOW_BATTERY_THRESHOLD = 20;
+  private readonly CRITICAL_BATTERY_THRESHOLD = 10;
+  private readonly HIGH_BATTERY_TEMP_THRESHOLD = 45; // Celsius
+  private readonly MIN_BATTERY_FOR_TRIP_START = 30; // Minimum % to start a new trip
+
+  // In-memory cache for active vehicles (would be Redis in production)
+  private vehiclePositions: Map<string, VehiclePositionDto> = new Map();
+  private batteryAlerts: Map<string, BatteryAlertDto[]> = new Map();
 
   constructor(
     private timestreamService: TimestreamService,
@@ -31,6 +47,12 @@ export class TelematicsService {
     // Generate Geohash
     const geohash = ngeohash.encode(data.latitude, data.longitude, 9);
 
+    // Process EV battery data
+    if (data.batteryLevelPercent !== undefined) {
+      await this.processBatteryTelemetry(data);
+    }
+
+    // Write location to time-series database (core fields only)
     await this.timestreamService.writeLocation({
       vehicleId: data.vehicleId,
       latitude: data.latitude,
@@ -41,14 +63,200 @@ export class TelematicsService {
       timestamp: data.timestamp ? new Date(data.timestamp) : undefined,
       geohash: geohash,
     });
+
+    // Log EV data separately (would use Timestream multi-measure in production)
+    if (data.batteryLevelPercent !== undefined) {
+      this.logger.debug(
+        `Vehicle ${data.vehicleId} battery: ${data.batteryLevelPercent}%, ` +
+        `range: ${data.remainingRangeKm}km, trip: ${data.tripId || 'none'}`
+      );
+    }
+
+    // Update in-memory position cache
+    this.updateVehiclePositionCache(data);
   }
 
-  // Placeholder for future implementation using Gateway/Influx
-  async broadcastDiagnosticsUpdate(vehicleId: string, diagnostics: any) {
-    this.logger.debug(`Diagnostics update broadcast for vehicle ${vehicleId}`);
+  // ============================================================================
+  // EV Battery Monitoring
+  // ============================================================================
+
+  private async processBatteryTelemetry(data: LocationUpdateDto): Promise<void> {
+    const batteryLevel = data.batteryLevelPercent!;
+    const vehicleId = data.vehicleId;
+
+    // Check for low battery
+    if (batteryLevel <= this.CRITICAL_BATTERY_THRESHOLD) {
+      await this.createBatteryAlert(vehicleId, BatteryAlertType.CRITICAL_BATTERY, 'CRITICAL', batteryLevel, data.tripId);
+    } else if (batteryLevel <= this.LOW_BATTERY_THRESHOLD) {
+      await this.createBatteryAlert(vehicleId, BatteryAlertType.LOW_BATTERY, 'HIGH', batteryLevel, data.tripId);
+    }
+
+    // Check battery temperature
+    if (data.batteryTemperature && data.batteryTemperature > this.HIGH_BATTERY_TEMP_THRESHOLD) {
+      await this.createBatteryAlert(vehicleId, BatteryAlertType.TEMPERATURE_WARNING, 'MEDIUM', batteryLevel, data.tripId);
+    }
+
+    // Check if vehicle can complete current trip
+    if (data.tripId && data.remainingRangeKm !== undefined) {
+      const canComplete = await this.canCompleteTripWithCurrentBattery(data);
+      if (!canComplete) {
+        await this.createBatteryAlert(vehicleId, BatteryAlertType.CANNOT_COMPLETE_TRIP, 'CRITICAL', batteryLevel, data.tripId);
+      }
+    }
   }
 
-  async broadcastAlert(vehicleId: string, alert: string, severity: 'LOW' | 'MEDIUM' | 'HIGH') {
+  private async createBatteryAlert(
+    vehicleId: string,
+    type: BatteryAlertType,
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    batteryLevel: number,
+    tripId?: string,
+  ): Promise<void> {
+    const alert: BatteryAlertDto = {
+      alertId: `ALT-${Date.now()}`,
+      vehicleId,
+      type,
+      severity,
+      message: this.getBatteryAlertMessage(type, batteryLevel),
+      batteryLevel,
+      tripId,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Store alert
+    if (!this.batteryAlerts.has(vehicleId)) {
+      this.batteryAlerts.set(vehicleId, []);
+    }
+    this.batteryAlerts.get(vehicleId)!.push(alert);
+
+    // Broadcast alert
+    this.broadcastAlert(vehicleId, alert.message, severity);
+
+    this.logger.warn(`Battery alert for ${vehicleId}: ${alert.message}`);
+  }
+
+  private getBatteryAlertMessage(type: BatteryAlertType, batteryLevel: number): string {
+    switch (type) {
+      case BatteryAlertType.CRITICAL_BATTERY:
+        return `CRITICAL: Battery at ${batteryLevel}%. Immediate charging required.`;
+      case BatteryAlertType.LOW_BATTERY:
+        return `Battery at ${batteryLevel}%. Consider routing to charging station.`;
+      case BatteryAlertType.CANNOT_COMPLETE_TRIP:
+        return `Insufficient battery (${batteryLevel}%) to complete current trip. Route to charging station.`;
+      case BatteryAlertType.TEMPERATURE_WARNING:
+        return `Battery temperature warning. Current level: ${batteryLevel}%.`;
+      case BatteryAlertType.CHARGING_FAULT:
+        return `Charging fault detected. Battery at ${batteryLevel}%.`;
+      default:
+        return `Battery alert: ${batteryLevel}%`;
+    }
+  }
+
+  async canCompleteTripWithCurrentBattery(data: LocationUpdateDto): Promise<boolean> {
+    // In a real implementation, this would:
+    // 1. Query GTFS for remaining trip distance
+    // 2. Calculate required energy based on vehicle efficiency
+    // 3. Compare with remaining range
+
+    if (!data.remainingRangeKm || !data.tripId) {
+      return true; // Can't determine, assume ok
+    }
+
+    // Placeholder: assume average trip remaining is 15km with 20% safety margin
+    const estimatedRemainingTripKm = 15;
+    const safetyMargin = 1.2;
+
+    return data.remainingRangeKm >= (estimatedRemainingTripKm * safetyMargin);
+  }
+
+  async validateBatteryForTripAssignment(vehicleId: string, tripDistanceKm: number): Promise<{
+    canAssign: boolean;
+    reason?: string;
+    currentBattery?: number;
+    requiredBattery?: number;
+  }> {
+    const position = this.vehiclePositions.get(vehicleId);
+
+    if (!position || position.batteryLevelPercent === undefined) {
+      return { canAssign: false, reason: 'No battery data available' };
+    }
+
+    const currentBattery = position.batteryLevelPercent;
+
+    // Simple calculation: assume 0.3 kWh/km and 60 kWh battery
+    const energyRequired = tripDistanceKm * 0.3;
+    const totalCapacity = 60; // kWh
+    const requiredBattery = (energyRequired / totalCapacity) * 100 * 1.2; // 20% safety margin
+
+    if (currentBattery < this.MIN_BATTERY_FOR_TRIP_START) {
+      return {
+        canAssign: false,
+        reason: `Battery (${currentBattery}%) below minimum threshold (${this.MIN_BATTERY_FOR_TRIP_START}%)`,
+        currentBattery,
+        requiredBattery,
+      };
+    }
+
+    if (currentBattery < requiredBattery) {
+      return {
+        canAssign: false,
+        reason: `Insufficient battery for ${tripDistanceKm}km trip`,
+        currentBattery,
+        requiredBattery: Math.ceil(requiredBattery),
+      };
+    }
+
+    return { canAssign: true, currentBattery };
+  }
+
+  private updateVehiclePositionCache(data: LocationUpdateDto): void {
+    const position: VehiclePositionDto = {
+      vehicleId: data.vehicleId,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      bearing: data.heading,
+      speed: data.speed ? data.speed / 3.6 : undefined, // km/h to m/s
+      timestamp: (data.timestamp || new Date()).toISOString(),
+      tripId: data.tripId,
+      stopId: data.currentStopId,
+      currentStopSequence: data.currentStopSequence,
+      occupancyStatus: data.occupancyStatus,
+      batteryLevelPercent: data.batteryLevelPercent,
+      chargingState: data.chargingState,
+      remainingRangeKm: data.remainingRangeKm,
+      energyConsumedKwh: data.energyConsumedKwh,
+    };
+    this.vehiclePositions.set(data.vehicleId, position);
+  }
+
+  // ============================================================================
+  // Fleet Position Queries
+  // ============================================================================
+
+  async getFleetPositions(): Promise<{
+    vehicles: VehiclePositionDto[];
+    total: number;
+    onTrip: number;
+    charging: number;
+    lowBattery: number;
+  }> {
+    const vehicles = Array.from(this.vehiclePositions.values());
+
+    return {
+      vehicles,
+      total: vehicles.length,
+      onTrip: vehicles.filter(v => v.tripId).length,
+      charging: vehicles.filter(v => v.chargingState === ChargingState.CHARGING).length,
+      lowBattery: vehicles.filter(v => (v.batteryLevelPercent || 100) < this.LOW_BATTERY_THRESHOLD).length,
+    };
+  }
+
+  async getVehicleBatteryAlerts(vehicleId: string): Promise<BatteryAlertDto[]> {
+    return this.batteryAlerts.get(vehicleId) || [];
+  }
+
+
+  async broadcastAlert(vehicleId: string, alert: string, severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') {
     this.logger.warn(`Alert broadcast for vehicle ${vehicleId}: ${alert}`);
   }
 

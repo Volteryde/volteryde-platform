@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getAuthServiceUrl } from '@volteryde/config';
 import { AppStoreBadge, GooglePlayBadge } from '@/components/ui/DownloadBadges';
 
 export function Footer() {
@@ -72,7 +73,7 @@ export function Footer() {
 					<p>© 2025 Volteryde Inc. All systems nominal.</p>
 
 					<a
-						href={process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3007'}
+						href={getAuthServiceUrl()}
 						className="hover:text-black/100 transition-colors mr-1"
 						target="_blank"
 						rel="noopener noreferrer"

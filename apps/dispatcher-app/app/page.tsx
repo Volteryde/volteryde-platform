@@ -1,54 +1,49 @@
-import { BackgroundRippleEffect } from "@/components/ui/background-ripple-effect";
-import LoginForm from "@/components/Login/LoginForm";
-import Image from "next/image";
+"use client";
 
-export default function LoginPage() {
+import { IconArrowLeft } from "@tabler/icons-react";
+import { getAuthServiceUrl } from '@volteryde/config';
+
+export default function Dashboard() {
+  const handleLogout = () => {
+    // 1. Clear Cookies
+    document.cookie = 'volteryde_auth_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+    // 2. Clear Local Storage
+    localStorage.removeItem('volteryde_auth_access_token');
+
+    // 3. Redirect to Auth Platform
+    const authUrl = getAuthServiceUrl();
+
+    window.location.href = `${authUrl}/login?logout=true`;
+  };
+
   return (
-    <div className="min-h-screen w-full flex bg-white dark:bg-black text-black dark:text-white font-sans">
-      {/* Left Side - Visual/Branding */}
-      <div className="hidden lg:flex w-1/2 bg-[#0CCF0E] relative items-center justify-center overflow-hidden">
-        {/* Background Effect */}
-        <div className="absolute inset-0 z-0">
-          <BackgroundRippleEffect
-            rows={15}
-            cols={15}
-            cellSize={50}
-          />
-        </div>
-
-        <div className="relative z-20 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl flex items-center justify-center">
-            {/* Using a relative path for the image, assuming it's in public folder as logo.png or similar */}
-            {/* The user used '/logo1.png' in bi-partner-app, assuming similar asset exists or we use 'logo.png' we saw in admin dashboard */}
-            {/* I saw logo.png in admin-dashboard, let's assume logo.png or similar exists. Wait, I copied favicon assets but did I copy logo? */}
-            {/* I copied ALL from favicon_io_internal-apps. Let me check what was there. */}
-            {/* logo.png was updated in admin-dashboard. */}
-            {/* Let's try /logo.png first, if not I will default to text */}
-            <Image
-              src="/android-chrome-512x512.png"
-              alt="Volteryde Logo"
-              width={600}
-              height={300}
-              className="w-auto h-48 object-contain"
-              priority
-            />
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">
+            DP
           </div>
+          <h1 className="text-xl font-bold text-gray-800">Dispatcher Portal</h1>
         </div>
-      </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-24 relative bg-white">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo (Visible only on small screens) */}
-          <div className="lg:hidden flex justify-center mb-6">
-            <div className="p-4 bg-[#0CCF0E]/10 rounded-2xl">
-              <Image src="/android-chrome-192x192.png" width={120} height={120} alt="Volteryde" className="w-auto h-16 object-contain" />
-            </div>
-          </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <IconArrowLeft size={20} />
+          Logout
+        </button>
+      </header>
 
-          <LoginForm />
+      <main className="flex-1 p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome to Dispatcher Portal</h2>
+          <p className="text-gray-500 max-w-md mx-auto">
+            This application is currently under development. The authentication and logout flow have been set up.
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

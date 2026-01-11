@@ -6,13 +6,13 @@ server:
 spring:
   application:
     name: user-management-service
-  
+
   datasource:
     url: jdbc:postgresql://localhost:5432/volteryde_user_management
     username: ${DB_USERNAME:volteryde_user}
     password: ${DB_PASSWORD:user_password}
     driver-class-name: org.postgresql.Driver
-    
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,6 +20,12 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  security:
+    jwt:
+      secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
+      expiration: ${JWT_EXPIRATION:86400000} # 24 hours
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
 
 eureka:
   client:

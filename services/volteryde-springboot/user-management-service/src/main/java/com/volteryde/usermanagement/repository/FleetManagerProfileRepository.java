@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface FleetManagerProfileRepository extends JpaRepository<FleetManagerProfile, UUID> {
 	Optional<FleetManagerProfile> findByUserId(UUID userId);
+
+	Optional<FleetManagerProfile> findByUser(com.volteryde.usermanagement.model.User user);
 }

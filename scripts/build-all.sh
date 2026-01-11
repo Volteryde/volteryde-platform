@@ -76,9 +76,7 @@ if [ -d "apps/bi-partner-app" ]; then
   build_service "BI Partner App" "apps/bi-partner-app" "pnpm install && pnpm build"
 fi
 
-if [ -d "apps/docs-platform" ]; then
-  build_service "Docs Platform" "apps/docs-platform" "pnpm install && pnpm build"
-fi
+
 
 # Summary
 echo ""

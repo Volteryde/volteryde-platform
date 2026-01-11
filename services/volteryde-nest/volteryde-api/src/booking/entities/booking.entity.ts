@@ -42,6 +42,12 @@ export class Booking {
   @Column('decimal', { precision: 10, scale: 2 })
   fare: number;
 
+  @Column({ name: 'fromStopId', nullable: true })
+  fromStopId: string;
+
+  @Column({ name: 'toStopId', nullable: true })
+  toStopId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

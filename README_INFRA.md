@@ -23,7 +23,7 @@ This will add the following entries to your hosts file:
 - `dispatch.volteryde.org`
 - `partners.volteryde.org`
 - `support.volteryde.org`
-- `docs.volteryde.org`
+
 
 ## 2. Running the Platform
 
@@ -46,7 +46,7 @@ Once the containers are running and the DNS is set up, you can access the applic
 | **Dispatcher App** | `http://dispatch.volteryde.org` | 3000 |
 | **Partner App** | `http://partners.volteryde.org` | 3000 |
 | **Support App** | `http://support.volteryde.org` | 3000 |
-| **Docs Platform** | `http://docs.volteryde.org` | 3000 |
+
 
 ## Troubleshooting
 
