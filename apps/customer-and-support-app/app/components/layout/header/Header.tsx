@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import Profile from "./Profile";
 import { Link } from "react-router";
-import FullLogo from "../shared/logo/FullLogo";
+// import FullLogo from "../shared/logo/FullLogo";
 // import SidebarLayout from "../sidebar/Sidebar"; // For mobile menu if we implement it
 
 const Header = ({ onMobileSidebarOpen }: { onMobileSidebarOpen?: () => void }) => {
 	// const { theme, setTheme } = useTheme();
-	const theme = 'light'; // Stub
-	const setTheme = (t: string) => console.log('Set theme', t);
+	// const theme = 'light'; // Stub - uncomment when implementing dark mode
+	// const setTheme = (t: string) => console.log('Set theme', t);
 
 	const [isSticky, setIsSticky] = useState(false);
 
@@ -29,9 +29,9 @@ const Header = ({ onMobileSidebarOpen }: { onMobileSidebarOpen?: () => void }) =
 		};
 	}, []);
 
-	const toggleMode = () => {
-		// setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
-	};
+	// const toggleMode = () => {
+	// 	setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+	// };
 
 	return (
 		<header

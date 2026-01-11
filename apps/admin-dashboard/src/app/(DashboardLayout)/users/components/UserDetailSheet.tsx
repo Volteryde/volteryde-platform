@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Check, User as UserIcon, Mail, Phone, Shield, Calendar, Key, Activity, Car, MapPin, FileText } from 'lucide-react';
+import { Copy, Check, User as UserIcon, Mail, Phone, Key, Car, MapPin, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,15 +53,6 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
 	const formatDate = (dateString?: string) => {
 		if (!dateString) return 'N/A';
 		return new Date(dateString).toLocaleString();
-	};
-
-	const roleColors: Record<string, string> = {
-		ADMIN: 'bg-red-100 text-red-800 border-red-200',
-		DRIVER: 'bg-blue-100 text-blue-800 border-blue-200',
-		SUPPORT: 'bg-purple-100 text-purple-800 border-purple-200',
-		SYSTEM_SUPPORT: 'bg-purple-100 text-purple-800 border-purple-200',
-		FLEET_MANAGER: 'bg-orange-100 text-orange-800 border-orange-200',
-		DISPATCHER: 'bg-cyan-100 text-cyan-800 border-cyan-200',
 	};
 
 	return (

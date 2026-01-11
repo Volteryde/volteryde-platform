@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router";
 import { getAuthServiceUrl } from '@volteryde/config';
 
 // Helper to get cookie
@@ -12,7 +11,6 @@ function getCookie(name: string) {
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
 	const [isAuth, setIsAuth] = useState(false);
-	const location = useLocation();
 
 	useEffect(() => {
 		// 1. Check for SSO callback

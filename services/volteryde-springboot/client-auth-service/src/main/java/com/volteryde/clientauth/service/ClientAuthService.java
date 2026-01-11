@@ -119,6 +119,10 @@ public class ClientAuthService {
     public OtpVerifyResponse verifyOtp(OtpVerifyRequest request, String deviceInfo, String ipAddress) {
         String phone = normalizePhone(request.getPhone());
         
+        // Rate limit verification attempts
+        rateLimiterService.checkAndRecordOtp(phone, ipAddress);
+        logger.debug("OTP verification attempt for phone: {}, device: {}, ip: {}", maskPhone(phone), deviceInfo, ipAddress);
+        
         boolean verified = otpService.verifyOtp(phone, request.getCode());
         if (!verified) {
             throw new RuntimeException("Invalid or expired OTP");
@@ -263,7 +267,7 @@ public class ClientAuthService {
             String phone = normalizePhone(request.getPhone());
             rateLimiterService.checkAndRecordOtp(phone, ipAddress);
             
-            ClientUser user = userRepository.findByPhone(phone)
+            userRepository.findByPhone(phone)
                     .orElseThrow(() -> new UserNotFoundException("No account found with this phone number"));
             
             // Use external API (Gatekeeper Pro) - handles both generation and SMS
@@ -278,7 +282,7 @@ public class ClientAuthService {
             // Use email-specific OTP rate limiting
             rateLimiterService.checkAndRecordEmailOtp(email, ipAddress);
             
-            ClientUser user = userRepository.findByEmail(email)
+            userRepository.findByEmail(email)
                     .orElseThrow(() -> new UserNotFoundException("No account found with this email"));
             
             // Use Gatekeeper Pro API for email OTP

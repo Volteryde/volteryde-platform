@@ -53,7 +53,6 @@ import { Suspense } from 'react';
 // Inner component to handle URL params
 function AuthInitializer({ children, setAuthState }: { children: ReactNode; setAuthState: (state: Partial<AuthState>) => void }) {
 	const searchParams = useSearchParams();
-	const router = useRouter();
 
 	useEffect(() => {
 		const initAuth = async () => {

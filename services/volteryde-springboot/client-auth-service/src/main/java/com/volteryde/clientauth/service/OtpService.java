@@ -408,7 +408,7 @@ public class OtpService {
      */
     @Deprecated
     public boolean sendOtpSms(String phone, String code) {
-        logger.info("Legacy sendOtpSms called - using new external API method");
+        logger.info("Legacy sendOtpSms called with code {} - using new external API method", code);
         return sendOtpSms(phone);
     }
 
