@@ -6,8 +6,11 @@
     "declaration": false,
     "target": "ES2021",
     "sourceMap": true,
-    "baseUrl": "./",
+    "baseUrl": "../",
     "incremental": true,
+    "paths": {
+      "@app/shared/*": ["libs/shared/src/*"]
+    },
     "types": []
   },
   "include": [
@@ -18,6 +21,7 @@
     "node_modules",
     "dist",
     "test",
-    "**/*spec.ts"
+    "**/*spec.ts",
+    "../libs/**/__tests__/**"
   ]
 }

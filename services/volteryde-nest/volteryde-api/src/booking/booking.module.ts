@@ -1,6 +1,7 @@
 // ============================================================================
-// Booking Module for NestJS
+// Booking Module for NestJS - Stop-to-Stop Model
 // ============================================================================
+// Austin: This module integrates H3 geospatial services for stop-to-stop booking.
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,9 +15,16 @@ import { Reservation } from './entities/reservation.entity';
 import { BookingInternalService } from './services/booking-internal.service';
 import { NotificationService } from './services/notification.service';
 import { GtfsModule } from '../gtfs/gtfs.module';
+// Austin: Import H3 geospatial module for stop-to-stop routing and pricing
+import { H3GeospatialModule } from '@app/shared/h3';
 
 @Module({
-  imports: [TemporalModule, TypeOrmModule.forFeature([Booking, Reservation]), GtfsModule],
+  imports: [
+    TemporalModule,
+    TypeOrmModule.forFeature([Booking, Reservation]),
+    GtfsModule,
+    H3GeospatialModule, // Austin: Provides routing and pricing services
+  ],
   controllers: [
     BookingController,
     BookingInternalController,
@@ -25,4 +33,4 @@ import { GtfsModule } from '../gtfs/gtfs.module';
   providers: [BookingService, BookingInternalService, NotificationService],
   exports: [BookingService, NotificationService],
 })
-export class BookingModule { }
+export class BookingModule {}
