@@ -5,7 +5,7 @@
 // Note: Order matters to avoid circular dependency issues
 
 export { Agency } from './agency.entity';
-export { Stop, LocationType, WheelchairBoarding } from './stop.entity';
+export { Stop, LocationType, WheelchairBoarding, StopAccessGrade } from './stop.entity';
 export { Route, RouteType, ContinuousPickup, ContinuousDropOff } from './route.entity';
 export { Calendar } from './calendar.entity';
 export { CalendarDate, ExceptionType } from './calendar-date.entity';

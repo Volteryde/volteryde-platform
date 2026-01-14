@@ -17,7 +17,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Database per Domain Strategy
-      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db
+      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
     ports:
       - "5432:5432"
     volumes:
@@ -228,6 +228,10 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
+    networks:
+      - volteryde-network
+    restart: unless-stopped
 
   fleet-service:
     build:
@@ -251,6 +255,10 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
+    networks:
+      - volteryde-network
+    restart: unless-stopped
 
   charging-service:
     build:
@@ -274,6 +282,10 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
+    networks:
+      - volteryde-network
+    restart: unless-stopped
 
   booking-service:
     build:
@@ -283,7 +295,10 @@ services:
     command: npm run start:dev -- booking
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/booking_db
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=booking_db
       - REDIS_URL=redis://redis:6379
       - PORT=3004
@@ -297,6 +312,44 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Main API Service (GTFS, Booking Integration, Core APIs)
+  # ============================================================================
+  volteryde-api:
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.dev
+    container_name: volteryde-api
+    command: npm run start:dev -- volteryde-api
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=volteryde
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/services/volteryde-nest/node_modules
+    networks:
+      - volteryde-network
+    restart: unless-stopped
 
   notifications-service:
     build:
@@ -320,7 +373,6 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-
       - /app/services/volteryde-nest/node_modules
     networks:
       - volteryde-network
@@ -349,7 +401,7 @@ services:
         SERVICE_NAME: api-gateway
     container_name: volteryde-api-gateway
     ports:
-      - "8082:8080"
+      - "8084:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=development
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
@@ -373,7 +425,7 @@ services:
       - SPRING_PROFILES_ACTIVE=development
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -426,6 +478,7 @@ services:
       - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
       - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
       - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID:-348743430414-nr958v7e3084kc58029g3qq5t72bbpj.apps.googleusercontent.com}
+      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY:-14152262-c4c5-43c6-a05e-4a8cea137470}
     depends_on:
       postgres:
         condition: service_healthy
@@ -467,7 +520,7 @@ services:
       - SPRING_PROFILES_ACTIVE=development
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/user_db
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - APPLICATION_CONFIG_AUTH_SERVICE_URL=http://volteryde-auth-service:8081/api/auth
       - SPRING_REDIS_HOST=redis
@@ -494,7 +547,7 @@ services:
       - SPRING_PROFILES_ACTIVE=development
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment_db
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379

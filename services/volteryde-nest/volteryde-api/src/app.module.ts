@@ -11,6 +11,8 @@ import { ChargingInfrastructureModule } from './charging-infrastructure/charging
 import { FirebaseModule } from './firebase/firebase.module';
 import { GtfsModule } from './gtfs/gtfs.module';
 import { RootController } from './root.controller';
+// Austin: H3 Geospatial Module - provides hexagonal spatial indexing for dispatch
+import { H3GeospatialModule } from '@app/shared/h3';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { RootController } from './root.controller';
     ChargingInfrastructureModule,
     FirebaseModule,
     GtfsModule,
+    // Austin: H3 geospatial services for driver tracking, smart snap, and dispatch
+    H3GeospatialModule,
   ],
   controllers: [RootController],
   providers: [],
