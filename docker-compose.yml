@@ -20,6 +20,7 @@ services:
       POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
     ports:
       - "5432:5432"
+    command: postgres -c 'max_connections=300'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
@@ -168,6 +169,24 @@ services:
     volumes:
       - ./infrastructure/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mosquitto_data:/mosquitto/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mosquitto_pub",
+          "-h",
+          "localhost",
+          "-t",
+          "health",
+          "-m",
+          "ping",
+          "-q",
+          "0",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -215,6 +234,7 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-volteryde_super_secret_token}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-volteryde}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-telematics}
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3001
     ports:
       - "3001:3001"
@@ -224,6 +244,8 @@ services:
       redis:
         condition: service_healthy
       influxdb:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app
@@ -241,9 +263,14 @@ services:
     command: npm run start:dev -- fleet
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fleet_db
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=fleet_db
       - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3002
     ports:
       - "3002:3002"
@@ -251,6 +278,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app
@@ -268,9 +297,14 @@ services:
     command: npm run start:dev -- charging
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/charging_db
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=charging_db
       - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3003
     ports:
       - "3003:3003"
@@ -278,6 +312,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app
@@ -301,6 +337,8 @@ services:
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=booking_db
       - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3004
     ports:
       - "3004:3004"
@@ -308,6 +346,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app
@@ -335,13 +375,17 @@ services:
       - DATABASE_NAME=volteryde
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
       - PORT=3000
     ports:
-      - "3000:3000"
+      - "3010:3000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app
@@ -359,9 +403,14 @@ services:
     command: npm run start:dev -- notifications
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/user_db
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=user_db
       - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3005
     ports:
       - "3005:3005"
@@ -369,6 +418,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     volumes:
       - .:/app

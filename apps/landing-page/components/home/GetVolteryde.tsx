@@ -1,8 +1,8 @@
-"use client";
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { buttonContainerVariants, buttonVariants, descriptionVariants, titleVariants } from "@/lib/animation";
-import { AppStoreBadge, GooglePlayBadge } from "@/components/ui/DownloadBadges";
+'use client';
+
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
+import Image from 'next/image';
 
 export default function GetVolteryde() {
 	const ref = useRef(null);
@@ -10,49 +10,58 @@ export default function GetVolteryde() {
 
 	return (
 		<section
-			id="get-volteryde"
-			className="py-16 md:py-24 px-4 sm:px-6 lg:px-8 bg-white"
+			id="download"
 			ref={ref}
+			className="py-16 px-8 bg-white"
 		>
-			<div className="max-w-4xl mx-auto text-center">
-				{/* Section Title */}
-				<motion.h2
-					className="text-4xl md:text-5xl font-black text-[#1D1D1F] mb-4"
-					initial="hidden"
-					animate={isInView ? "visible" : "hidden"}
-					variants={titleVariants}
-				>
-					Get Volteryde
-				</motion.h2>
+			<div className="max-w-7xl mx-auto">
+				{/* Green container with rounded corners */}
+				<div className="bg-[#0CCF0E] rounded-[64px] flex items-center justify-between pt-16 px-16 lg:px-32 relative overflow-hidden">
+					{/* Left - Content */}
+					<motion.div
+						initial={{ opacity: 0, x: -30 }}
+						animate={isInView ? { opacity: 1, x: 0 } : {}}
+						transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+						className="flex flex-col gap-6 items-start max-w-[545px] pb-16"
+					>
+						<h2 className="font-poppins font-bold text-[40px] leading-[48px] text-white">
+							Be part of a Cleaner Future
+						</h2>
 
-				{/* Description */}
-				<motion.p
-					className="text-[#86868B] max-w-full md:max-w-2xl text-center mx-auto text-lg md:text-xl mb-12 leading-relaxed"
-					initial="hidden"
-					animate={isInView ? "visible" : "hidden"}
-					variants={descriptionVariants}
-				>
-					Join the move toward greener transportation. Download Volteryde and
-					ride the future today.
-				</motion.p>
+						<p className="font-outfit font-normal text-[18px] leading-[20px] text-white opacity-95">
+							Volteryde is transforming public transport with electric buses that put sustainability first. Join us in building cleaner cities — start your journey with the Voltride app.
+						</p>
 
-				{/* Download Buttons */}
-				<motion.div
-					className="flex flex-col sm:flex-row gap-4 mb-8 justify-center items-center"
-					initial="hidden"
-					animate={isInView ? "visible" : "hidden"}
-					variants={buttonContainerVariants}
-				>
-					{/* Play Store Button */}
-					<motion.div variants={buttonVariants}>
-						<GooglePlayBadge theme="dark" />
+						<motion.button
+							initial={{ opacity: 0, y: 20 }}
+							animate={isInView ? { opacity: 1, y: 0 } : {}}
+							transition={{ duration: 0.5, delay: 0.3 }}
+							className="bg-white h-[56px] px-8 py-4 rounded-[32px] flex items-center justify-center hover:bg-gray-50 transition-colors"
+						>
+							<span className="font-poppins font-medium text-[18px] leading-[20px] text-[#033604]">
+								Download App
+							</span>
+						</motion.button>
 					</motion.div>
 
-					{/* App Store Button */}
-					<motion.div variants={buttonVariants}>
-						<AppStoreBadge theme="dark" />
+					{/* Right - Phone Mockup */}
+					<motion.div
+						initial={{ opacity: 0, x: 30 }}
+						animate={isInView ? { opacity: 1, x: 0 } : {}}
+						transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+						className="hidden lg:flex justify-end items-end shrink-0"
+					>
+						<Image
+							src="/branding/phone.png"
+							alt="Volteryde App"
+							width={369}
+							height={524}
+							priority
+							quality={100}
+							className="object-contain"
+						/>
 					</motion.div>
-				</motion.div>
+				</div>
 			</div>
 		</section>
 	);

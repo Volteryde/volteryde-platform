@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.1</version>
+        <version>3.5.11</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     
@@ -34,7 +34,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-cloud.version>2023.0.0</spring-cloud.version>
+        <spring-cloud.version>2025.0.1</spring-cloud.version>
         <testcontainers.version>1.19.3</testcontainers.version>
 
     </properties>
@@ -61,6 +61,98 @@
                 <artifactId>shared-library</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            
+            <!-- Security: Override vulnerable transitive dependencies -->
+            <!-- Netty -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-http</artifactId>
+                <version>4.1.118.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-codec-http2</artifactId>
+                <version>4.1.118.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler</artifactId>
+                <version>4.1.118.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-common</artifactId>
+                <version>4.1.118.Final</version>
+            </dependency>
+            
+            <!-- Bouncycastle -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>1.78.1</version>
+            </dependency>
+            
+            <!-- Logback -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.5.15</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.5.15</version>
+            </dependency>
+            
+            <!-- Spring Security (latest patch) -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-core</artifactId>
+                <version>6.4.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-web</artifactId>
+                <version>6.4.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-config</artifactId>
+                <version>6.4.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-crypto</artifactId>
+                <version>6.4.2</version>
+            </dependency>
+            
+            <!-- PostgreSQL -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.4</version>
+            </dependency>
+            
+            <!-- XStream -->
+            <dependency>
+                <groupId>com.thoughtworks.xstream</groupId>
+                <artifactId>xstream</artifactId>
+                <version>1.4.21</version>
+            </dependency>
+            
+            <!-- Jettison -->
+            <dependency>
+                <groupId>org.codehaus.jettison</groupId>
+                <artifactId>jettison</artifactId>
+                <version>1.5.4</version>
+            </dependency>
+            
+            <!-- Woodstox -->
+            <dependency>
+                <groupId>com.fasterxml.woodstox</groupId>
+                <artifactId>woodstox-core</artifactId>
+                <version>6.7.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     
@@ -69,7 +161,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.5.11</version>
             </plugin>
         </plugins>
     </build>

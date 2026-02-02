@@ -18,6 +18,11 @@
     "node_modules",
     "dist",
     "test",
-    "**/*spec.ts"
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "../libs/**/*.spec.ts",
+    "../libs/**/*.test.ts",
+    "../libs/**/__tests__/**"
   ]
 }
