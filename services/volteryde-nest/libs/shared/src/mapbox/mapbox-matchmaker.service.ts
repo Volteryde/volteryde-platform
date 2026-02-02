@@ -170,6 +170,7 @@ export class MapboxMatchmakerService {
 	 * @param request - Fare estimate request with stop IDs
 	 * @returns Fare estimate with breakdown
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async getFareEstimate(request: FareEstimateRequest): Promise<FareEstimateResult> {
 
 

@@ -12,7 +12,6 @@ import {
   H3IndexedDriver,
   MatchingCostEntry,
   BatchMatchingResult,
-  DriverState,
 } from './h3.types';
 import { RedisH3SpatialService } from './redis-h3-spatial.service';
 import { H3Service } from './h3.service';

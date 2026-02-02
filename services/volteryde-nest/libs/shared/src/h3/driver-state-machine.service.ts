@@ -337,6 +337,7 @@ export class DriverStateMachineService extends EventEmitter {
     // TODO: Store in Redis
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async getPickupTarget(_driverId: string): Promise<string | null> {
     // TODO: Retrieve from Redis
     // For now, return null - would need trip context
