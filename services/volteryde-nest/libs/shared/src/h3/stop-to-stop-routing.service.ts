@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { GeoCoordinate, H3IndexedStop } from './h3.types';
 import { DistancePricingService, FareBreakdown } from './distance-pricing.service';
+import { RedisH3SpatialService } from './redis-h3-spatial.service';
 
 /**
  * Austin: Stop-to-stop route result
