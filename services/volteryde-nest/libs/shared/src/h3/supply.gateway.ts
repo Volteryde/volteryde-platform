@@ -15,7 +15,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Injectable, Logger, UseGuards } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import {
   GeoCoordinate,
@@ -85,8 +85,7 @@ interface DispatchResponse {
   },
 })
 export class SupplyService
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
-{
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   private server: Server;
 
@@ -106,11 +105,11 @@ export class SupplyService
     private readonly h3Service: H3Service,
     private readonly redisH3Spatial: RedisH3SpatialService,
     private readonly driverStateMachine: DriverStateMachineService,
-  ) {}
+  ) { }
 
   afterInit(): void {
     this.logger.log('Supply Service WebSocket Gateway initialized');
-    
+
     // Start stale driver cleanup interval
     setInterval(() => this.cleanupStaleDrivers(), this.STALE_TIMEOUT_MS);
   }
@@ -139,7 +138,7 @@ export class SupplyService
     this.driverSockets.delete(driverId);
     this.lastUpdateTimes.delete(driverId);
     this.h3Service.resetGPSFilter(driverId);
-    
+
     await this.driverStateMachine.goOffline(driverId);
     this.logger.log(`Driver ${driverId} disconnected and marked offline`);
   }
@@ -162,7 +161,7 @@ export class SupplyService
 
       // Initialize driver in supply pool
       const result = await this.driverStateMachine.goOnline(driverId);
-      
+
       if (result.success && event.latitude && event.longitude) {
         // Process initial position
         await this.processGPSUpdate({
@@ -223,7 +222,7 @@ export class SupplyService
     const filtered = this.h3Service.processGPSUpdate(driverId, latitude, longitude, accuracy);
 
     // Check if position changed significantly
-    const wasSmoothed = 
+    const wasSmoothed =
       Math.abs(filtered.latitude - latitude) > 0.00001 ||
       Math.abs(filtered.longitude - longitude) > 0.00001;
 
@@ -378,7 +377,7 @@ export class SupplyService
 
     for (const driverId of staleDrivers) {
       this.logger.warn(`Driver ${driverId} is stale, removing from supply`);
-      
+
       // Remove from supply pool
       await this.driverStateMachine.goOffline(driverId);
       this.lastUpdateTimes.delete(driverId);

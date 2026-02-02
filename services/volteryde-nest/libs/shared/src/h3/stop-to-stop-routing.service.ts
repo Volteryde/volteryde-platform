@@ -7,11 +7,10 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as h3 from 'h3-js';
+
 import { GeoCoordinate, H3IndexedStop } from './h3.types';
-import { H3Resolution } from './h3.constants';
-import { RedisH3SpatialService } from './redis-h3-spatial.service';
 import { DistancePricingService, FareBreakdown } from './distance-pricing.service';
+import { RedisH3SpatialService } from './redis-h3-spatial.service';
 
 /**
  * Austin: Stop-to-stop route result

@@ -32,7 +32,6 @@ import {
   estimateWalkingTimeSeconds,
   isCoordinateNearCell,
   getParentCell,
-  getChildCells,
   getKRingRadiusMeters,
   SimpleKalmanFilter,
   isValidH3Index,
@@ -143,18 +142,18 @@ export class H3Service {
     hasResultsCallback: (cells: string[]) => Promise<boolean>,
   ): Promise<string[]> {
     let allCells: string[] = [h3Index]; // Start with center
-    
+
     for (let k = 1; k <= maxK; k++) {
       const ringCells = getRingAtDistance(h3Index, k);
       allCells = [...allCells, ...ringCells];
-      
+
       // Check if we found results in the current expansion
       if (await hasResultsCallback(allCells)) {
         this.logger.debug(`Found results at k=${k}, stopping expansion`);
         return allCells;
       }
     }
-    
+
     this.logger.debug(`No results found after k=${maxK} expansion`);
     return allCells;
   }
@@ -169,7 +168,7 @@ export class H3Service {
   ): KRingSearchResult<string> {
     const centerIndex = this.indexCoordinate(lat, lng);
     const cells = this.getProximityCells(centerIndex, k);
-    
+
     return {
       items: cells,
       searchedCells: cells,
@@ -302,11 +301,11 @@ export class H3Service {
   ): { isArrived: boolean; count: number } {
     const isNearTarget = this.isInGeofence(currentLocation, targetH3Index, 1);
     const key = `${driverId}:${targetH3Index}`;
-    
+
     if (isNearTarget) {
       const count = (consecutiveCount.get(key) ?? 0) + 1;
       consecutiveCount.set(key, count);
-      
+
       return {
         isArrived: count >= GEOFENCE_CONFIG.ARRIVAL_HYSTERESIS_COUNT,
         count,
@@ -383,7 +382,7 @@ export class H3Service {
     newState: DriverState,
   ): { valid: boolean; reason?: string } {
     const validTransitions = VALID_DRIVER_STATE_TRANSITIONS[currentState];
-    
+
     if (!validTransitions) {
       return {
         valid: false,

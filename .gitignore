@@ -439,3 +439,6 @@ load-test-results/
 # !gradle/wrapper/gradle-wrapper.jar
 .env.central
 .env.example
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.agent/rules/snyk_rules.md

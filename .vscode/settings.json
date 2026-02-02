@@ -1,4 +1,6 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "snyk.advanced.organization": "ad59fb3e-70a1-488a-bd77-326646e1bdfe",
+    "snyk.advanced.autoSelectOrganization": true
 }

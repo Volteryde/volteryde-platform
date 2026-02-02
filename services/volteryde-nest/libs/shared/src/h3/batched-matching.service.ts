@@ -12,7 +12,6 @@ import {
   H3IndexedDriver,
   MatchingCostEntry,
   BatchMatchingResult,
-  DriverState,
 } from './h3.types';
 import { RedisH3SpatialService } from './redis-h3-spatial.service';
 import { H3Service } from './h3.service';
@@ -58,7 +57,7 @@ export class BatchedMatchingService {
   constructor(
     private readonly redisH3Spatial: RedisH3SpatialService,
     private readonly h3Service: H3Service,
-  ) {}
+  ) { }
 
   // ============================================================================
   // Request Accumulation
@@ -331,7 +330,7 @@ export class BatchedMatchingService {
    */
   private hungarianAlgorithm(costMatrix: number[][]): number[] {
     const n = costMatrix.length;
-    
+
     // Clone the cost matrix
     const cost: number[][] = costMatrix.map(row => [...row]);
 
@@ -379,7 +378,7 @@ export class BatchedMatchingService {
     // (Simplified - for production, implement full Kuhn-Munkres)
     let iterations = 0;
     const maxIterations = n * n;
-    
+
     while (iterations++ < maxIterations) {
       // Find an unassigned row
       let unassignedRow = -1;

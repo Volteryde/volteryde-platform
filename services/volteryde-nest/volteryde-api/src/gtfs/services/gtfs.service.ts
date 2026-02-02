@@ -7,6 +7,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import {
 	Agency,
 	Stop,
@@ -59,6 +60,7 @@ export class GtfsService {
 		@InjectRepository(SegmentReservation)
 		private segmentReservationRepository: Repository<SegmentReservation>,
 		private dataSource: DataSource,
+		private readonly configService: ConfigService,
 	) { }
 
 	// ============================================================================
@@ -137,13 +139,45 @@ export class GtfsService {
 	}
 
 	async searchStops(searchTerm: string, limit: number = 20): Promise<Stop[]> {
-		return this.stopRepository
+		const stops = await this.stopRepository
 			.createQueryBuilder('stop')
 			.where('LOWER(stop.stopName) LIKE LOWER(:term)', { term: `%${searchTerm}%` })
 			.orWhere('LOWER(stop.stopCode) LIKE LOWER(:term)', { term: `%${searchTerm}%` })
 			.orderBy('stop.stopName', 'ASC')
 			.limit(limit)
 			.getMany();
+
+		if (stops.length === 0) {
+			const mapboxToken = this.configService.get<string>('MAPBOX_ACCESS_TOKEN');
+			if (mapboxToken) {
+				try {
+					const encodedTerm = encodeURIComponent(searchTerm);
+					const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedTerm}.json?access_token=${mapboxToken}&types=poi,address&limit=${limit}`;
+
+					const response = await fetch(url);
+					if (response.ok) {
+						const data = await response.json();
+						return data.features.map((f: any) => {
+							const stop = new Stop();
+							stop.stopId = `mapbox:${f.id}`;
+							stop.stopName = f.text || f.place_name;
+							stop.stopCode = f.id; // Use mapbox ID as code
+							stop.stopLat = f.geometry.coordinates[1];
+							stop.stopLon = f.geometry.coordinates[0];
+							stop.locationType = 0; // Stop
+							stop.stopDesc = f.place_name;
+							stop.isChargingStation = false;
+							stop.zoneId = 'EXTERNAL';
+							return stop;
+						});
+					}
+				} catch (error) {
+					this.logger.error(`Mapbox search failed: ${error.message}`);
+				}
+			}
+		}
+
+		return stops;
 	}
 
 	private async updateStopGeometry(stopId: string, lat: number, lon: number): Promise<void> {

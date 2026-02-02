@@ -4,7 +4,7 @@
 // Austin: Type definitions for H3-based spatial operations
 // These types ensure type safety across the dispatch and routing systems
 
-import { H3Resolution } from './h3.constants';
+
 
 /**
  * Austin: Core coordinate type with optional H3 indices
