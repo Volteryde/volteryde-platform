@@ -8,14 +8,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
 	GeoCoordinate,
-	SnapResult,
+
 	StopPairResult,
 	MatrixRequest,
 	MatrixResponse,
 	FareEstimateRequest,
 	FareEstimateResult,
 	FareBreakdown,
-	WALKING_ASSUMPTIONS,
+
 	DEFAULT_MAPBOX_CONFIG,
 } from './mapbox.types';
 import { MapboxLocatorService } from './mapbox-locator.service';
@@ -171,7 +171,7 @@ export class MapboxMatchmakerService {
 	 * @returns Fare estimate with breakdown
 	 */
 	async getFareEstimate(request: FareEstimateRequest): Promise<FareEstimateResult> {
-		const { pickupStopId, dropoffStopId } = request;
+
 
 		// For now, we need to get stop locations from somewhere
 		// In production, this would query the database

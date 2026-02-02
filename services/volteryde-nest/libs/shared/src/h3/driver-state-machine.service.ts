@@ -337,7 +337,7 @@ export class DriverStateMachineService extends EventEmitter {
     // TODO: Store in Redis
   }
 
-  private async getPickupTarget(driverId: string): Promise<string | null> {
+  private async getPickupTarget(_driverId: string): Promise<string | null> {
     // TODO: Retrieve from Redis
     // For now, return null - would need trip context
     return null;

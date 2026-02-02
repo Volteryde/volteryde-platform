@@ -117,7 +117,7 @@ export class RoutingStitchingService {
     }
 
     // Step 3: Optimize stop selection using many-to-many matrix
-    const { pickupStop, dropoffStop, driveTimeSeconds } = await this.optimizeStopSelection(
+    const { pickupStop, dropoffStop } = await this.optimizeStopSelection(
       origin,
       destination,
       pickupCandidates,

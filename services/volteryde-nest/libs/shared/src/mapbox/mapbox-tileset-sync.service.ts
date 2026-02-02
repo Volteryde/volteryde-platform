@@ -6,7 +6,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GeoCoordinate, StopMetadata } from './mapbox.types';
+import { GeoCoordinate } from './mapbox.types';
 
 /**
  * Stop data for tileset sync

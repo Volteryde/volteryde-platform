@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { H3Resolution, REDIS_KEY_PATTERNS, K_RING_DEFAULTS } from './h3.constants';
 import {
-  GeoCoordinate,
+
   H3IndexedStop,
   H3IndexedDriver,
   DriverState,
@@ -60,11 +60,11 @@ export class RedisH3SpatialService implements OnModuleInit, OnModuleDestroy {
   // Austin: TTL for stop data (1 hour - stops are static)
   private readonly STOP_TTL_SECONDS = 3600;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async onModuleInit(): Promise<void> {
     const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-    
+
     // Austin: Connect to Redis with lazy connection for better error handling
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
@@ -210,7 +210,7 @@ export class RedisH3SpatialService implements OnModuleInit, OnModuleDestroy {
    */
   async getStopMetadataBatch(stopIds: string[]): Promise<H3IndexedStop[]> {
     const pipeline = this.redis.pipeline();
-    
+
     for (const stopId of stopIds) {
       const metaKey = REDIS_KEY_PATTERNS.STOP_METADATA(stopId);
       pipeline.hgetall(metaKey);
@@ -264,7 +264,7 @@ export class RedisH3SpatialService implements OnModuleInit, OnModuleDestroy {
     // We need to track the previous cell to do this efficiently
     const prevCellKey = `driver:${driver.driverId}:prev_cell`;
     const prevCell = await this.redis.get(prevCellKey);
-    
+
     if (prevCell && prevCell !== h3Index) {
       const oldCellKey = REDIS_KEY_PATTERNS.DRIVERS_IN_CELL(H3Resolution.PICKUP_POINT, prevCell);
       pipeline.srem(oldCellKey, driver.driverId);
@@ -385,7 +385,7 @@ export class RedisH3SpatialService implements OnModuleInit, OnModuleDestroy {
    */
   async getDriverMetadataBatch(driverIds: string[]): Promise<H3IndexedDriver[]> {
     const pipeline = this.redis.pipeline();
-    
+
     for (const driverId of driverIds) {
       const metaKey = REDIS_KEY_PATTERNS.DRIVER_METADATA(driverId);
       pipeline.hgetall(metaKey);

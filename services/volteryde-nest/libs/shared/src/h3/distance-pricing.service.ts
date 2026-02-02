@@ -55,16 +55,7 @@ export interface FareBreakdown {
 /**
  * Austin: Zone configuration for pricing
  */
-interface ZoneConfig {
-  /** Base fare for trips starting in this zone */
-  baseFare: number;
-  /** Rate per kilometer */
-  ratePerKm: number;
-  /** Minimum fare for any trip */
-  minimumFare: number;
-  /** H3 cells that belong to this zone (Res 7) */
-  cells: Set<string>;
-}
+
 
 /**
  * Austin: Distance calculation result
@@ -86,13 +77,13 @@ export class DistancePricingService {
   private readonly pricingConfig = {
     // Currency for all fares
     currency: 'GHS',
-    
+
     // Booking/platform fee - fixed per trip
     bookingFee: 2.0,
-    
+
     // Road distance multiplier - accounts for roads not being straight
     roadDistanceMultiplier: 1.3,
-    
+
     // Zone-specific pricing (GHS)
     zones: {
       [PricingZoneType.CBD]: {
@@ -116,7 +107,7 @@ export class DistancePricingService {
         minimumFare: 5.0,
       },
     },
-    
+
     // Cross-zone pricing - when pickup and dropoff are in different zones
     // Uses weighted average of the two zone rates
     crossZoneWeighting: 0.5,
@@ -229,10 +220,10 @@ export class DistancePricingService {
     dropoff: GeoCoordinate,
   ): { minFare: number; maxFare: number; estimatedFare: number; currency: string } {
     const baseFare = this.calculateFare(pickup, dropoff);
-    
+
     // Austin: ±10% range for route variations
     const variationFactor = 0.10;
-    
+
     return {
       minFare: this.roundCurrency(baseFare.totalFare * (1 - variationFactor)),
       maxFare: this.roundCurrency(baseFare.totalFare * (1 + variationFactor)),
@@ -319,7 +310,7 @@ export class DistancePricingService {
     cells: string[],
   ): void {
     const targetSet = this.getZoneCellSet(zoneType);
-    
+
     for (const cell of cells) {
       // Austin: Validate H3 cell and resolution
       if (h3.isValidCell(cell) && h3.getResolution(cell) === H3Resolution.SURGE_PRICING) {
@@ -417,9 +408,9 @@ export class DistancePricingService {
     const a =
       Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
       Math.cos(lat1Rad) *
-        Math.cos(lat2Rad) *
-        Math.sin(deltaLon / 2) *
-        Math.sin(deltaLon / 2);
+      Math.cos(lat2Rad) *
+      Math.sin(deltaLon / 2) *
+      Math.sin(deltaLon / 2);
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -494,9 +485,9 @@ export class DistancePricingService {
   }
 
   private isInAnyZone(cell: string): boolean {
-    return this.cbdCells.has(cell) || 
-           this.urbanCells.has(cell) || 
-           this.suburbanCells.has(cell);
+    return this.cbdCells.has(cell) ||
+      this.urbanCells.has(cell) ||
+      this.suburbanCells.has(cell);
   }
 
   private roundCurrency(value: number): number {
