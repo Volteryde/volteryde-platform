@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "lint": "eslint src/"
+    "lint": "eslint --fix \"src/**/*.ts*\""
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

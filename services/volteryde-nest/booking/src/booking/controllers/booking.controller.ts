@@ -34,10 +34,18 @@ export class BookingController {
   }
 
   @Get(':workflowId/track')
-  @ApiOperation({ summary: 'Track booking (Status + Driver Info)' })
-  @ApiResponse({ status: 200, description: 'Booking tracking details' })
+  @ApiOperation({ summary: 'Track booking (Status + Bus Info)' })
+  @ApiResponse({ status: 200, description: 'Booking tracking details with bus info' })
   async trackBooking(@Param('workflowId') workflowId: string) {
     return this.bookingService.trackBooking(workflowId);
+  }
+
+  @Get(':workflowId/driver')
+  @ApiOperation({ summary: 'Get bus driver details for a booking' })
+  @ApiResponse({ status: 200, description: 'Driver and bus details' })
+  @ApiResponse({ status: 400, description: 'Driver details only available for active bookings' })
+  async getDriverDetails(@Param('workflowId') workflowId: string) {
+    return this.bookingService.getDriverDetails(workflowId);
   }
 
   @Delete(':workflowId')

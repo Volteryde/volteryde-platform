@@ -4,8 +4,8 @@
 // This workflow implements the complete booking process with Saga pattern
 // for compensation. It is durable and fault-tolerant.
 
-import { 
-  proxyActivities, 
+import {
+  proxyActivities,
   CancellationScope,
   sleep,
   WorkflowInfo,
@@ -13,10 +13,10 @@ import {
   defineSignal,
   setHandler,
   condition,
-} from '@temporalio/workflow';
+} from "@temporalio/workflow";
 
 // Import only the types, not the implementations
-import type * as activities from '../activities/booking.activities';
+import type * as activities from "../activities/booking.activities";
 import type {
   BookingRequest,
   BookingConfirmation,
@@ -26,12 +26,13 @@ import type {
   NotificationPayload,
   WalletBalance,
   WalletTransaction,
-} from '../interfaces';
-import { BookingStatus } from '../interfaces';
+} from "../interfaces";
+import { BookingStatus } from "../interfaces";
 
 // Signals
-export const cancelRideSignal = defineSignal<[{ reason: string; timestamp: Date }]>('cancelRideSignal');
-export const completeRideSignal = defineSignal<[]>('completeRideSignal');
+export const cancelRideSignal =
+  defineSignal<[{ reason: string; timestamp: Date }]>("cancelRideSignal");
+export const completeRideSignal = defineSignal<[]>("completeRideSignal");
 
 // Activity Proxies
 const {
@@ -46,18 +47,22 @@ const {
   refundPartialWalletDeduction,
   updateBookingStatus,
 } = proxyActivities<typeof activities>({
-  startToCloseTimeout: '30 seconds',
+  startToCloseTimeout: "30 seconds",
   retry: {
-    initialInterval: '1 second',
-    maximumInterval: '10 seconds',
+    initialInterval: "1 second",
+    maximumInterval: "10 seconds",
     backoffCoefficient: 2,
     maximumAttempts: 3,
   },
 });
 
-export async function bookRideWorkflow(request: BookingRequest): Promise<BookingConfirmation> {
+export async function bookRideWorkflow(
+  request: BookingRequest,
+): Promise<BookingConfirmation> {
   const info: WorkflowInfo = workflowInfo();
-  console.log(`[WORKFLOW] Starting booking workflow ${info.workflowId} for user ${request.userId}`);
+  console.log(
+    `[WORKFLOW] Starting booking workflow ${info.workflowId} for user ${request.userId}`,
+  );
 
   let reservation: Reservation | null = null;
   let transaction: WalletTransaction | null = null;
@@ -69,7 +74,7 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
   // Signal state
   let rideCancelled = false;
   let rideCompleted = false;
-  let cancelReason = '';
+  let cancelReason = "";
 
   setHandler(cancelRideSignal, (payload) => {
     rideCancelled = true;
@@ -85,10 +90,15 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
   try {
     // Step 1: Check Wallet Balance
     console.log(`[WORKFLOW] Step 1: Checking wallet balance...`);
-    const walletStatus: WalletBalance = await checkWalletBalance(request.userId, RIDE_FARE);
+    const walletStatus: WalletBalance = await checkWalletBalance(
+      request.userId,
+      RIDE_FARE,
+    );
 
     if (!walletStatus.hasSufficientFunds) {
-      throw new Error(`Insufficient funds. Required ${RIDE_FARE} ${walletStatus.currency}, available ${walletStatus.balance}`);
+      throw new Error(
+        `Insufficient funds. Required ${RIDE_FARE} ${walletStatus.currency}, available ${walletStatus.balance}`,
+      );
     }
 
     // Step 2: Reserve Seat
@@ -99,7 +109,11 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
 
     // Step 3: Deduct Fare
     console.log(`[WORKFLOW] Step 3: Deducting fare from wallet...`);
-    transaction = await deductFare(request.userId, RIDE_FARE, reservation.reservationId);
+    transaction = await deductFare(
+      request.userId,
+      RIDE_FARE,
+      reservation.reservationId,
+    );
 
     // Step 4: Confirm Booking
     console.log(`[WORKFLOW] Step 4: Confirming booking...`);
@@ -130,12 +144,13 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
 
       const passengerNotification: NotificationPayload = {
         userId: request.userId,
-        type: 'PUSH',
-        subject: 'Booking Confirmed',
-        message: `Your ride is confirmed! Driver ${booking.driverId} will arrive at ${booking.estimatedArrivalTime.toISOString()}`,
+        type: "PUSH",
+        subject: "Booking Confirmed",
+        message: `Your VolteRyde bus is confirmed! Bus ${booking.vehicleId} will arrive at ${booking.estimatedArrivalTime.toISOString()}. Track your ride in the app.`,
         metadata: {
           bookingId: booking.bookingId,
           vehicleId: booking.vehicleId,
+          busDetails: true, // Flag for client to fetch additional details via /driver endpoint
         },
       };
       await sendNotification(passengerNotification);
@@ -148,68 +163,72 @@ export async function bookRideWorkflow(request: BookingRequest): Promise<Booking
 
     // Wait until cancelled or completed (or timeout after 2 hours)
     await Promise.race([
-        condition(() => rideCancelled),
-        condition(() => rideCompleted),
-        sleep('2 hours') // Auto-complete or timeout
+      condition(() => rideCancelled),
+      condition(() => rideCompleted),
+      sleep("2 hours"), // Auto-complete or timeout
     ]);
 
     if (rideCancelled) {
-        console.log(`[WORKFLOW] Processing cancellation with Time-Decay Penalty...`);
-        const now = Date.now();
-        const effectiveBookedTime = bookedTime || now; // Fallback to now if null (shouldn't happen)
-        const deltaMinutes = (now - effectiveBookedTime) / (1000 * 60);
+      console.log(
+        `[WORKFLOW] Processing cancellation with Time-Decay Penalty...`,
+      );
+      const now = Date.now();
+      const effectiveBookedTime = bookedTime || now; // Fallback to now if null (shouldn't happen)
+      const deltaMinutes = (now - effectiveBookedTime) / (1000 * 60);
 
-        let penaltyPercentage = 0;
-        if (deltaMinutes < 5) {
-            penaltyPercentage = 0; // Grace period
-        } else if (deltaMinutes < 30) {
-            penaltyPercentage = 0.10; // 10%
-        } else {
-            penaltyPercentage = 0.20; // 20%
+      let penaltyPercentage = 0;
+      // Updated Penalty Tiers (per business requirements)
+      if (deltaMinutes <= 5) {
+        penaltyPercentage = 0; // Grace period: 0-5 minutes = 0%
+      } else if (deltaMinutes <= 10) {
+        penaltyPercentage = 0.1; // 6-10 minutes = 10% penalty
+      } else {
+        penaltyPercentage = 0.3; // >10 minutes = 30% penalty
+      }
+
+      const penaltyAmount = RIDE_FARE * penaltyPercentage;
+      const refundAmount = RIDE_FARE - penaltyAmount;
+
+      console.log(
+        `[WORKFLOW] Delta: ${deltaMinutes.toFixed(2)} mins. Penalty: ${penaltyPercentage * 100}%. Refund: ${refundAmount}`,
+      );
+
+      // Execute Refund
+      await CancellationScope.nonCancellable(async () => {
+        if (refundAmount > 0 && transaction) {
+          await refundPartialWalletDeduction(transaction, refundAmount);
         }
 
-        const penaltyAmount = RIDE_FARE * penaltyPercentage;
-        const refundAmount = RIDE_FARE - penaltyAmount;
+        if (reservation) {
+          await releaseSeatReservation(reservation);
+        }
 
-        console.log(`[WORKFLOW] Delta: ${deltaMinutes.toFixed(2)} mins. Penalty: ${penaltyPercentage*100}%. Refund: ${refundAmount}`);
-
-        // Execute Refund
-        await CancellationScope.nonCancellable(async () => {
-             if (refundAmount > 0 && transaction) {
-                 await refundPartialWalletDeduction(transaction, refundAmount);
-             }
-
-             if (reservation) {
-                 await releaseSeatReservation(reservation);
-             }
-
-             bookingStatus = BookingStatus.CANCELLED;
-             if (bookingId) await updateBookingStatus(bookingId, bookingStatus);
-
-             await sendNotification({
-                userId: request.userId,
-                type: 'PUSH',
-                subject: 'Ride Cancelled',
-                message: `Ride cancelled. Refund: ${refundAmount} GHS. Penalty: ${penaltyAmount} GHS.`,
-             });
-        });
-
-        return { ...booking, status: 'CANCELLED' as any };
-    }
-    else {
-        console.log(`[WORKFLOW] Ride completed normally.`);
-        bookingStatus = BookingStatus.COMPLETED;
+        bookingStatus = BookingStatus.CANCELLED;
         if (bookingId) await updateBookingStatus(bookingId, bookingStatus);
-        return booking;
-    }
 
+        await sendNotification({
+          userId: request.userId,
+          type: "PUSH",
+          subject: "Ride Cancelled",
+          message: `Ride cancelled. Refund: ${refundAmount} GHS. Penalty: ${penaltyAmount} GHS.`,
+        });
+      });
+
+      return { ...booking, status: "CANCELLED" as any };
+    } else {
+      console.log(`[WORKFLOW] Ride completed normally.`);
+      bookingStatus = BookingStatus.COMPLETED;
+      if (bookingId) await updateBookingStatus(bookingId, bookingStatus);
+      return booking;
+    }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error(`[WORKFLOW] Booking workflow failed: ${errorMessage}`);
     bookingStatus = BookingStatus.FAILED;
     if (bookingId) await updateBookingStatus(bookingId, bookingStatus);
 
-    if (transaction && transaction.status === 'SUCCESS') {
+    if (transaction && transaction.status === "SUCCESS") {
       await CancellationScope.nonCancellable(async () => {
         if (transaction) await refundWalletDeduction(transaction);
         if (reservation) await releaseSeatReservation(reservation);

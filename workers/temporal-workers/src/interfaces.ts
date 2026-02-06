@@ -8,12 +8,12 @@
  * Copied from shared-types to avoid rootDir issues in Temporal worker
  */
 export enum BookingStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  CANCELLED = 'CANCELLED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED',
+  PENDING = "PENDING",
+  CONFIRMED = "CONFIRMED",
+  CANCELLED = "CANCELLED",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
 }
 
 /**
@@ -32,7 +32,7 @@ export interface BookingRequest {
   userId: string;
   startLocation: GpsLocation;
   endLocation: GpsLocation;
-  vehicleType?: 'STANDARD' | 'PREMIUM' | 'SHUTTLE';
+  vehicleType?: "STANDARD" | "PREMIUM" | "SHUTTLE";
   scheduledTime?: Date;
   passengerCount?: number;
   tripId?: string;
@@ -55,7 +55,7 @@ export interface Reservation {
  */
 export interface PaymentDetails {
   paymentId: string;
-  status: 'SUCCESS' | 'FAILED' | 'PENDING';
+  status: "SUCCESS" | "FAILED" | "PENDING";
   amount: number;
   currency: string;
   paystackReference?: string;
@@ -67,7 +67,7 @@ export interface PaymentDetails {
  */
 export interface BookingConfirmation {
   bookingId: string;
-  status: 'CONFIRMED' | 'PENDING' | 'FAILED';
+  status: "CONFIRMED" | "PENDING" | "FAILED";
   vehicleId: string;
   driverId: string;
   estimatedArrivalTime: Date;
@@ -79,7 +79,7 @@ export interface BookingConfirmation {
  */
 export interface NotificationPayload {
   userId: string;
-  type: 'SMS' | 'EMAIL' | 'PUSH';
+  type: "SMS" | "EMAIL" | "PUSH";
   subject?: string;
   message: string;
   metadata?: Record<string, any>;
@@ -90,7 +90,7 @@ export interface NotificationPayload {
  */
 export interface FleetOperationRequest {
   vehicleId: string;
-  operationType: 'ASSIGN_DRIVER' | 'START_ROUTE' | 'COMPLETE_ROUTE';
+  operationType: "ASSIGN_DRIVER" | "START_ROUTE" | "COMPLETE_ROUTE";
   driverId?: string;
   routeId?: string;
 }
@@ -124,8 +124,8 @@ export interface WalletTransaction {
   userId: string;
   amount: number;
   currency: string;
-  type: 'DEBIT' | 'CREDIT';
-  status: 'SUCCESS' | 'FAILED';
+  type: "DEBIT" | "CREDIT";
+  status: "SUCCESS" | "FAILED";
   timestamp: Date;
   failureReason?: string;
 }
@@ -150,7 +150,7 @@ export interface ChargingSession {
   userId: string;
   vehicleId: string;
   startTime: Date;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  status: "IN_PROGRESS" | "COMPLETED" | "FAILED";
   energyConsumedKwh?: number;
   cost?: number;
 }

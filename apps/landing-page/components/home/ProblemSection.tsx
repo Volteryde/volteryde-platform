@@ -44,7 +44,7 @@ export function ProblemSection() {
 								The Solution
 							</h2>
 							<p className="font-outfit font-normal text-[16px] leading-[1.6] text-[#033604]/80 max-w-[520px]">
-								Introducing Voltride's electric buses, designed to solve Ghana's public transport challenges. With reliable schedules and modern, comfortable vehicles, commuters can say goodbye to long waiting times and unsafe rides. Being fully electric, these buses eliminate fuel-related issues, reduce maintenance delays, and cut down air pollution, providing a cleaner, healthier, and more sustainable transportation option for urban Ghana.
+								Introducing Voltride&apos;s electric buses, designed to solve Ghana&apos;s public transport challenges. With reliable schedules and modern, comfortable vehicles, commuters can say goodbye to long waiting times and unsafe rides. Being fully electric, these buses eliminate fuel-related issues, reduce maintenance delays, and cut down air pollution, providing a cleaner, healthier, and more sustainable transportation option for urban Ghana.
 							</p>
 						</div>
 					</motion.div>

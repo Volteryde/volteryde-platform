@@ -3,14 +3,22 @@
 // ============================================================================
 // Tests for the booking workflow using Temporal's testing framework
 
-import { TestWorkflowEnvironment } from '@temporalio/testing';
-import { Worker } from '@temporalio/worker';
-import { bookRideWorkflow, getBookingStatus } from '../workflows/booking.workflow';
-import * as activities from '../activities/booking.activities';
-import { BookingRequest, BookingConfirmation, PaymentDetails } from '../interfaces';
-import { BookingStatus } from '../../../packages/shared-types/src/booking-status.enum';
+import { TestWorkflowEnvironment } from "@temporalio/testing";
+import { Worker } from "@temporalio/worker";
+import {
+  bookRideWorkflow,
+  getBookingStatus,
+  completeRideSignal,
+} from "../workflows/booking.workflow";
+import * as activities from "../activities/booking.activities";
+import {
+  BookingRequest,
+  BookingConfirmation,
+  PaymentDetails,
+  BookingStatus,
+} from "../interfaces";
 
-describe('Booking Workflow Tests', () => {
+describe("Booking Workflow Tests", () => {
   let testEnv: TestWorkflowEnvironment;
 
   beforeAll(async () => {
@@ -22,29 +30,30 @@ describe('Booking Workflow Tests', () => {
     await testEnv?.teardown();
   });
 
-  it('should complete booking successfully with valid input', async () => {
+  it("should complete booking successfully with valid input", async () => {
     const { client } = testEnv;
 
     // Mock activities
+
     const mockActivities = {
       reserveSeat: jest.fn(async (request: BookingRequest) => ({
-        reservationId: 'test-res-123',
-        seatId: 'seat-1A',
-        vehicleId: 'bus-001',
+        reservationId: "test-res-123",
+        seatId: "seat-1A",
+        vehicleId: "bus-001",
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       })),
       processPayment: jest.fn(async () => ({
-        paymentId: 'test-pay-123',
-        status: 'SUCCESS' as const,
+        paymentId: "test-pay-123",
+        status: "SUCCESS" as const,
         amount: 50.0,
-        currency: 'GHS',
-        paystackReference: 'PSTK-123',
+        currency: "GHS",
+        paystackReference: "PSTK-123",
       })),
       confirmBooking: jest.fn(async () => ({
-        bookingId: 'test-book-123',
-        status: 'CONFIRMED' as const,
-        vehicleId: 'bus-001',
-        driverId: 'driver-42',
+        bookingId: "test-book-123",
+        status: "CONFIRMED" as const,
+        vehicleId: "bus-001",
+        driverId: "driver-42",
         estimatedArrivalTime: new Date(Date.now() + 10 * 60 * 1000),
         fare: 50.0,
       })),
@@ -58,38 +67,50 @@ describe('Booking Workflow Tests', () => {
     // Create worker with mocked activities
     const worker = await Worker.create({
       connection: testEnv.nativeConnection,
-      taskQueue: 'test',
-      workflowsPath: require.resolve('../workflows/booking.workflow'),
+      taskQueue: "test-success",
+      workflowsPath: require.resolve("../workflows/booking.workflow"),
       activities: mockActivities,
     });
 
     // Start the workflow
     const request: BookingRequest = {
-      userId: 'test-user-123',
+      userId: "test-user-123",
       startLocation: {
         latitude: 5.6037,
         longitude: -0.187,
-        address: 'Accra Mall',
+        address: "Accra Mall",
       },
       endLocation: {
         latitude: 5.6137,
         longitude: -0.207,
-        address: 'Korle Bu',
+        address: "Korle Bu",
       },
-      vehicleType: 'STANDARD',
+      vehicleType: "STANDARD",
     };
 
-    const result: BookingConfirmation = await client.workflow.execute(bookRideWorkflow, {
+    // Start the workflow
+    const handle = await client.workflow.start(bookRideWorkflow, {
       args: [request],
-      workflowId: 'test-workflow-success',
-      taskQueue: 'test',
+      workflowId: "test-workflow-success",
+      taskQueue: "test-success",
     });
 
+    // Wait for workflow to reach the signal wait point
+    // In a real test we might wait for a specific query state or condition,
+    // but sleep matches the query test pattern
+    await testEnv.sleep(100);
+
+    // Send the completion signal to unblock the workflow
+    await handle.signal(completeRideSignal);
+
+    // Get the result
+    const result = await handle.result();
+
     // Verify result
-    expect(result.bookingId).toBe('test-book-123');
-    expect(result.status).toBe('CONFIRMED');
-    expect(result.vehicleId).toBe('bus-001');
-    expect(result.driverId).toBe('driver-42');
+    expect(result.bookingId).toBe("test-book-123");
+    expect(result.status).toBe(BookingStatus.COMPLETED); // Note: Workflow returns COMPLETED status at end
+    expect(result.vehicleId).toBe("bus-001");
+    expect(result.driverId).toBe("driver-42");
 
     // Verify activities were called in correct order
     expect(mockActivities.reserveSeat).toHaveBeenCalledWith(request);
@@ -99,8 +120,14 @@ describe('Booking Workflow Tests', () => {
     expect(mockActivities.sendNotification).toHaveBeenCalled();
 
     // Verify status updates
-    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith('test-book-123', BookingStatus.IN_PROGRESS);
-    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith('test-book-123', BookingStatus.COMPLETED);
+    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(
+      "test-book-123",
+      BookingStatus.IN_PROGRESS,
+    );
+    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(
+      "test-book-123",
+      BookingStatus.COMPLETED,
+    );
 
     // Compensation activities should NOT be called
     expect(mockActivities.releaseSeatReservation).not.toHaveBeenCalled();
@@ -109,26 +136,28 @@ describe('Booking Workflow Tests', () => {
     await worker.shutdown();
   });
 
-  it('should compensate when payment fails', async () => {
+  it("should compensate when payment fails", async () => {
     const { client } = testEnv;
 
     // Mock activities with payment failure
     const mockActivities = {
       reserveSeat: jest.fn(async (request: BookingRequest) => ({
-        reservationId: 'test-res-123',
-        seatId: 'seat-1A',
-        vehicleId: 'bus-001',
+        reservationId: "test-res-123",
+        seatId: "seat-1A",
+        vehicleId: "bus-001",
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       })),
-      processPayment: jest.fn(async (): Promise<PaymentDetails> => ({
-        paymentId: 'test-pay-failed',
-        status: 'FAILED',
-        amount: 50.0,
-        currency: 'GHS',
-        failureReason: 'Insufficient funds',
-      })),
+      processPayment: jest.fn(
+        async (): Promise<PaymentDetails> => ({
+          paymentId: "test-pay-failed",
+          status: "FAILED",
+          amount: 50.0,
+          currency: "GHS",
+          failureReason: "Insufficient funds",
+        }),
+      ),
       confirmBooking: jest.fn(async () => {
-        throw new Error('Should not be called');
+        throw new Error("Should not be called");
       }),
       notifyDriver: jest.fn(async () => {}),
       sendNotification: jest.fn(async () => {}),
@@ -140,14 +169,14 @@ describe('Booking Workflow Tests', () => {
     // Create worker with mocked activities
     const worker = await Worker.create({
       connection: testEnv.nativeConnection,
-      taskQueue: 'test',
-      workflowsPath: require.resolve('../workflows/booking.workflow'),
+      taskQueue: "test-fail-payment",
+      workflowsPath: require.resolve("../workflows/booking.workflow"),
       activities: mockActivities,
     });
 
     // Start the workflow
     const request: BookingRequest = {
-      userId: 'test-user-123',
+      userId: "test-user-123",
       startLocation: {
         latitude: 5.6037,
         longitude: -0.187,
@@ -162,8 +191,8 @@ describe('Booking Workflow Tests', () => {
     await expect(
       client.workflow.execute(bookRideWorkflow, {
         args: [request],
-        workflowId: 'test-workflow-payment-fail',
-        taskQueue: 'test',
+        workflowId: "test-workflow-payment-fail",
+        taskQueue: "test-fail-payment",
       }),
     ).rejects.toThrow();
 
@@ -178,32 +207,38 @@ describe('Booking Workflow Tests', () => {
     expect(mockActivities.confirmBooking).not.toHaveBeenCalled();
 
     // Verify status updates
-    expect(mockActivities.updateBookingStatus).not.toHaveBeenCalledWith(expect.any(String), BookingStatus.IN_PROGRESS);
-    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(expect.any(String), BookingStatus.FAILED);
+    expect(mockActivities.updateBookingStatus).not.toHaveBeenCalledWith(
+      expect.any(String),
+      BookingStatus.IN_PROGRESS,
+    );
+    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(
+      expect.any(String),
+      BookingStatus.FAILED,
+    );
 
     await worker.shutdown();
   });
 
-  it('should compensate with refund when booking fails after payment', async () => {
+  it("should compensate with refund when booking fails after payment", async () => {
     const { client } = testEnv;
 
     // Mock activities with booking failure
     const mockActivities = {
       reserveSeat: jest.fn(async (request: BookingRequest) => ({
-        reservationId: 'test-res-123',
-        seatId: 'seat-1A',
-        vehicleId: 'bus-001',
+        reservationId: "test-res-123",
+        seatId: "seat-1A",
+        vehicleId: "bus-001",
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       })),
       processPayment: jest.fn(async () => ({
-        paymentId: 'test-pay-123',
-        status: 'SUCCESS' as const,
+        paymentId: "test-pay-123",
+        status: "SUCCESS" as const,
         amount: 50.0,
-        currency: 'GHS',
-        paystackReference: 'PSTK-123',
+        currency: "GHS",
+        paystackReference: "PSTK-123",
       })),
       confirmBooking: jest.fn(async () => {
-        throw new Error('Vehicle unavailable');
+        throw new Error("Vehicle unavailable");
       }),
       notifyDriver: jest.fn(async () => {}),
       sendNotification: jest.fn(async () => {}),
@@ -215,14 +250,14 @@ describe('Booking Workflow Tests', () => {
     // Create worker with mocked activities
     const worker = await Worker.create({
       connection: testEnv.nativeConnection,
-      taskQueue: 'test',
-      workflowsPath: require.resolve('../workflows/booking.workflow'),
+      taskQueue: "test-fail-booking",
+      workflowsPath: require.resolve("../workflows/booking.workflow"),
       activities: mockActivities,
     });
 
     // Start the workflow
     const request: BookingRequest = {
-      userId: 'test-user-123',
+      userId: "test-user-123",
       startLocation: {
         latitude: 5.6037,
         longitude: -0.187,
@@ -237,10 +272,10 @@ describe('Booking Workflow Tests', () => {
     await expect(
       client.workflow.execute(bookRideWorkflow, {
         args: [request],
-        workflowId: 'test-workflow-booking-fail',
-        taskQueue: 'test',
+        workflowId: "test-workflow-booking-fail",
+        taskQueue: "test-fail-booking",
       }),
-    ).rejects.toThrow('Vehicle unavailable');
+    ).rejects.toThrow("Vehicle unavailable");
 
     // Verify all steps were attempted
     expect(mockActivities.reserveSeat).toHaveBeenCalled();
@@ -252,35 +287,41 @@ describe('Booking Workflow Tests', () => {
     expect(mockActivities.releaseSeatReservation).toHaveBeenCalled();
 
     // Verify status updates
-    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(expect.any(String), BookingStatus.IN_PROGRESS);
-    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(expect.any(String), BookingStatus.FAILED);
+    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(
+      expect.any(String),
+      BookingStatus.IN_PROGRESS,
+    );
+    expect(mockActivities.updateBookingStatus).toHaveBeenCalledWith(
+      expect.any(String),
+      BookingStatus.FAILED,
+    );
 
     await worker.shutdown();
   });
 
-  it('should return the current booking status via query', async () => {
+  it("should return the current booking status via query", async () => {
     const { client } = testEnv;
 
     // Mock activities
     const mockActivities = {
       reserveSeat: jest.fn(async (request: BookingRequest) => ({
-        reservationId: 'test-res-123',
-        seatId: 'seat-1A',
-        vehicleId: 'bus-001',
+        reservationId: "test-res-123",
+        seatId: "seat-1A",
+        vehicleId: "bus-001",
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       })),
       processPayment: jest.fn(async () => ({
-        paymentId: 'test-pay-123',
-        status: 'SUCCESS' as const,
+        paymentId: "test-pay-123",
+        status: "SUCCESS" as const,
         amount: 50.0,
-        currency: 'GHS',
-        paystackReference: 'PSTK-123',
+        currency: "GHS",
+        paystackReference: "PSTK-123",
       })),
       confirmBooking: jest.fn(async () => ({
-        bookingId: 'test-book-123',
-        status: 'CONFIRMED' as const,
-        vehicleId: 'bus-001',
-        driverId: 'driver-42',
+        bookingId: "test-book-123",
+        status: "CONFIRMED" as const,
+        vehicleId: "bus-001",
+        driverId: "driver-42",
         estimatedArrivalTime: new Date(Date.now() + 10 * 60 * 1000),
         fare: 50.0,
       })),
@@ -294,22 +335,20 @@ describe('Booking Workflow Tests', () => {
     // Create worker with mocked activities
     const worker = await Worker.create({
       connection: testEnv.nativeConnection,
-      taskQueue: 'test',
-      workflowsPath: require.resolve('../workflows/booking.workflow'),
-      activities: mockActivities,
+      taskQueue: "test-query",
     });
 
     const request: BookingRequest = {
-      userId: 'test-user-query',
+      userId: "test-user-query",
       startLocation: { latitude: 1, longitude: 1 },
       endLocation: { latitude: 2, longitude: 2 },
     };
 
-    const workflowId = 'test-workflow-query-status';
+    const workflowId = "test-workflow-query-status";
     const handle = await client.workflow.start(bookRideWorkflow, {
       args: [request],
       workflowId,
-      taskQueue: 'test',
+      taskQueue: "test-query",
     });
 
     // Query the status while the workflow is running
@@ -325,6 +364,7 @@ describe('Booking Workflow Tests', () => {
     expect(status).toBe(BookingStatus.IN_PROGRESS); // After confirmBooking
 
     // Wait for workflow to complete
+    await handle.signal(completeRideSignal);
     await handle.result();
     status = await handle.query(getBookingStatus);
     expect(status).toBe(BookingStatus.COMPLETED);
@@ -332,9 +372,9 @@ describe('Booking Workflow Tests', () => {
     await worker.shutdown();
   });
 
-  it('should validate location coordinates', () => {
+  it("should validate location coordinates", () => {
     const invalidRequest: BookingRequest = {
-      userId: 'test-user',
+      userId: "test-user",
       startLocation: {
         latitude: 200, // Invalid
         longitude: -0.187,
