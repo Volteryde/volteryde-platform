@@ -1,0 +1,137 @@
+# syntax=docker/dockerfile:1.4
+# ============================================================================
+# Volteryde Spring Boot - Production Multi-stage Build
+# ============================================================================
+# Optimized with BuildKit cache mounts and Spring Boot layered JARs
+# for maximum build efficiency and minimal image size.
+#
+# Build: DOCKER_BUILDKIT=1 docker build \
+#          -f services/volteryde-springboot/Dockerfile.prod \
+#          --build-arg SERVICE_NAME=auth-service \
+#          -t volteryde-auth-service:latest \
+#          --target production .
+# ============================================================================
+
+# =============================================================================
+# STAGE 1: Dependency Resolution
+# =============================================================================
+# This stage downloads all Maven dependencies and caches them.
+# The cache mount ensures dependencies persist between builds.
+FROM maven:3.9-eclipse-temurin-17-alpine AS deps
+
+WORKDIR /build
+
+# Configure Maven for faster, quieter builds
+ENV MAVEN_OPTS="-Xmx512m -XX:+UseContainerSupport"
+
+# Copy only the POMs first - leverages Docker layer caching
+# Order: parent POM → shared library → all service POMs
+COPY services/volteryde-springboot/pom.xml ./pom.xml
+COPY services/volteryde-springboot/shared-library/pom.xml ./shared-library/pom.xml
+COPY services/volteryde-springboot/api-gateway/pom.xml ./api-gateway/pom.xml
+COPY services/volteryde-springboot/service-discovery/pom.xml ./service-discovery/pom.xml
+COPY services/volteryde-springboot/auth-service/pom.xml ./auth-service/pom.xml
+COPY services/volteryde-springboot/client-auth-service/pom.xml ./client-auth-service/pom.xml
+COPY services/volteryde-springboot/user-management-service/pom.xml ./user-management-service/pom.xml
+COPY services/volteryde-springboot/payment-service/pom.xml ./payment-service/pom.xml
+
+# Download all dependencies with BuildKit cache mount
+# The cache persists between builds, making subsequent builds instant
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn dependency:go-offline \
+        dependency:resolve-plugins \
+        -B -q --fail-never
+
+# =============================================================================
+# STAGE 2: Builder
+# =============================================================================
+# Compiles the application and extracts Spring Boot layers
+FROM deps AS builder
+
+ARG SERVICE_NAME
+ENV SERVICE_NAME=${SERVICE_NAME}
+
+WORKDIR /build
+
+# Copy shared library source first (changes less frequently)
+COPY services/volteryde-springboot/shared-library/src ./shared-library/src
+
+# Copy the target service source
+COPY services/volteryde-springboot/${SERVICE_NAME}/src ./${SERVICE_NAME}/src
+
+# Build with cache mount - skipping tests (run in CI separately)
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn clean package \
+        -pl ${SERVICE_NAME} -am \
+        -DskipTests -B -q \
+    && echo "✓ Build completed for ${SERVICE_NAME}"
+
+# Extract Spring Boot layered JAR for optimal Docker caching
+# Layers are extracted in order of volatility (least → most volatile)
+WORKDIR /build/${SERVICE_NAME}/target
+RUN java -Djarmode=layertools -jar *.jar extract \
+    && echo "✓ Layers extracted successfully"
+
+# =============================================================================
+# STAGE 3: Production Runtime
+# =============================================================================
+# Minimal JRE image with layered application for fast deployments
+FROM eclipse-temurin:17-jre-alpine AS production
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    wget \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S spring && \
+    adduser -S spring -u 1001 -G spring
+
+# Copy Spring Boot layers in order of volatility
+# (least changing → most changing for optimal caching)
+ARG SERVICE_NAME
+
+# Layer 1: Third-party dependencies (rarely change)
+COPY --from=builder --chown=spring:spring \
+    /build/${SERVICE_NAME}/target/dependencies/ ./
+
+# Layer 2: Spring Boot loader (rarely changes)
+COPY --from=builder --chown=spring:spring \
+    /build/${SERVICE_NAME}/target/spring-boot-loader/ ./
+
+# Layer 3: Snapshot dependencies (change occasionally)
+COPY --from=builder --chown=spring:spring \
+    /build/${SERVICE_NAME}/target/snapshot-dependencies/ ./
+
+# Layer 4: Application classes (change frequently)
+COPY --from=builder --chown=spring:spring \
+    /build/${SERVICE_NAME}/target/application/ ./
+
+# Switch to non-root user
+USER spring:spring
+
+EXPOSE 8080
+
+# Health check using Spring Boot Actuator
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider \
+        http://localhost:8080/actuator/health || exit 1
+
+# JVM configuration optimized for containers
+ENV JAVA_OPTS="\
+    -XX:+UseContainerSupport \
+    -XX:MaxRAMPercentage=75.0 \
+    -XX:InitialRAMPercentage=50.0 \
+    -XX:+UseG1GC \
+    -XX:+ExitOnOutOfMemoryError \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.backgroundpreinitializer.ignore=true"
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application using the Spring Boot JarLauncher
+CMD ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]

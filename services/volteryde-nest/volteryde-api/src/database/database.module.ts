@@ -22,7 +22,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 					password: process.env.DATABASE_PASSWORD || 'postgres',
 					database: process.env.DATABASE_NAME || 'volteryde',
 					autoLoadEntities: true,
-					synchronize: process.env.NODE_ENV !== 'production',
+					synchronize: false, // Disabled - use migrations. Triggers on gtfs_stops block auto-sync.
 					logging: true,
 				};
 			},

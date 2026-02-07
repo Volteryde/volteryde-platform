@@ -1,27 +1,34 @@
+# syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde Admin Dashboard - Development Dockerfile
 # ============================================================================
-# For development with hot-reload. Uses user directive from docker-compose.
+# For development with hot-reload. Uses BuildKit cache mounts for pnpm.
 
 FROM node:20-alpine
 
 WORKDIR /app
 
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 # Install pnpm and system deps
-RUN npm install -g pnpm@9 && \
+RUN corepack enable && corepack prepare pnpm@9 --activate && \
 	apk add --no-cache dumb-init curl
 
 # Copy lockfile and workspace config
 COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
-# Fetch dependencies
-RUN pnpm fetch
+# Fetch dependencies with BuildKit cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm fetch
 
 # Copy source code
 COPY . .
 
-# Install dependencies
-RUN pnpm install -r
+# Install dependencies with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm install -r
 
 # Make .next directory writable (will be overwritten by bind mount but good for initial)
 RUN mkdir -p /app/apps/admin-dashboard/.next && chmod 777 /app/apps/admin-dashboard/.next

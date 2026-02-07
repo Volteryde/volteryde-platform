@@ -1,12 +1,18 @@
+# syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde Temporal Workers - Development Docker Build
 # ============================================================================
 # This Dockerfile is optimized for development with hot-reload support
 # Using Debian-based image for better compatibility with Temporal native modules
+# Uses BuildKit cache mounts for faster dependency installation
 
 FROM node:20-slim
 
 WORKDIR /app
+
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
 # Install build dependencies for native modules
 RUN apt-get update && apt-get install -y \
@@ -16,8 +22,8 @@ RUN apt-get update && apt-get install -y \
     dumb-init \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN npm install -g pnpm@8
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 # Create non-root user and set permissions
 RUN groupadd -g 1001 nodejs && \
@@ -43,10 +49,8 @@ COPY --chown=nodejs:nodejs workers/temporal-workers/package.json ./workers/tempo
 # Copy shared packages if they exist
 COPY --chown=nodejs:nodejs packages ./packages
 
-# Install all dependencies
-# Note: running as nodejs user now
-RUN pnpm config set fetch-retries 5 && \
-    pnpm config set fetch-retry-maxtimeout 120000 && \
+# Install all dependencies with BuildKit cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
     pnpm install
 
 # Copy worker source code

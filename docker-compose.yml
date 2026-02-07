@@ -10,6 +10,7 @@ services:
   # ============================================================================
 
   postgres:
+    # Note: postgis/postgis doesn't have ARM64 images - runs via Rosetta on Apple Silicon
     image: postgis/postgis:15-3.4-alpine
     container_name: volteryde-postgres
     environment:

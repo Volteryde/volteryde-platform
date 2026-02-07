@@ -1,6 +1,13 @@
+# ============================================================================
+# Pnpm Workspace Configuration
+# ============================================================================
 packages:
-  - 'services/*'
-  - 'workers/*'
-  - 'apps/*'
-  - 'apps/archived/*'
-  - 'packages/*'
+  - "services/*"
+  - "workers/*"
+  - "apps/*"
+  - "apps/archived/*"
+  - "packages/*"
+  # Exclude Java/Maven build artifacts from Node.js workspace
+  - "!**/target/**"
+  - "!**/src/main/java/**"
+  - "!**/.mvn/**"
