@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# # syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde NestJS Backend - Development Docker Build
 # ============================================================================
@@ -32,10 +32,13 @@ USER nodejs
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
     pnpm fetch
 
-# Copy source code with ownership
-COPY --chown=nodejs:nodejs . .
+# Copy source code with ownership (only what's needed for NestJS services)
+COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs packages ./packages
+COPY --chown=nodejs:nodejs services/volteryde-nest ./services/volteryde-nest
 
 # Install dependencies from offline store with cache mount
+ENV CI=true
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
     pnpm install -r
 

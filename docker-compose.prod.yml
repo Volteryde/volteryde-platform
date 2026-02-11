@@ -1,0 +1,758 @@
+# ============================================================================
+# Volteryde Platform - Docker Compose Production Environment
+# ============================================================================
+# Optimized for production with resource limits, memory tuning, and security.
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   - Set environment variables in .env.production
+#   - Build production images first using Dockerfile.prod files
+
+services:
+  # ============================================================================
+  # Databases & Cache
+  # ============================================================================
+
+  postgres:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: volteryde-postgres
+    environment:
+      POSTGRES_DB: volteryde
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,temporal_visibility,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    command: postgres -c 'max_connections=300' -c 'shared_buffers=256MB' -c 'effective_cache_size=768MB'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: volteryde-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Time-Series Database (Telematics Domain)
+  # ============================================================================
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: volteryde-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-volteryde}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telematics}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: "curl -f http://localhost:8086/health || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Temporal Workflow Engine
+  # ============================================================================
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: volteryde-temporal
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=postgres
+      - DBNAME=temporal
+      - BIND_ON_IP=0.0.0.0
+      - SKIP_DB_CREATE=true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # NestJS Backend Services (Production Images)
+  # ============================================================================
+
+  volteryde-api:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/volteryde-api:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: volteryde-api
+    container_name: volteryde-api
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=volteryde
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3010:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=3000"
+      - "prometheus.path=/metrics"
+
+  telematics-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/telematics-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: telematics
+    container_name: volteryde-telematics
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/telematics_db
+      - REDIS_URL=redis://redis:6379
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-volteryde}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-telematics}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3001
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  fleet-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/fleet-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: fleet
+    container_name: volteryde-fleet
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=fleet_db
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3002
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  charging-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/charging-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: charging
+    container_name: volteryde-charging
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=charging_db
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3003
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  booking-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/booking-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: booking
+    container_name: volteryde-booking
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=booking_db
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3004
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  notifications-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/notifications-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-nest/Dockerfile.prod
+      args:
+        APP_NAME: notifications
+    container_name: volteryde-notifications
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=user_db
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3005
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Spring Boot Backend Services (Production Images)
+  # ============================================================================
+
+  service-discovery:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/service-discovery:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: service-discovery
+    container_name: volteryde-service-discovery
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  api-gateway:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/api-gateway:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: api-gateway
+    container_name: volteryde-api-gateway
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SERVER_PORT=8080
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "8084:8080"
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  auth-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/auth-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: auth-service
+    container_name: volteryde-auth-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/api/auth/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=8081"
+      - "prometheus.path=/api/auth/actuator/prometheus"
+
+  client-auth-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/client-auth-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: client-auth-service
+    container_name: volteryde-client-auth-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/client_auth_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}
+      - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
+      - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID}
+      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY}
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/api/client-auth/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  user-management-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/user-management-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: user-management-service
+    container_name: volteryde-user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/user_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - APPLICATION_CONFIG_AUTH_SERVICE_URL=http://volteryde-auth-service:8081/api/auth
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    ports:
+      - "8083:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  payment-service:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/payment-service:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: services/volteryde-springboot/Dockerfile.prod
+      args:
+        SERVICE_NAME: payment-service
+    container_name: volteryde-payment-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=100
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Temporal Workers (Production)
+  # ============================================================================
+
+  temporal-workers:
+    image: ${REGISTRY_URL:-ghcr.io/volteryde}/temporal-workers:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: workers/temporal-workers/Dockerfile.prod
+    container_name: volteryde-temporal-workers
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/volteryde
+      - REDIS_URL=redis://redis:6379
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    depends_on:
+      temporal:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Monitoring & Observability (Production)
+  # ============================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: volteryde-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./infrastructure/docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: volteryde-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3100}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    ports:
+      - "3100:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - volteryde-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  influxdb_data:
+
+networks:
+  volteryde-network:
+    driver: bridge

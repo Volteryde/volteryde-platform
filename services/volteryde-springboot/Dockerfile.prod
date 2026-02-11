@@ -17,7 +17,7 @@
 # =============================================================================
 # This stage downloads all Maven dependencies and caches them.
 # The cache mount ensures dependencies persist between builds.
-FROM maven:3.9-eclipse-temurin-17-alpine AS deps
+FROM maven:3.9-eclipse-temurin-17 AS deps
 
 WORKDIR /build
 
@@ -39,8 +39,8 @@ COPY services/volteryde-springboot/payment-service/pom.xml ./payment-service/pom
 # The cache persists between builds, making subsequent builds instant
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn dependency:go-offline \
-        dependency:resolve-plugins \
-        -B -q --fail-never
+    dependency:resolve-plugins \
+    -B -q --fail-never
 
 # =============================================================================
 # STAGE 2: Builder
@@ -62,8 +62,8 @@ COPY services/volteryde-springboot/${SERVICE_NAME}/src ./${SERVICE_NAME}/src
 # Build with cache mount - skipping tests (run in CI separately)
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn clean package \
-        -pl ${SERVICE_NAME} -am \
-        -DskipTests -B -q \
+    -pl ${SERVICE_NAME} -am \
+    -DskipTests -B -q \
     && echo "✓ Build completed for ${SERVICE_NAME}"
 
 # Extract Spring Boot layered JAR for optimal Docker caching
@@ -76,19 +76,19 @@ RUN java -Djarmode=layertools -jar *.jar extract \
 # STAGE 3: Production Runtime
 # =============================================================================
 # Minimal JRE image with layered application for fast deployments
-FROM eclipse-temurin:17-jre-alpine AS production
+FROM eclipse-temurin:17-jre AS production
 
 WORKDIR /app
 
 # Install minimal runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     dumb-init \
     wget \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S spring && \
-    adduser -S spring -u 1001 -G spring
+RUN groupadd -g 1001 spring && \
+    useradd -r -u 1001 -g spring spring
 
 # Copy Spring Boot layers in order of volatility
 # (least changing → most changing for optimal caching)
@@ -118,7 +118,7 @@ EXPOSE 8080
 # Health check using Spring Boot Actuator
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider \
-        http://localhost:8080/actuator/health || exit 1
+    http://localhost:8080/actuator/health || exit 1
 
 # JVM configuration optimized for containers
 ENV JAVA_OPTS="\

@@ -50,6 +50,7 @@ COPY --chown=nodejs:nodejs workers/temporal-workers/package.json ./workers/tempo
 COPY --chown=nodejs:nodejs packages ./packages
 
 # Install all dependencies with BuildKit cache mount
+ENV CI=true
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
     pnpm install
 

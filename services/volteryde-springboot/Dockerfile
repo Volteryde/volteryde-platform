@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# # syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde Java Spring Boot - Multi-stage Docker Build
 # ============================================================================
@@ -19,6 +19,7 @@ COPY services/volteryde-springboot/api-gateway/pom.xml api-gateway/
 COPY services/volteryde-springboot/service-discovery/pom.xml service-discovery/
 COPY services/volteryde-springboot/auth-service/pom.xml auth-service/
 COPY services/volteryde-springboot/user-management-service/pom.xml user-management-service/
+COPY services/volteryde-springboot/client-auth-service/pom.xml client-auth-service/
 COPY services/volteryde-springboot/payment-service/pom.xml payment-service/
 
 # 2. Download dependencies with BuildKit cache mount
