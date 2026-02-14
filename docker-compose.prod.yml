@@ -5,7 +5,7 @@
 # Usage: docker-compose -f docker-compose.prod.yml up -d
 #
 # Prerequisites:
-#   - Set environment variables in .env.production
+#   - Set environment variables in .env
 #   - Build production images first using Dockerfile.prod files
 
 services:

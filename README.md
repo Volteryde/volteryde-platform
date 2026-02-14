@@ -84,6 +84,69 @@ To ensure financial integrity, we do not simply "hold" money; we mirror verified
 
 ## 🛠️ Quick Start
 
+### Share local services with teammates (nginx + ngrok)
+
+Follow these exact steps to expose your local API and Auth services for teammates to call:
+
+1) Create the nginx proxy config
+
+    - Create `Client-App/nginx/default.conf` (or update `deploy/nginx/conf.d/default.conf`) with proxy rules that forward `/api/` and `/auth/` to your local services. Use `host.docker.internal` as the upstream host so the container reaches services on your Mac.
+
+2) Run nginx in Docker (bind host port 80)
+
+```bash
+# run nginx container with the mounted config
+docker run -d \
+    --name volteryde-nginx \
+    -p 80:80 \
+    -v "$PWD/Client-App/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+    nginx:stable
+```
+
+3) Start ngrok and get the public HTTPS URL
+
+```bash
+# open a tunnel to port 80 (interactive)
+ngrok http 80
+
+# OR run ngrok in background and log its output
+ngrok http 80 --log=stdout &>/tmp/ngrok.log &
+
+# get the public URL programmatically
+curl --silent http://127.0.0.1:4040/api/tunnels | jq .
+```
+
+4) Update the client `.env` to use the ngrok URL
+
+```bash
+# replace placeholders with the actual ngrok domain you received
+EXPO_PUBLIC_API_URL=https://<your-ngrok-domain>.ngrok-free.app/api
+EXPO_PUBLIC_CLIENT_AUTH_URL=https://<your-ngrok-domain>.ngrok-free.app/auth
+```
+
+5) Verify the endpoints from another machine
+
+```bash
+curl -v "https://<your-ngrok-domain>.ngrok-free.app/api/health"
+curl -v "https://<your-ngrok-domain>.ngrok-free.app/auth/health"
+```
+
+6) Stop and clean up when finished
+
+```bash
+# stop ngrok (if backgrounded)
+pkill -f "ngrok http 80" || true
+
+# remove nginx container
+docker rm -f volteryde-nginx || true
+```
+
+Quick notes:
+
+- Use `host.docker.internal` inside the nginx config so the nginx container can reach services running on your macOS host.
+- Ngrok public URLs are temporary unless you reserve a domain via an ngrok paid plan.
+- Do not share ngrok URLs publicly; only share them with trusted teammates during testing.
+
 ### Prerequisites
 *   Node.js >= 20.0.0
 *   pnpm >= 8.0.0
