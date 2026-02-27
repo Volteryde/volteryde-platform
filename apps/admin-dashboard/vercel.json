@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm build",
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter @volteryde/api-client build && pnpm --filter @volteryde/auth-sdk build && pnpm --filter @volteryde/config build && pnpm --filter @volteryde/admin-dashboard build",
   "outputDirectory": ".next",
-  "installCommand": "pnpm install",
+  "installCommand": "cd ../.. && pnpm install",
   "framework": "nextjs",
   "regions": ["iad1"]
 }
