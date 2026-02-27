@@ -1,41 +1,186 @@
 # ============================================================================
 # Prometheus Configuration for Volteryde Platform
 # ============================================================================
+# Updated: 2026-02 - Complete service coverage with proper metrics paths
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'volteryde-local'
-    environment: 'development'
+    cluster: "volteryde-local"
+    environment: "development"
 
+# ============================================================================
+# Alerting Configuration (Optional - Uncomment for production)
+# ============================================================================
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# ============================================================================
+# Scrape Configurations
+# ============================================================================
 scrape_configs:
-  # NestJS Backend
-  - job_name: 'nestjs-backend'
+  # --------------------------------------------------------------------------
+  # NestJS Backend Services
+  # --------------------------------------------------------------------------
+  - job_name: "nestjs-api"
     static_configs:
-      - targets: ['nestjs-backend:3000']
+      - targets: ["volteryde-api:3000"]
         labels:
-          service: 'nestjs'
-          domain: 'backend'
+          service: "volteryde-api"
+          domain: "core"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
 
-  # Spring Boot Backend
-  - job_name: 'springboot-backend'
+  - job_name: "nestjs-telematics"
     static_configs:
-      - targets: ['springboot-backend:8080']
+      - targets: ["volteryde-telematics:3001"]
         labels:
-          service: 'springboot'
-          domain: 'backend'
-    metrics_path: '/actuator/prometheus'
+          service: "telematics"
+          domain: "iot"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
 
-  # Temporal
-  - job_name: 'temporal'
+  - job_name: "nestjs-fleet"
     static_configs:
-      - targets: ['temporal:7233']
+      - targets: ["volteryde-fleet:3002"]
         labels:
-          service: 'temporal'
-          domain: 'workflow'
+          service: "fleet"
+          domain: "operations"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
 
-  # Prometheus itself
-  - job_name: 'prometheus'
+  - job_name: "nestjs-charging"
     static_configs:
-      - targets: ['localhost:9090']
+      - targets: ["volteryde-charging:3003"]
+        labels:
+          service: "charging"
+          domain: "infrastructure"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  - job_name: "nestjs-booking"
+    static_configs:
+      - targets: ["volteryde-booking:3004"]
+        labels:
+          service: "booking"
+          domain: "customer"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  - job_name: "nestjs-notifications"
+    static_configs:
+      - targets: ["volteryde-notifications:3005"]
+        labels:
+          service: "notifications"
+          domain: "messaging"
+          tech: "nestjs"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  # --------------------------------------------------------------------------
+  # Spring Boot Backend Services
+  # --------------------------------------------------------------------------
+  - job_name: "springboot-auth"
+    static_configs:
+      - targets: ["volteryde-auth-service:8081"]
+        labels:
+          service: "auth-service"
+          domain: "security"
+          tech: "springboot"
+    metrics_path: "/api/auth/actuator/prometheus"
+    scrape_interval: 15s
+
+  - job_name: "springboot-client-auth"
+    static_configs:
+      - targets: ["volteryde-client-auth-service:8082"]
+        labels:
+          service: "client-auth-service"
+          domain: "security"
+          tech: "springboot"
+    metrics_path: "/api/client-auth/actuator/prometheus"
+    scrape_interval: 15s
+
+  - job_name: "springboot-user-management"
+    static_configs:
+      - targets: ["volteryde-user-service:8082"]
+        labels:
+          service: "user-management-service"
+          domain: "users"
+          tech: "springboot"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 15s
+
+  - job_name: "springboot-payment"
+    static_configs:
+      - targets: ["volteryde-payment-service:8080"]
+        labels:
+          service: "payment-service"
+          domain: "payments"
+          tech: "springboot"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 15s
+
+  - job_name: "springboot-api-gateway"
+    static_configs:
+      - targets: ["volteryde-api-gateway:8080"]
+        labels:
+          service: "api-gateway"
+          domain: "infrastructure"
+          tech: "springboot"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 15s
+
+  - job_name: "springboot-service-discovery"
+    static_configs:
+      - targets: ["volteryde-service-discovery:8761"]
+        labels:
+          service: "service-discovery"
+          domain: "infrastructure"
+          tech: "springboot"
+    metrics_path: "/actuator/prometheus"
+    scrape_interval: 30s
+
+  # --------------------------------------------------------------------------
+  # Infrastructure Services
+  # --------------------------------------------------------------------------
+  - job_name: "temporal"
+    static_configs:
+      - targets: ["volteryde-temporal:7233"]
+        labels:
+          service: "temporal"
+          domain: "workflow"
+    scrape_interval: 30s
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["volteryde-redis:6379"]
+        labels:
+          service: "redis"
+          domain: "cache"
+    scrape_interval: 30s
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["volteryde-postgres:5432"]
+        labels:
+          service: "postgres"
+          domain: "database"
+    scrape_interval: 30s
+
+  # --------------------------------------------------------------------------
+  # Self-Monitoring
+  # --------------------------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+          domain: "monitoring"

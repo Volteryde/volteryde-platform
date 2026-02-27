@@ -8,8 +8,11 @@ services:
   # ============================================================================
   # Databases & Cache
   # ============================================================================
+  # NOTE: For Supabase PostgreSQL, use: docker-compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
+  # This will override the local postgres service and connect all services to Supabase.
 
   postgres:
+    # Note: postgis/postgis doesn't have ARM64 images - runs via Rosetta on Apple Silicon
     image: postgis/postgis:15-3.4-alpine
     container_name: volteryde-postgres
     environment:
@@ -17,13 +20,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Database per Domain Strategy
-      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
+      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,temporal_visibility,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
     ports:
       - "5432:5432"
     command: postgres -c 'max_connections=300'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - ./infrastructure/database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -34,7 +38,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:7-alpine
     container_name: volteryde-redis
     command: redis-server --appendonly yes
     ports:
@@ -55,15 +59,15 @@ services:
   # ============================================================================
 
   influxdb:
-    image: influxdb:2.7-alpine
+    image: docker.io/library/influxdb:2.7-alpine
     container_name: volteryde-influxdb
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
-      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-volteryde_secure_password}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-volteryde}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telematics}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     ports:
       - "8086:8086"
     volumes:
@@ -78,49 +82,52 @@ services:
     restart: unless-stopped
 
   # ============================================================================
-  # Temporal Workflow Engine
+  # Temporal Workflow Engine - DISABLED (Using Temporal Cloud)
   # ============================================================================
+  # NOTE: Temporal services are commented out because we're using Temporal Cloud.
+  # If you need to run Temporal locally for testing, uncomment these services.
 
-  temporal:
-    image: temporalio/auto-setup:latest
-    container_name: volteryde-temporal
-    environment:
-      - DB=postgres12
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=postgres
-      - POSTGRES_SEEDS=postgres
-      - DBNAME=temporal
-      - BIND_ON_IP=0.0.0.0
-    ports:
-      - "7233:7233"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
-    networks:
-      - volteryde-network
-    restart: unless-stopped
+  # temporal:
+  #   image: temporalio/auto-setup:latest
+  #   container_name: volteryde-temporal
+  #   environment:
+  #     - DB=postgres12
+  #     - DB_PORT=5432
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PWD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_SEEDS=${POSTGRES_USER}
+  #     - DBNAME=temporal
+  #     - BIND_ON_IP=0.0.0.0
+  #     - SKIP_DB_CREATE=true
+  #   ports:
+  #     - "7233:7233"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 40s
+  #   networks:
+  #     - volteryde-network
+  #   restart: unless-stopped
 
-  temporal-ui:
-    image: temporalio/ui:latest
-    container_name: volteryde-temporal-ui
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    ports:
-      - "8080:8080"
-    depends_on:
-      temporal:
-        condition: service_healthy
-    networks:
-      - volteryde-network
-    restart: unless-stopped
+  # temporal-ui:
+  #   image: temporalio/ui:latest
+  #   container_name: volteryde-temporal-ui
+  #   environment:
+  #     - TEMPORAL_ADDRESS=temporal:7233
+  #     - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     temporal:
+  #       condition: service_healthy
+  #   networks:
+  #     - volteryde-network
+  #   restart: unless-stopped
 
   # ============================================================================
   # Message Queue (Optional - for event-driven architecture)
@@ -161,7 +168,7 @@ services:
     restart: unless-stopped
 
   mosquitto:
-    image: eclipse-mosquitto:2.0.15
+    image: docker.io/library/eclipse-mosquitto:2.0.15
     container_name: volteryde-mosquitto
     ports:
       - "1883:1883" # Standard MQTT port
@@ -196,7 +203,7 @@ services:
   # ============================================================================
 
   gateway:
-    image: nginx:alpine
+    image: docker.io/library/nginx:alpine
     container_name: volteryde-gateway
     ports:
       - "80:80"
@@ -229,9 +236,10 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/telematics_db
       - DATABASE_NAME=telematics_db
+      - DATABASE_SCHEMA=${TELEMATICS_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-volteryde}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-telematics}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -268,6 +276,7 @@ services:
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=fleet_db
+      - DATABASE_SCHEMA=${FLEET_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -302,6 +311,7 @@ services:
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=charging_db
+      - DATABASE_SCHEMA=${CHARGING_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -336,6 +346,7 @@ services:
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=booking_db
+      - DATABASE_SCHEMA=${BOOKING_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -373,6 +384,7 @@ services:
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=volteryde
+      - DATABASE_SCHEMA=${CORE_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -408,6 +420,7 @@ services:
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_NAME=user_db
+      - DATABASE_SCHEMA=${NOTIFICATIONS_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_ADDRESS=temporal:7233
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -440,6 +453,12 @@ services:
       - "8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=development
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -477,6 +496,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_SCHEMA=${AUTH_DATABASE_SCHEMA:-public}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -488,18 +508,7 @@ services:
       service-discovery:
         condition: service_started
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8081/api/auth/actuator/health",
-          "||",
-          "exit",
-          "1",
-        ]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -522,14 +531,15 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/client_auth_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_SCHEMA=${CLIENT_AUTH_DATABASE_SCHEMA:-public}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       # Google OAuth Client IDs (defaults are already in application.yml)
-      - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
-      - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
-      - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID:-348743430414-nr958v7e3084kc58029g3qq5t72bbpj.apps.googleusercontent.com}
-      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY:-14152262-c4c5-43c6-a05e-4a8cea137470}
+      - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}
+      - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
+      - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID}
+      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -538,18 +548,7 @@ services:
       service-discovery:
         condition: service_started
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8082/api/client-auth/actuator/health",
-          "||",
-          "exit",
-          "1",
-        ]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -572,6 +571,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/user_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_SCHEMA=${USERS_DATABASE_SCHEMA:-public}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - APPLICATION_CONFIG_AUTH_SERVICE_URL=http://volteryde-auth-service:8081/api/auth
       - SPRING_REDIS_HOST=redis
@@ -583,6 +583,12 @@ services:
         condition: service_healthy
       service-discovery:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/api/user-management/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped
@@ -599,6 +605,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/payment_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_SCHEMA=${PAYMENT_DATABASE_SCHEMA:-public}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -609,6 +616,12 @@ services:
         condition: service_healthy
       service-discovery:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/api/payment/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - volteryde-network
     restart: unless-stopped

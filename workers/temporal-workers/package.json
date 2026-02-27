@@ -7,19 +7,21 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src --ext .ts --fix",
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@temporalio/activity": "^1.8.0",
-    "@temporalio/client": "^1.8.0",
-    "@temporalio/worker": "^1.8.0",
-    "@temporalio/workflow": "^1.13.2",
+    "@temporalio/activity": "^1.14.1",
+    "@temporalio/client": "^1.14.1",
+    "@temporalio/worker": "^1.14.1",
+    "@temporalio/workflow": "^1.14.1",
     "axios": "^1.5.0",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
+    "@temporalio/testing": "^1.14.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.8.0",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",

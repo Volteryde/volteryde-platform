@@ -16,10 +16,11 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${DATABASE_SCHEMA:public}
         format_sql: true
   security:
     jwt:
-      secret: ${JWT_SECRET:volteryde-secure-jwt-secret-key-256-bits-minimum}
+      secret: ${JWT_SECRET}
       expiration: 3600000 # 1 hour in milliseconds
       refresh-expiration: 604800000 # 7 days in milliseconds
 
@@ -39,17 +40,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
 # OTP Configuration
 # Using Gatekeeper Pro API for OTP generation and verification
 otp:
-  expiration-minutes: 10  # Gatekeeper Pro uses 10-minute expiration
+  expiration-minutes: 10 # Gatekeeper Pro uses 10-minute expiration
   length: 6
-  use-external-provider: true  # Use Gatekeeper Pro API for OTP
+  use-external-provider: true # Use Gatekeeper Pro API for OTP
 
 # SMS Provider Configuration (Gatekeeper Pro)
 # API handles both OTP generation and SMS delivery in one call
@@ -64,9 +69,9 @@ sms:
 # The web client ID is used for token validation on the backend
 # All platform tokens (web, iOS, Android) are validated against these
 google:
-  web-client-id: ${GOOGLE_WEB_CLIENT_ID:348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
-  ios-client-id: ${GOOGLE_IOS_CLIENT_ID:348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
-  android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:348743430414-nr958v7e30840kc58029g3qq5t72bbpj.apps.googleusercontent.com}
+  web-client-id: ${GOOGLE_WEB_CLIENT_ID}
+  ios-client-id: ${GOOGLE_IOS_CLIENT_ID}
+  android-client-id: ${GOOGLE_ANDROID_CLIENT_ID}
 
 # Terms & Conditions Configuration
 terms:

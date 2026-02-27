@@ -12,8 +12,8 @@ public class WalletBalanceEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private Long customerId;
+    @Column(nullable = false, unique = true, length = 36)
+    private String customerId;
 
     /**
      * Real funds deposited via Paystack or other payment gateways.
@@ -45,8 +45,10 @@ public class WalletBalanceEntity {
         final OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (realBalance == null) realBalance = BigDecimal.ZERO;
-        if (promoBalance == null) promoBalance = BigDecimal.ZERO;
+        if (realBalance == null)
+            realBalance = BigDecimal.ZERO;
+        if (promoBalance == null)
+            promoBalance = BigDecimal.ZERO;
         // Signature must be set by the service before saving
     }
 
@@ -68,11 +70,11 @@ public class WalletBalanceEntity {
         this.id = id;
     }
 
-    public Long getCustomerId() {
+    public String getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(Long customerId) {
+    public void setCustomerId(String customerId) {
         this.customerId = customerId;
     }
 

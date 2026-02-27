@@ -29,7 +29,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: temporal-workers
-        image: REGISTRY_URL/volteryde/temporal-workers:latest
+        image: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/temporal-workers:latest
         imagePullPolicy: Always
         env:
         - name: NODE_ENV
@@ -39,6 +39,21 @@ spec:
             configMapKeyRef:
               name: volteryde-config
               key: TEMPORAL_ADDRESS
+        - name: TEMPORAL_NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              name: volteryde-config
+              key: TEMPORAL_NAMESPACE
+        - name: TEMPORAL_TASK_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: volteryde-config
+              key: TEMPORAL_TASK_QUEUE
+        - name: TEMPORAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: volteryde-secrets
+              key: TEMPORAL_API_KEY
         - name: DATABASE_URL
           value: "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
         - name: DATABASE_HOST
@@ -56,6 +71,11 @@ spec:
             configMapKeyRef:
               name: volteryde-config
               key: DATABASE_NAME
+        - name: DATABASE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: volteryde-config
+              key: DATABASE_USERNAME
         - name: DATABASE_USER
           valueFrom:
             secretKeyRef:
@@ -66,6 +86,11 @@ spec:
             secretKeyRef:
               name: volteryde-secrets
               key: DATABASE_PASSWORD
+        - name: DATABASE_SCHEMA
+          valueFrom:
+            configMapKeyRef:
+              name: volteryde-config
+              key: BOOKING_DATABASE_SCHEMA
         - name: REDIS_URL
           value: "redis://$(REDIS_HOST):$(REDIS_PORT)"
         - name: REDIS_HOST

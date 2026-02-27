@@ -21,6 +21,10 @@ azure-pipelines.yml
 *.swo
 *~
 .vs
+.cursor
+.agent
+.claude
+.windsurf
 
 # OS
 .DS_Store
@@ -32,29 +36,49 @@ desktop.ini
 !README.md
 docs/
 
-# Docker files (except what we need)
-**/Dockerfile
-!**/Dockerfile.dev
+# ============================================================================
+# Docker files (keep only what we need)
+# ============================================================================
+# Don't send Dockerfiles into build context (except the one being used)
 docker-compose*.yml
 !docker-compose.yml
 
-# Large files and caches that aren't needed
+# ============================================================================
+# Node.js / TypeScript Exclusions
+# ============================================================================
 **/node_modules/
 **/.next/
+apps/admin-dashboard/.next/
 **/dist/
 **/build/
 **/.cache/
 **/coverage/
 **/.nyc_output/
+**/.turbo/
+**/.pnpm-store/
 
+# ============================================================================
+# Java / Maven Exclusions (for Node.js builds)
+# ============================================================================
+# Exclude Java build artifacts when building Node.js services
+**/target/
+**/.mvn/
+**/*.jar
+**/*.class
+**/*.war
+
+# ============================================================================
 # Environment and secrets
+# ============================================================================
 .env.local
 .env.*.local
 *.pem
 *.key
 !**/public.key
 
+# ============================================================================
 # Logs
+# ============================================================================
 logs
 *.log
 npm-debug.log*
@@ -62,7 +86,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ============================================================================
 # Test files
+# ============================================================================
 **/*.test.ts
 **/*.test.js
 **/*.spec.ts
@@ -70,21 +96,22 @@ pnpm-debug.log*
 **/__tests__/
 **/test/
 
+# ============================================================================
 # Temporary files
+# ============================================================================
 tmp/
 temp/
 *.tmp
 *.bak
 *.swp
 
-# Mobile apps (not needed for backend services)
-# apps/mobile-driver-app/
-# apps/mobile-passenger-app/
-
-# Keep these essential files
+# ============================================================================
+# Keep these essential files (using negation patterns)
+# ============================================================================
 !package.json
 !pnpm-workspace.yaml
 !pnpm-lock.yaml
+!.npmrc
 !tsconfig.json
 !nest-cli.json
 !.prettierrc

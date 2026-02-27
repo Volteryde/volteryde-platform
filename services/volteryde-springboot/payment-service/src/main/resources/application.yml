@@ -6,13 +6,13 @@ server:
 spring:
   application:
     name: payment-service
-  
+
   datasource:
     url: jdbc:postgresql://localhost:5432/volteryde_payment_system
-    username: postgres
-    password: NewPost
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,12 +20,13 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${DATABASE_SCHEMA:public}
 
 paystack:
-  secret-key: ${PAYSTACK_SECRET_KEY:sk_test_9bbb6b82c6c72285fa087721d1e293bdc68f64f1}
-  public-key: ${PAYSTACK_PUBLIC_KEY:pk_test_536e874e899ff0b18f6e5157036e0afe20597782}
+  secret-key: ${PAYSTACK_SECRET_KEY}
+  public-key: ${PAYSTACK_PUBLIC_KEY}
   base-url: ${PAYSTACK_BASE_URL:https://api.paystack.co}
-  webhook-secret: ${PAYSTACK_WEBHOOK_SECRET:whsec_test_1234567890}
+  webhook-secret: ${PAYSTACK_WEBHOOK_SECRET}
   callback-url: ${PAYSTACK_CALLBACK_URL:http://localhost:8080/payments/callback}
   connect-timeout: 5s
   read-timeout: 10s

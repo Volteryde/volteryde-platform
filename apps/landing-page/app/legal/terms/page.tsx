@@ -7,7 +7,7 @@ export default function TermsPage() {
 			title: "Acceptance of Terms",
 			content: (
 				<p>
-					By accessing or using the Volteryde platform ("Service"), you agree to be bound by these Terms of Service ("Terms").
+					By accessing or using the Volteryde platform (&quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;).
 					If you disagree with any part of the terms, you may not access the Service.
 				</p>
 			)

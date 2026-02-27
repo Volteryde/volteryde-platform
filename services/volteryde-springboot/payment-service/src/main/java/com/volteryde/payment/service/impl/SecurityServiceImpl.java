@@ -20,34 +20,30 @@ public class SecurityServiceImpl implements SecurityService {
     private static final String ALGORITHM = "HmacSHA256";
 
     @Override
-    public String signTransaction(Long customerId, BigDecimal amount, String type, String referenceId) {
-        String data = String.format("%d|%s|%s|%s", customerId, amount.toPlainString(), type, referenceId);
+    public String signTransaction(String customerId, BigDecimal amount, String type, String referenceId) {
+        String data = String.format("%s|%s|%s|%s", customerId, amount.toPlainString(), type, referenceId);
         return generateHmac(data);
     }
 
     @Override
-    public boolean validateTransaction(Long customerId, BigDecimal amount, String type, String referenceId, String signature) {
+    public boolean validateTransaction(String customerId, BigDecimal amount, String type, String referenceId,
+            String signature) {
         String calculatedSignature = signTransaction(customerId, amount, type, referenceId);
         return calculatedSignature.equals(signature);
     }
 
     @Override
-    public String signBalance(Long customerId, BigDecimal realBalance, BigDecimal promoBalance) {
-        // We sign the combination of ID and both balances
-        String data = String.format("%d|%s|%s",
-            customerId,
-            realBalance != null ? realBalance.toPlainString() : "0",
-            promoBalance != null ? promoBalance.toPlainString() : "0"
-        );
+    public String signBalance(String customerId, BigDecimal realBalance, BigDecimal promoBalance) {
+        String data = String.format("%s|%s|%s",
+                customerId,
+                realBalance != null ? realBalance.toPlainString() : "0",
+                promoBalance != null ? promoBalance.toPlainString() : "0");
         return generateHmac(data);
     }
 
     @Override
     public boolean validateBalance(WalletBalanceEntity wallet) {
         if (wallet.getSignature() == null) {
-            // New wallets or pre-migration wallets might not have signature.
-            // In strict mode, this should fail. For migration, we might sign it now.
-            // Here we assume strict mode for security.
             return false;
         }
         String calculated = signBalance(wallet.getCustomerId(), wallet.getRealBalance(), wallet.getPromoBalance());

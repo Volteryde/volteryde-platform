@@ -45,13 +45,13 @@ export class Stop {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
-	@Column({ name: 'stopId', unique: true })
+	@Column({ name: 'stopId', length: 255, unique: true })
 	stopId: string; // GTFS stop_id
 
-	@Column({ name: 'stopCode', nullable: true })
+	@Column({ name: 'stopCode', length: 50, nullable: true })
 	stopCode: string; // stop_code (short identifier for passengers)
 
-	@Column({ name: 'stopName' })
+	@Column({ name: 'stopName', length: 255 })
 	stopName: string; // stop_name
 
 	@Column({ name: 'stopDesc', nullable: true, type: 'text' })
@@ -63,10 +63,10 @@ export class Stop {
 	@Column({ name: 'stopLon', type: 'decimal', precision: 10, scale: 6 })
 	stopLon: number; // stop_lon (WGS84)
 
-	@Column({ name: 'zoneId', nullable: true })
+	@Column({ name: 'zoneId', length: 100, nullable: true })
 	zoneId: string; // zone_id (for fare calculations)
 
-	@Column({ name: 'stopUrl', nullable: true })
+	@Column({ name: 'stopUrl', length: 500, nullable: true })
 	stopUrl: string; // stop_url
 
 	@Column({
@@ -76,10 +76,10 @@ export class Stop {
 	})
 	locationType: number; // location_type
 
-	@Column({ name: 'parentStation', nullable: true })
+	@Column({ name: 'parentStation', length: 255, nullable: true })
 	parentStation: string; // parent_station (if within a station)
 
-	@Column({ name: 'stopTimezone', nullable: true })
+	@Column({ name: 'stopTimezone', length: 100, nullable: true })
 	stopTimezone: string; // stop_timezone
 
 	@Column({
@@ -89,10 +89,10 @@ export class Stop {
 	})
 	wheelchairBoarding: number; // wheelchair_boarding
 
-	@Column({ name: 'levelId', nullable: true })
+	@Column({ name: 'levelId', length: 100, nullable: true })
 	levelId: string; // level_id
 
-	@Column({ name: 'platformCode', nullable: true })
+	@Column({ name: 'platformCode', length: 50, nullable: true })
 	platformCode: string; // platform_code
 
 	// ============================================================================
@@ -102,7 +102,7 @@ export class Stop {
 	@Column({ name: 'isChargingStation', default: false })
 	isChargingStation: boolean; // Extension: indicates if stop is near charging
 
-	@Column({ name: 'chargingStationId', nullable: true })
+	@Column({ name: 'chargingStationId', length: 255, nullable: true })
 	chargingStationId: string; // Reference to charging station if applicable
 
 	@Column({ name: 'averageDwellTimeSeconds', type: 'int', nullable: true })

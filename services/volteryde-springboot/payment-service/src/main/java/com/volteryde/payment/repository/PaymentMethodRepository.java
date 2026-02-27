@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PaymentMethodRepository extends JpaRepository<PaymentMethodEntity, Long> {
 
-    List<PaymentMethodEntity> findByCustomerId(Long customerId);
+    List<PaymentMethodEntity> findByCustomerId(String customerId);
 
-    Optional<PaymentMethodEntity> findByCustomerIdAndAuthorizationCode(Long customerId, String authorizationCode);
+    Optional<PaymentMethodEntity> findByCustomerIdAndAuthorizationCode(String customerId, String authorizationCode);
 }

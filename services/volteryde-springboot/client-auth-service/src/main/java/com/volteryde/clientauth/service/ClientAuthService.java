@@ -17,22 +17,19 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 
 /**
  * Client Authentication Service
  * 
- * Handles authentication for Riders (external clients) via Phone/OTP, Email/Password, and Social Login.
+ * Handles authentication for Riders (external clients) via Phone/OTP,
+ * Email/Password, and Social Login.
  * Drivers are internal workers and use auth-service instead.
  */
 @Service
 public class ClientAuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientAuthService.class);
-    
+
     // Austin: Current terms and privacy policy versions
     private static final String CURRENT_TERMS_VERSION = "1.0";
     private static final String CURRENT_PRIVACY_VERSION = "1.0";
@@ -86,17 +83,18 @@ public class ClientAuthService {
      * Rate Limiting:
      * - 3 OTPs per 5 minutes per phone
      * - 10 OTPs per minute per phone (burst protection)
-     * - 20 OTPs per minute per IP before blacklist (2 hours, then 100 hours for repeat)
+     * - 20 OTPs per minute per IP before blacklist (2 hours, then 100 hours for
+     * repeat)
      */
     @Transactional
     public void initiateOtp(OtpInitRequest request, String ipAddress) {
         String phone = normalizePhone(request.getPhone());
-        
+
         // Rate limiting with IP-based abuse prevention
         rateLimiterService.checkAndRecordOtp(phone, ipAddress);
-        
+
         logger.info("Initiating OTP for phone: {}", maskPhone(phone));
-        
+
         // Use external API (Gatekeeper Pro) - handles both generation and SMS
         boolean sent = otpService.sendOtpSms(phone);
         if (!sent) {
@@ -118,18 +116,19 @@ public class ClientAuthService {
     @Transactional
     public OtpVerifyResponse verifyOtp(OtpVerifyRequest request, String deviceInfo, String ipAddress) {
         String phone = normalizePhone(request.getPhone());
-        
+
         // Rate limit verification attempts
         rateLimiterService.checkAndRecordOtp(phone, ipAddress);
-        logger.debug("OTP verification attempt for phone: {}, device: {}, ip: {}", maskPhone(phone), deviceInfo, ipAddress);
-        
+        logger.debug("OTP verification attempt for phone: {}, device: {}, ip: {}", maskPhone(phone), deviceInfo,
+                ipAddress);
+
         boolean verified = otpService.verifyOtp(phone, request.getCode());
         if (!verified) {
             throw new RuntimeException("Invalid or expired OTP");
         }
 
         Optional<ClientUser> existingUser = userRepository.findByPhone(phone);
-        
+
         if (existingUser.isPresent()) {
             return new OtpVerifyResponse(true, false, null);
         } else {
@@ -144,7 +143,7 @@ public class ClientAuthService {
     @Transactional
     public ClientAuthResponse loginAfterOtp(String phone, String deviceInfo, String ipAddress) {
         phone = normalizePhone(phone);
-        
+
         ClientUser user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -182,16 +181,16 @@ public class ClientAuthService {
         user.setRole(ClientRole.RIDER);
         user.setStatus(ClientStatus.ACTIVE);
         user.setPhoneVerified(true);
-        
+
         // Austin: Record terms acceptance
         user.setTermsAccepted(true);
         user.setTermsAcceptedAt(java.time.LocalDateTime.now());
 
         user = userRepository.save(user);
-        
+
         // Austin: Save detailed terms acceptance record for audit
         saveTermsAcceptance(user, deviceInfo, ipAddress);
-        
+
         logger.info("New rider created: {}", user.getId());
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
@@ -203,7 +202,8 @@ public class ClientAuthService {
      * Register with email and password
      */
     @Transactional
-    public ClientAuthResponse registerWithPassword(PasswordRegisterRequest request, String deviceInfo, String ipAddress) {
+    public ClientAuthResponse registerWithPassword(PasswordRegisterRequest request, String deviceInfo,
+            String ipAddress) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -266,25 +266,25 @@ public class ClientAuthService {
         if (request.hasPhone()) {
             String phone = normalizePhone(request.getPhone());
             rateLimiterService.checkAndRecordOtp(phone, ipAddress);
-            
+
             userRepository.findByPhone(phone)
                     .orElseThrow(() -> new UserNotFoundException("No account found with this phone number"));
-            
+
             // Use external API (Gatekeeper Pro) - handles both generation and SMS
             boolean sent = otpService.sendOtpSms(phone);
             if (!sent) {
                 throw new RuntimeException("Failed to send OTP. Please try again later.");
             }
             logger.info("Password reset OTP sent to phone: {}", maskPhone(phone));
-            
+
         } else if (request.hasEmail()) {
             String email = request.getEmail().toLowerCase().trim();
             // Use email-specific OTP rate limiting
             rateLimiterService.checkAndRecordEmailOtp(email, ipAddress);
-            
+
             userRepository.findByEmail(email)
                     .orElseThrow(() -> new UserNotFoundException("No account found with this email"));
-            
+
             // Use Gatekeeper Pro API for email OTP
             var response = otpService.generateOtpExternalByEmail(email);
             if (response == null || !response.isSuccess()) {
@@ -310,7 +310,7 @@ public class ClientAuthService {
     @Transactional
     public String verifyPasswordResetOtp(String phone, String otp) {
         phone = normalizePhone(phone);
-        
+
         boolean verified = otpService.verifyOtp(phone, otp);
         if (!verified) {
             throw new RuntimeException("Invalid or expired OTP");
@@ -328,7 +328,7 @@ public class ClientAuthService {
     @Transactional
     public String verifyPasswordResetOtpByEmail(String email, String otp) {
         email = email.toLowerCase().trim();
-        
+
         boolean verified = otpService.verifyOtpExternalByEmail(email, otp);
         if (!verified) {
             throw new RuntimeException("Invalid or expired OTP");
@@ -485,15 +485,16 @@ public class ClientAuthService {
      * Google OAuth login/registration
      */
     @Transactional
-    public ClientAuthResponse googleLogin(String googleId, String email, String firstName, String lastName, 
-                                          String idToken, String deviceInfo, String ipAddress) {
-        
+    public ClientAuthResponse googleLogin(String googleId, String email, String firstName, String lastName,
+            String idToken, String deviceInfo, String ipAddress) {
+
         if (idToken != null && !idToken.isEmpty()) {
             try {
                 // In a production environment, verify the token
-                // GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                //    .setAudience(Collections.singletonList(googleClientId))
-                //    .build();
+                // GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new
+                // NetHttpTransport(), new GsonFactory())
+                // .setAudience(Collections.singletonList(googleClientId))
+                // .build();
                 // GoogleIdToken verifiedToken = verifier.verify(idToken);
                 // if (verifiedToken != null) { ... }
                 logger.info("Received Google ID Token: " + idToken.substring(0, 10) + "...");
@@ -501,9 +502,9 @@ public class ClientAuthService {
                 logger.error("Error checking Google token", e);
             }
         }
-        
+
         Optional<ClientUser> existingUser = userRepository.findByGoogleId(googleId);
-        
+
         if (existingUser.isPresent()) {
             return generateAuthResponse(existingUser.get(), deviceInfo, ipAddress);
         }
@@ -535,20 +536,21 @@ public class ClientAuthService {
     /**
      * Austin: Google OAuth login/registration with explicit terms acceptance.
      * For new users, both terms and privacy must be accepted.
-     * Phone number is optional - included when user verified phone via OTP before switching to Google OAuth.
+     * Phone number is optional - included when user verified phone via OTP before
+     * switching to Google OAuth.
      */
     @Transactional
-    public ClientAuthResponse googleLoginWithTerms(String googleId, String email, String firstName, String lastName, 
-                                          String idToken, String phone, String deviceInfo, String ipAddress,
-                                          boolean termsAccepted, boolean privacyAccepted) {
+    public ClientAuthResponse googleLoginWithTerms(String googleId, String email, String firstName, String lastName,
+            String idToken, String phone, String deviceInfo, String ipAddress,
+            boolean termsAccepted, boolean privacyAccepted) {
         // Verify token if provided
         if (idToken != null && !idToken.isEmpty()) {
-             try {
-                 logger.info("Received Google ID Token for Terms Login: " + idToken.substring(0, 10) + "...");
-                 // Verification logic would go here
-             } catch (Exception e) {
-                 logger.error("Error checking Google token", e);
-             }
+            try {
+                logger.info("Received Google ID Token for Terms Login: " + idToken.substring(0, 10) + "...");
+                // Verification logic would go here
+            } catch (Exception e) {
+                logger.error("Error checking Google token", e);
+            }
         }
 
         // Normalize phone if provided
@@ -556,7 +558,7 @@ public class ClientAuthService {
 
         // Check for existing user by Google ID
         Optional<ClientUser> existingUser = userRepository.findByGoogleId(googleId);
-        
+
         if (existingUser.isPresent()) {
             ClientUser user = existingUser.get();
             // If user doesn't have phone but we have one, add it
@@ -615,7 +617,7 @@ public class ClientAuthService {
         user.setRole(ClientRole.RIDER);
         user.setStatus(ClientStatus.ACTIVE);
         user.setEmailVerified(true);
-        
+
         // Set phone if provided (verified via OTP before Google OAuth)
         if (normalizedPhone != null) {
             user.setPhone(normalizedPhone);
@@ -623,16 +625,17 @@ public class ClientAuthService {
         } else {
             user.setPhoneVerified(false);
         }
-        
+
         user.setTermsAccepted(true);
         user.setTermsAcceptedAt(LocalDateTime.now());
 
         user = userRepository.save(user);
-        
+
         // Save terms acceptance record for audit
         saveTermsAcceptance(user, deviceInfo, ipAddress);
-        
-        logger.info("New rider created via Google with terms (phone: {}): {}", normalizedPhone != null ? "yes" : "no", user.getId());
+
+        logger.info("New rider created via Google with terms (phone: {}): {}", normalizedPhone != null ? "yes" : "no",
+                user.getId());
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }
@@ -648,8 +651,7 @@ public class ClientAuthService {
                 accessToken,
                 refreshToken.getToken(),
                 jwtService.getExpirationInSeconds(),
-                ClientUserDto.fromEntity(user)
-        );
+                ClientUserDto.fromEntity(user));
     }
 
     private String generatePasswordResetToken(ClientUser user) {

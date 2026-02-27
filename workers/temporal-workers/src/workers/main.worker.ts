@@ -3,10 +3,10 @@
 // ============================================================================
 // This worker polls the Temporal server for tasks and executes workflows
 
-import { Worker, NativeConnection } from '@temporalio/worker';
-import * as activities from '../activities'; // Import from index to get all activities
-import { config } from 'dotenv';
-import { resolve } from 'path';
+import { Worker, NativeConnection } from "@temporalio/worker";
+import * as activities from "../activities"; // Import from index to get all activities
+import { config } from "dotenv";
+import { resolve } from "path";
 
 // Load environment variables
 config();
@@ -16,25 +16,27 @@ config();
  * Creates and runs a Temporal worker that processes all workflows
  */
 async function run() {
-  console.log('='.repeat(70));
-  console.log('Volteryde Temporal Worker - Starting...');
-  console.log('='.repeat(70));
+  console.log("=".repeat(70));
+  console.log("Volteryde Temporal Worker - Starting...");
+  console.log("=".repeat(70));
 
   // Get configuration from environment
-  const temporalAddress = process.env.TEMPORAL_ADDRESS || 'localhost:7233';
+  const temporalAddress = process.env.TEMPORAL_ADDRESS || "localhost:7233";
   // Use a generic task queue or allow multiple?
   // For simplicity, we might listen on multiple, or just one generic one.
   // The Booking service uses 'volteryde-booking'.
   // The Charging service uses 'volteryde-charging'.
   // One worker instance can only listen to one task queue usually unless we create multiple Workers.
 
-  const bookingTaskQueue = process.env.TEMPORAL_BOOKING_TASK_QUEUE || 'volteryde-booking';
-  const chargingTaskQueue = process.env.TEMPORAL_CHARGING_TASK_QUEUE || 'volteryde-charging';
-  const namespace = process.env.TEMPORAL_NAMESPACE || 'default';
+  const bookingTaskQueue =
+    process.env.TEMPORAL_BOOKING_TASK_QUEUE || "volteryde-booking";
+  const chargingTaskQueue =
+    process.env.TEMPORAL_CHARGING_TASK_QUEUE || "volteryde-charging";
+  const namespace = process.env.TEMPORAL_NAMESPACE || "default";
 
   console.log(`Temporal Server: ${temporalAddress}`);
   console.log(`Namespace: ${namespace}`);
-  console.log('');
+  console.log("");
 
   try {
     // Get configuration for Temporal Cloud
@@ -51,7 +53,7 @@ async function run() {
       connectionOptions.tls = true;
       connectionOptions.apiKey = apiKey;
     } else if (clientCertPath && clientKeyPath) {
-      const { readFile } = await import('fs/promises');
+      const { readFile } = await import("fs/promises");
       const cert = await readFile(clientCertPath);
       const key = await readFile(clientKeyPath);
 
@@ -61,14 +63,14 @@ async function run() {
     }
 
     const connection = await NativeConnection.connect(connectionOptions);
-    console.log('✓ Connected to Temporal server');
+    console.log("✓ Connected to Temporal server");
 
     // Create Booking Worker
     const bookingWorker = await Worker.create({
       connection,
       namespace,
       taskQueue: bookingTaskQueue,
-      workflowsPath: resolve(__dirname, '../workflows'),
+      workflowsPath: resolve(__dirname, "../workflows"),
       activities,
     });
 
@@ -79,41 +81,39 @@ async function run() {
       connection,
       namespace,
       taskQueue: chargingTaskQueue,
-      workflowsPath: resolve(__dirname, '../workflows'),
+      workflowsPath: resolve(__dirname, "../workflows"),
       activities,
     });
 
-    console.log(`✓ Workers created for queues: ${bookingTaskQueue}, ${chargingTaskQueue}`);
-    console.log('');
-    console.log('='.repeat(70));
-    console.log('Workers are ready and polling for tasks...');
-    console.log('Press Ctrl+C to stop');
-    console.log('='.repeat(70));
-    console.log('');
+    console.log(
+      `✓ Workers created for queues: ${bookingTaskQueue}, ${chargingTaskQueue}`,
+    );
+    console.log("");
+    console.log("=".repeat(70));
+    console.log("Workers are ready and polling for tasks...");
+    console.log("Press Ctrl+C to stop");
+    console.log("=".repeat(70));
+    console.log("");
 
     // Start polling for tasks
-    await Promise.all([
-      bookingWorker.run(),
-      chargingWorker.run(),
-    ]);
-
+    await Promise.all([bookingWorker.run(), chargingWorker.run()]);
   } catch (error) {
-    console.error('Worker Error:', error);
+    console.error("Worker Error:", error);
     process.exit(1);
   }
 }
 
 // Graceful shutdown
 const shutdown = () => {
-  console.log('Shutting down worker gracefully...');
+  console.log("Shutting down worker gracefully...");
   process.exit(0);
 };
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 // Run the worker
 run().catch((err) => {
-  console.error('Fatal error:', err);
+  console.error("Fatal error:", err);
   process.exit(1);
 });

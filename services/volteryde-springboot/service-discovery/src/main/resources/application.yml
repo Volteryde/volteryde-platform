@@ -19,4 +19,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,eureka
+        include: health,info,eureka,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true

@@ -6,7 +6,7 @@
     "dev": "next dev -H 0.0.0.0 -p 4003",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint --fix ."
   },
   "dependencies": {
     "@chakra-ui/charts": "^3.30.0",

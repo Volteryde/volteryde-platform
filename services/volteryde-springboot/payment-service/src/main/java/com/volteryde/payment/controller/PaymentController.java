@@ -30,7 +30,9 @@ public class PaymentController {
             HttpServletRequest httpRequest) {
         // Extract authenticated customer ID from request attribute (set by auth filter)
         // Falls back to request payload if not authenticated (for guest checkout)
-        Long authenticatedCustomerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        String authenticatedCustomerId = httpRequest.getAttribute("authenticatedUserId") != null
+                ? httpRequest.getAttribute("authenticatedUserId").toString()
+                : null;
 
         PaymentInitializationRequest secureRequest;
         if (authenticatedCustomerId != null) {
@@ -61,7 +63,9 @@ public class PaymentController {
     public ResponseEntity<com.volteryde.payment.dto.PaymentMethodResponse> addPaymentMethod(
             @RequestBody @Valid com.volteryde.payment.dto.PaymentMethodRequest request,
             HttpServletRequest httpRequest) {
-        Long customerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        String customerId = httpRequest.getAttribute("authenticatedUserId") != null
+                ? httpRequest.getAttribute("authenticatedUserId").toString()
+                : null;
         if (customerId == null)
             return ResponseEntity.status(401).build();
         return ResponseEntity.ok(paymentService.addPaymentMethod(customerId, request));
@@ -70,7 +74,9 @@ public class PaymentController {
     @GetMapping("/transactions")
     public ResponseEntity<java.util.List<com.volteryde.payment.entity.PaymentTransactionEntity>> getTransactions(
             HttpServletRequest httpRequest) {
-        Long customerId = (Long) httpRequest.getAttribute("authenticatedUserId");
+        String customerId = httpRequest.getAttribute("authenticatedUserId") != null
+                ? httpRequest.getAttribute("authenticatedUserId").toString()
+                : null;
         if (customerId == null)
             return ResponseEntity.status(401).build();
         return ResponseEntity.ok(paymentService.getTransactions(customerId));

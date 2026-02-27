@@ -1,0 +1,111 @@
+# syntax=docker/dockerfile:1.4
+# ============================================================================
+# Volteryde NestJS - Production Multi-stage Build
+# ============================================================================
+# Optimized with BuildKit cache mounts and pnpm deploy for minimal image size.
+#
+# Build: DOCKER_BUILDKIT=1 docker build \
+#          -f services/volteryde-nest/Dockerfile.prod \
+#          --build-arg APP_NAME=volteryde-api \
+#          -t volteryde-api:latest \
+#          --target runner .
+# ============================================================================
+
+# =============================================================================
+# STAGE 1: Base with pnpm
+# =============================================================================
+FROM node:20-alpine AS base
+
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Enable corepack for pnpm version management
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# =============================================================================
+# STAGE 2: Dependency Installation
+# =============================================================================
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy workspace configuration files first (for better caching)
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json ./
+
+# Copy package.json files for all workspaces
+# This allows pnpm to understand the workspace structure
+COPY services/volteryde-nest/package.json ./services/volteryde-nest/
+COPY packages/ ./packages/
+
+# Install dependencies with BuildKit cache mount
+# The pnpm store is cached between builds for instant installs
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm install --frozen-lockfile
+
+# =============================================================================
+# STAGE 3: Builder
+# =============================================================================
+FROM deps AS builder
+
+ARG APP_NAME=volteryde-api
+
+WORKDIR /app
+
+# Copy all source code
+COPY services/volteryde-nest/ ./services/volteryde-nest/
+COPY packages/ ./packages/
+
+# Build the NestJS application
+# Using nest build for proper monorepo compilation
+WORKDIR /app/services/volteryde-nest
+RUN pnpm run build
+
+# Deploy to a clean directory with production dependencies only
+# pnpm deploy creates an isolated package with only what's needed
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm --filter=@volteryde/nest --prod deploy /prod/app
+
+# Copy built artifacts to the deployed directory
+RUN cp -r dist /prod/app/dist
+
+# =============================================================================
+# STAGE 4: Production Runner
+# =============================================================================
+FROM node:20-alpine AS runner
+
+# Receive build argument for app-specific configuration
+ARG APP_NAME=volteryde-api
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
+RUN apk add --no-cache dumb-init
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nestjs -u 1001 -G nodejs
+
+# Copy the deployed application (pruned production deps + built code)
+COPY --from=builder --chown=nestjs:nodejs /prod/app ./
+
+# Switch to non-root user
+USER nestjs
+
+# Production environment
+ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+ENV APP_NAME=${APP_NAME}
+
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+	CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Use dumb-init for proper signal handling (PID 1)
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application using shell form to allow variable expansion
+CMD ["sh", "-c", "node dist/${APP_NAME}/${APP_NAME}/src/main.js"]

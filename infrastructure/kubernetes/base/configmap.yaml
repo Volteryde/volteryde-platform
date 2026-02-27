@@ -9,18 +9,19 @@ metadata:
   labels:
     app: volteryde
 data:
-  # Database Configuration
-  DATABASE_HOST: "postgres-service"
+  # Database Configuration - AWS RDS PostgreSQL
+  DATABASE_HOST: "CHANGE_ME_DB_HOST"
   DATABASE_PORT: "5432"
-  DATABASE_NAME: "volteryde"
+  DATABASE_NAME: "CHANGE_ME_DB_NAME"
   
   # Redis Configuration
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
   
-  # Temporal Configuration
-  TEMPORAL_ADDRESS: "temporal-service:7233"
-  TEMPORAL_NAMESPACE: "default"
+  # Temporal Cloud Configuration
+  TEMPORAL_ADDRESS: "sa-east-1.aws.api.temporal.io:7233"
+  TEMPORAL_NAMESPACE: "CHANGE_ME_TEMPORAL_NAMESPACE"
+  TEMPORAL_TASK_QUEUE: "volteryde-booking"
   
   # Kafka Configuration
   KAFKA_BROKERS: "kafka-service:9092"
@@ -30,7 +31,19 @@ data:
   LOG_LEVEL: "info"
   
   # API Gateway Configuration
-  API_GATEWAY_URL: "https://api.volteryde.com"
+  API_GATEWAY_URL: "https://CHANGE_ME_API_GATEWAY_URL"
   
   # CORS Configuration
-  CORS_ORIGINS: "https://volteryde.com,https://www.volteryde.com"
+  CORS_ORIGINS: "https://CHANGE_ME_CORS_ORIGINS"
+  
+  # Per-Service Schema Mapping (Database-per-Domain Pattern)
+  AUTH_DATABASE_SCHEMA: "svc_auth"
+  CLIENT_AUTH_DATABASE_SCHEMA: "svc_client_auth"
+  USERS_DATABASE_SCHEMA: "svc_users"
+  PAYMENT_DATABASE_SCHEMA: "svc_payment"
+  FLEET_DATABASE_SCHEMA: "svc_fleet"
+  CHARGING_DATABASE_SCHEMA: "svc_charging"
+  BOOKING_DATABASE_SCHEMA: "svc_booking"
+  TELEMATICS_DATABASE_SCHEMA: "svc_telematics"
+  CORE_DATABASE_SCHEMA: "svc_core"
+  NOTIFICATIONS_DATABASE_SCHEMA: "svc_notifications"

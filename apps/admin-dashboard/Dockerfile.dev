@@ -1,29 +1,52 @@
+# syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde Admin Dashboard - Development Dockerfile
 # ============================================================================
-# For development with hot-reload. Uses user directive from docker-compose.
+# For development with hot-reload. Uses BuildKit cache mounts for pnpm.
+# Optimized layer caching for package.json changes vs source code changes.
 
 FROM node:20-alpine
 
 WORKDIR /app
 
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 # Install pnpm and system deps
-RUN npm install -g pnpm@9 && \
+RUN corepack enable && corepack prepare pnpm@9 --activate && \
 	apk add --no-cache dumb-init curl
 
-# Copy lockfile and workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+# Setup non-root user
+RUN addgroup -g 1001 -S nodejs && \
+	adduser -S nodejs -u 1001 && \
+	chown -R nodejs:nodejs /app
 
-# Fetch dependencies
-RUN pnpm fetch
+# Copy lockfile and workspace config first
+COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 
-# Copy source code
-COPY . .
+# Switch to non-root user
+USER nodejs
 
-# Install dependencies
-RUN pnpm install -r
+# Fetch dependencies with BuildKit cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
+	pnpm fetch
 
-# Make .next directory writable (will be overwritten by bind mount but good for initial)
+# Copy package.jsons ONLY to install dependencies (before copying all source)
+COPY --chown=nodejs:nodejs package.json ./
+# Assuming the dashboard depends on packages/, copy those package.json files
+COPY --chown=nodejs:nodejs packages/ ./packages/
+# And copy the actual app package.json
+COPY --chown=nodejs:nodejs apps/admin-dashboard/package.json ./apps/admin-dashboard/
+
+# Install dependencies with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
+	pnpm install -r
+
+# NOW copy the rest of the source code (this layer invalidates most often)
+COPY --chown=nodejs:nodejs . .
+
+# Make .next directory writable for local dev
 RUN mkdir -p /app/apps/admin-dashboard/.next && chmod 777 /app/apps/admin-dashboard/.next
 
 # Workdir

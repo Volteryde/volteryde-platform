@@ -1,0 +1,96 @@
+# syntax=docker/dockerfile:1.4
+# ============================================================================
+# Volteryde Temporal Workers - Production Build
+# ============================================================================
+# Optimized with BuildKit cache mounts for Temporal native modules.
+#
+# Build: DOCKER_BUILDKIT=1 docker build \
+#          -f workers/temporal-workers/Dockerfile.prod \
+#          -t volteryde-temporal-workers:latest \
+#          --target runner .
+# ============================================================================
+
+# =============================================================================
+# STAGE 1: Base with build tools
+# =============================================================================
+# Using slim for Temporal native module compatibility
+FROM node:20-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Install build dependencies for native modules
+RUN apt-get update && apt-get install -y \
+	python3 \
+	make \
+	g++ \
+	&& rm -rf /var/lib/apt/lists/*
+
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# =============================================================================
+# STAGE 2: Dependencies
+# =============================================================================
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy workspace configuration
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json ./
+
+# Copy worker package.json and shared packages
+COPY workers/temporal-workers/package.json ./workers/temporal-workers/
+COPY packages/ ./packages/
+
+# Install with cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	pnpm install --frozen-lockfile
+
+# =============================================================================
+# STAGE 3: Builder
+# =============================================================================
+FROM deps AS builder
+
+WORKDIR /app
+
+# Copy source code
+COPY workers/temporal-workers/ ./workers/temporal-workers/
+COPY packages/ ./packages/
+
+# Build the workers
+WORKDIR /app/workers/temporal-workers
+RUN pnpm run build
+
+# Deploy with production dependencies only
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+	cd /app && pnpm --filter=temporal-workers --prod deploy /prod/workers
+
+# Copy built artifacts
+RUN cp -r dist /prod/workers/dist
+
+# =============================================================================
+# STAGE 4: Production Runner
+# =============================================================================
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+	dumb-init \
+	&& rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -g 1001 nodejs && \
+	useradd -r -u 1001 -g nodejs nodejs
+
+# Copy deployed application
+COPY --from=builder --chown=nodejs:nodejs /prod/workers ./
+
+USER nodejs
+
+ENV NODE_ENV=production
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "dist/index.js"]

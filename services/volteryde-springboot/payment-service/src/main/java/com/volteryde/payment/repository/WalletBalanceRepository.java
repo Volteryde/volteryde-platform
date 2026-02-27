@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface WalletBalanceRepository extends JpaRepository<WalletBalanceEntity, Long> {
 
-    Optional<WalletBalanceEntity> findByCustomerId(Long customerId);
+    Optional<WalletBalanceEntity> findByCustomerId(String customerId);
 }

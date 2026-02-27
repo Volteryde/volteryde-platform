@@ -25,6 +25,7 @@ describe('Configuration', () => {
 		process.env.DATABASE_HOST = 'db-host';
 		process.env.DATABASE_PORT = '5433';
 		process.env.NODE_ENV = 'production';
+		process.env.JWT_SECRET = 'test-jwt-secret';
 
 		const config = configuration();
 		expect(config.port).toBe(4000);

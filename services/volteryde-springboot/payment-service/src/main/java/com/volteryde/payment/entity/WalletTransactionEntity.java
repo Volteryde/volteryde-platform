@@ -13,8 +13,8 @@ public class WalletTransactionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long customerId;
+    @Column(nullable = false, length = 36)
+    private String customerId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -47,7 +47,8 @@ public class WalletTransactionEntity {
     @PrePersist
     void onCreate() {
         createdAt = OffsetDateTime.now();
-        if (balanceType == null) balanceType = "REAL"; // Default to REAL for backward compatibility if needed
+        if (balanceType == null)
+            balanceType = "REAL"; // Default to REAL for backward compatibility if needed
     }
 
     public Long getId() {
@@ -58,11 +59,11 @@ public class WalletTransactionEntity {
         this.id = id;
     }
 
-    public Long getCustomerId() {
+    public String getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(Long customerId) {
+    public void setCustomerId(String customerId) {
         this.customerId = customerId;
     }
 

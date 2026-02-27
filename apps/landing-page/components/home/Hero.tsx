@@ -36,7 +36,7 @@ export function Hero() {
 						transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
 						className="font-poppins font-bold text-4xl sm:text-5xl md:text-6xl lg:text-[64px] lg:leading-[1.1] text-white mb-6 drop-shadow-lg"
 					>
-						Transforming Ghana's <br className="hidden md:block" />
+						Transforming Ghana&apos;s <br className="hidden md:block" />
 						Transportation, One <br className="hidden md:block" />
 						Electric Ride at a Time
 					</motion.h1>

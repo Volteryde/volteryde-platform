@@ -168,7 +168,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void handleSuccessfulPayment(PaymentTransactionEntity transaction, PaystackVerifyResponseData data) {
-        Long customerId = transaction.getCustomerId();
+        String customerId = transaction.getCustomerId();
 
         PaystackVerifyResponseDataAuthorization authorization = data.authorization();
         if (authorization != null && authorization.reusable()) {
@@ -181,7 +181,7 @@ public class PaymentServiceImpl implements PaymentService {
         creditWallet(customerId, transaction.getAmount(), transaction.getReference());
     }
 
-    private PaymentMethodEntity savePaymentMethod(Long customerId,
+    private PaymentMethodEntity savePaymentMethod(String customerId,
             PaystackVerifyResponseDataAuthorization authorization) {
         PaymentMethodEntity method = new PaymentMethodEntity();
         method.setCustomerId(customerId);
@@ -192,7 +192,7 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMethodRepository.save(method);
     }
 
-    private void creditWallet(Long customerId, BigDecimal amount, String reference) {
+    private void creditWallet(String customerId, BigDecimal amount, String reference) {
         // Delegate to WalletService which handles REAL balance and SIGNATURE validation
         LOGGER.info("Crediting wallet for customer {} with amount {} (Ref: {})", customerId, amount, reference);
 
@@ -228,7 +228,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentMethodResponse addPaymentMethod(Long customerId, PaymentMethodRequest request) {
+    public PaymentMethodResponse addPaymentMethod(String customerId, PaymentMethodRequest request) {
         PaymentMethodEntity method = new PaymentMethodEntity();
         method.setCustomerId(customerId);
         method.setProvider(PaymentProvider.PAYSTACK);
@@ -259,13 +259,13 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PaymentTransactionEntity> getTransactions(Long customerId) {
+    public List<PaymentTransactionEntity> getTransactions(String customerId) {
         return paymentTransactionRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
     }
 
     @Override
     @Transactional
-    public com.volteryde.payment.dto.WalletTopupResponse topupWallet(Long customerId,
+    public com.volteryde.payment.dto.WalletTopupResponse topupWallet(String customerId,
             com.volteryde.payment.dto.WalletTopupRequest request) {
         java.util.Map<String, Object> metadata = new java.util.HashMap<>();
         metadata.put("type", "WALLET_TOPUP");

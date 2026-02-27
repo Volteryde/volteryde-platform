@@ -10,6 +10,7 @@ resources:
   - serviceaccount.yaml
   - configmap.yaml
   - secrets.yaml
+  - network-policies.yaml
   - postgres-deployment.yaml
   - redis-deployment.yaml
   - nestjs-deployment.yaml

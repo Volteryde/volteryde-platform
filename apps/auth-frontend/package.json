@@ -6,7 +6,7 @@
     "dev": "next dev -p 4001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint --fix ."
   },
   "dependencies": {
     "@volteryde/config": "workspace:*",
@@ -20,6 +20,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.27",
     "@types/react": "^19.2.7",

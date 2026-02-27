@@ -9,6 +9,7 @@
         <groupId>com.volteryde</groupId>
         <artifactId>volteryde-springboot</artifactId>
         <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>api-gateway</artifactId>
@@ -19,7 +20,7 @@
         <!-- Spring Cloud Gateway -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
         </dependency>
 
         <!-- Eureka Client -->

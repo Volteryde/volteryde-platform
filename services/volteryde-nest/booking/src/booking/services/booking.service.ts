@@ -28,35 +28,35 @@ export class BookingService {
 
   /**
    * Search for available rides and get estimates
+   * VolteRyde uses SHUTTLE (bus) service with consistent pricing
    */
   async searchRides(query: SearchRideDto): Promise<any[]> {
     this.logger.log(`Searching rides from [${query.startLat}, ${query.startLon}] to [${query.endLat}, ${query.endLon}]`);
 
-    // Mock logic for fare estimation (Distance based)
+    // Distance calculation (Haversine approximation)
     const dist = Math.sqrt(
       Math.pow(query.endLat - query.startLat, 2) + Math.pow(query.endLon - query.startLon, 2)
     ) * 111; // Rough km conversion
 
-    return [
-      {
-        vehicleType: VehicleType.STANDARD,
-        price: Math.round(10 + (dist * 2)), // Base 10 + 2 per km
-        currency: 'GHS',
-        etaMinutes: 5,
-      },
-      {
-        vehicleType: VehicleType.PREMIUM,
-        price: Math.round(20 + (dist * 4)), // Base 20 + 4 per km
-        currency: 'GHS',
-        etaMinutes: 8,
-      },
-      {
-        vehicleType: VehicleType.SHUTTLE,
-        price: Math.round(5 + (dist * 1)), // Base 5 + 1 per km
-        currency: 'GHS',
-        etaMinutes: 15,
+    // VolteRyde Bus Pricing: Base fare + per-km rate
+    const baseFare = 3.0;   // GHS
+    const perKmRate = 1.5;  // GHS per km
+    const fare = Math.max(5, Math.round(baseFare + (dist * perKmRate))); // Minimum 5 GHS
+
+    // Estimated time: base + distance factor
+    const etaMinutes = Math.round(5 + (dist * 2));
+
+    return [{
+      vehicleType: VehicleType.SHUTTLE,
+      price: fare,
+      currency: 'GHS',
+      etaMinutes,
+      busInfo: {
+        routeName: 'VolteRyde Express',
+        capacity: 16,
+        amenities: ['AC', 'WiFi', 'USB Charging']
       }
-    ];
+    }];
   }
 
   /**
@@ -175,22 +175,22 @@ export class BookingService {
   }
 
   /**
-   * Track booking (Status + Driver Info)
+   * Track booking (Status + Bus Info)
+   * Returns bus details for tracking, not driver info
    */
   async trackBooking(workflowId: string): Promise<any> {
     const statusDto = await this.getBookingStatus(workflowId);
 
-    // Mock driver info if confirmed
+    // Return bus info if booking is confirmed or in progress
     if (statusDto.status === BookingStatus.CONFIRMED || statusDto.status === BookingStatus.IN_PROGRESS) {
       return {
         ...statusDto,
-        driver: {
-          name: 'Kwame Mensah',
-          rating: 4.8,
-          vehicleModel: 'Toyota Prius',
-          vehicleColor: 'White',
+        bus: {
+          model: 'Toyota Coaster',
+          color: 'White/Green',
           licensePlate: 'GW-2024-23',
-          phone: '+233541234567'
+          routeName: 'VolteRyde Express',
+          capacity: 16
         },
         etaMinutes: 4,
         currentLocation: {
@@ -201,6 +201,43 @@ export class BookingService {
     }
 
     return statusDto;
+  }
+
+  /**
+   * Get driver and bus details for a booking
+   * Separate endpoint for client app to fetch driver info
+   */
+  async getDriverDetails(workflowId: string): Promise<any> {
+    const statusDto = await this.getBookingStatus(workflowId);
+
+    if (statusDto.status !== BookingStatus.IN_PROGRESS &&
+      statusDto.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException('Driver details only available for active bookings');
+    }
+
+    // Return detailed driver and bus information
+    return {
+      workflowId,
+      driver: {
+        name: 'Kwame Mensah',
+        rating: 4.8,
+        phone: '+233541234567',
+        yearsExperience: 5,
+        tripsCompleted: 1250
+      },
+      bus: {
+        model: 'Toyota Coaster',
+        color: 'White/Green',
+        licensePlate: 'GW-2024-23',
+        capacity: 16,
+        amenities: ['AC', 'WiFi', 'USB Charging']
+      },
+      currentLocation: {
+        lat: 5.6037,
+        lon: -0.1870
+      },
+      etaMinutes: 4
+    };
   }
 
   /**

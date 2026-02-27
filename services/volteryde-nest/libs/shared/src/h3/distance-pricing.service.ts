@@ -190,7 +190,7 @@ export class DistancePricingService {
 
     // Step 4: Calculate fare components
     const distanceCharge = distanceKm * ratePerKm;
-    let subtotal = baseFare + distanceCharge + this.pricingConfig.bookingFee;
+    const subtotal = baseFare + distanceCharge + this.pricingConfig.bookingFee;
 
     // Step 5: Apply minimum fare if needed
     const minimumFareApplied = subtotal < minimumFare;
@@ -251,7 +251,7 @@ export class DistancePricingService {
     const minimumFare = this.calculateEffectiveMinimumFare(pickupZone, dropoffZone);
 
     const distanceCharge = distanceKm * ratePerKm;
-    let subtotal = baseFare + distanceCharge + this.pricingConfig.bookingFee;
+    const subtotal = baseFare + distanceCharge + this.pricingConfig.bookingFee;
 
     const minimumFareApplied = subtotal < minimumFare;
     const totalFare = Math.max(subtotal, minimumFare);

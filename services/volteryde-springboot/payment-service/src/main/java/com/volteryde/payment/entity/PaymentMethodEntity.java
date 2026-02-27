@@ -12,8 +12,8 @@ public class PaymentMethodEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long customerId;
+    @Column(nullable = false, length = 36)
+    private String customerId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
@@ -54,11 +54,11 @@ public class PaymentMethodEntity {
         this.id = id;
     }
 
-    public Long getCustomerId() {
+    public String getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(Long customerId) {
+    public void setCustomerId(String customerId) {
         this.customerId = customerId;
     }
 

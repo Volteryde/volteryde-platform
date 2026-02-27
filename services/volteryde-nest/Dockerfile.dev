@@ -1,14 +1,20 @@
+# # syntax=docker/dockerfile:1.4
 # ============================================================================
 # Volteryde NestJS Backend - Development Docker Build
 # ============================================================================
 # This Dockerfile is optimized for development with hot-reload support
+# Uses BuildKit cache mounts for faster dependency installation
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm and system deps
-RUN npm install -g pnpm@9 && \
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Install pnpm via corepack and system deps
+RUN corepack enable && corepack prepare pnpm@9 --activate && \
     apk add --no-cache dumb-init
 
 # Create non-root user and set permissions for /app
@@ -22,14 +28,21 @@ COPY --chown=nodejs:nodejs pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 # Switch to non-root user BEFORE fetching/installing
 USER nodejs
 
-# Fetch dependencies (cached step)
-RUN pnpm fetch
+# Fetch dependencies with BuildKit cache mount (cached step)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
+    pnpm fetch
 
 # Copy source code with ownership
-COPY --chown=nodejs:nodejs . .
+COPY --chown=nodejs:nodejs package.json ./
+# ONLY target specific required services instead of the whole monorepo
+COPY --chown=nodejs:nodejs packages ./packages
+COPY --chown=nodejs:nodejs services/volteryde-nest ./services/volteryde-nest
 
-# Install dependencies from offline store
-RUN pnpm install -r
+# Install dependencies from offline store with cache mount
+# using --filter to only install dependencies for the nest service and its local package dependencies
+ENV CI=true
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
+    pnpm install --filter @volteryde/nest...
 
 # Working directory for the service
 WORKDIR /app/services/volteryde-nest

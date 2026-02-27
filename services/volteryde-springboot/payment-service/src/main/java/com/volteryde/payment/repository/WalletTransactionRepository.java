@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WalletTransactionRepository extends JpaRepository<WalletTransactionEntity, Long> {
-	java.util.List<WalletTransactionEntity> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+	java.util.List<WalletTransactionEntity> findByCustomerIdOrderByCreatedAtDesc(String customerId);
 }

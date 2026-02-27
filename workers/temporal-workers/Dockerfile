@@ -2,58 +2,57 @@
 # Volteryde Temporal Workers - Multi-stage Docker Build
 # ============================================================================
 
-# Stage 1: Dependencies
-FROM node:20-alpine AS dependencies
+# Stage 1: Base with pnpm
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@8
+# Set pnpm environment
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 
-# Copy monorepo workspace files
-COPY pnpm-workspace.yaml ./
+# Enable corepack for pnpm version management
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# Stage 2: Dependencies
+FROM base AS deps
+
+WORKDIR /app
+
+# Copy workspace files
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY package.json ./
-COPY pnpm-lock.yaml* ./
 
 # Copy worker package.json
 COPY workers/temporal-workers/package.json ./workers/temporal-workers/
 
-# Install all dependencies (including workspace dependencies)
-RUN pnpm install
+# Install dependencies with BuildKit cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
+# Stage 3: Builder
+FROM deps AS builder
 
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@8
-
-# Copy dependencies from previous stage
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY --from=dependencies /app/workers/temporal-workers/node_modules ./workers/temporal-workers/node_modules
-
-# Copy workspace configuration
-COPY pnpm-workspace.yaml ./
-COPY package.json pnpm-lock.yaml ./
-
-# Copy worker source code
+# Copy all source code
 COPY workers/temporal-workers ./workers/temporal-workers
 
-# Copy shared packages if they exist
-COPY packages ./packages
-
-# Build the application
+# Build the worker application
 WORKDIR /app/workers/temporal-workers
 RUN pnpm build
 
-# Stage 3: Production
+# Deploy to an isolated directory with only production dependencies
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter=@volteryde/temporal-workers --prod deploy /prod/worker
+
+# Copy built artifacts to the deployed directory
+RUN cp -r dist /prod/worker/dist
+
+# Stage 4: Production Runner
 FROM node:20-alpine AS production
 
 WORKDIR /app
-
-# Install pnpm
-RUN npm install -g pnpm@8
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
@@ -62,29 +61,18 @@ RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy workspace configuration
-COPY pnpm-workspace.yaml ./
-COPY package.json ./
-COPY pnpm-lock.yaml* ./
-COPY workers/temporal-workers/package.json ./workers/temporal-workers/
-
-# Install production dependencies only
-RUN pnpm install --prod
-
-# Copy built application from builder stage
-COPY --from=builder --chown=nodejs:nodejs /app/workers/temporal-workers/dist ./dist
-
-# Set ownership
-RUN chown -R nodejs:nodejs /app
+# Copy the deployed application (pruned production deps + built code)
+COPY --from=builder --chown=nodejs:nodejs /prod/worker ./
 
 # Switch to non-root user
 USER nodejs
 
-# Temporal workers don't expose HTTP ports typically
-# But we can add a health check endpoint if needed
-
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
+
+# Set healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').request('http://localhost:7233/health').end()" || exit 1
 
 # Start the worker
 CMD ["node", "dist/index.js"]

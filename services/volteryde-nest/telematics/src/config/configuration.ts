@@ -19,6 +19,7 @@ export default () => {
 			username: process.env.DATABASE_USERNAME || 'postgres',
 			password: process.env.DATABASE_PASSWORD || 'postgres',
 			name: process.env.DATABASE_NAME || 'volteryde',
+			schema: process.env.DATABASE_SCHEMA || 'public',
 		},
 		jwt: {
 			// Use env var or development-only fallback

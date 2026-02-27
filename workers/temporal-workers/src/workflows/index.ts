@@ -3,4 +3,4 @@
  * Exports all workflows for Temporal workers
  */
 
-export * from './booking.workflow';
+export * from "./booking.workflow";

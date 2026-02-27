@@ -6,17 +6,19 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
+
 @Configuration
 public class PaystackHttpConfig {
 
     @Bean
     public RestTemplate paystackRestTemplate(RestTemplateBuilder builder, PaystackProperties properties) {
         return builder
-            .setConnectTimeout(properties.getConnectTimeout())
-            .setReadTimeout(properties.getReadTimeout())
-            .rootUri(properties.getBaseUrl())
-            .additionalInterceptors(authorizationInterceptor(properties))
-            .build();
+                .setConnectTimeout(properties.getConnectTimeout())
+                .setReadTimeout(properties.getReadTimeout())
+                .rootUri(properties.getBaseUrl())
+                .additionalInterceptors(authorizationInterceptor(properties))
+                .build();
     }
 
     private ClientHttpRequestInterceptor authorizationInterceptor(PaystackProperties properties) {
