@@ -19,7 +19,7 @@ jobs:
     
     strategy:
       matrix:
-        environment: [dev, staging, production]
+        environment: [development, staging, production]
     
     steps:
       - name: Checkout code
