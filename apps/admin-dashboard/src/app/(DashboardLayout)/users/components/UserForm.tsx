@@ -31,7 +31,7 @@ type UserFormValues = z.infer<typeof userSchema>;
 
 export function UserForm() {
 	const form = useForm<UserFormValues>({
-		resolver: zodResolver(userSchema),
+		resolver: zodResolver(userSchema as any),
 		defaultValues: {
 			name: '',
 			email: '',
