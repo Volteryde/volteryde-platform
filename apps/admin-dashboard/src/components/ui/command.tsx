@@ -18,7 +18,7 @@ const Command = React.forwardRef<
       'flex h-full w-full flex-col overflow-hidden rounded-md bg-white dark:bg-dark text-ld',
       className
     )}
-    {...props}
+    {...(props as any)}
   />
 ))
 Command.displayName = CommandPrimitive.displayName
