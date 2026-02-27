@@ -7,19 +7,21 @@ jest.mock('@volteryde/api-client', () => ({
 		getUsers: jest.fn().mockResolvedValue([
 			{
 				id: 'u1',
+				userId: 'USR-001',
 				firstName: 'Alice',
 				lastName: 'Johnson',
 				email: 'alice@admin.com',
 				role: 'ADMIN',
-				isActive: true,
+				status: 'ACTIVE',
 			},
 			{
 				id: 'u2',
+				userId: 'USR-002',
 				firstName: 'Bob',
 				lastName: 'Smith',
 				email: 'bob@driver.com',
 				role: 'DRIVER',
-				isActive: true,
+				status: 'ACTIVE',
 			},
 		]),
 	},
@@ -37,7 +39,7 @@ describe('UserTable', () => {
 		expect(screen.getByText('Status')).toBeInTheDocument();
 	});
 
-	it.skip('renders user data after loading', async () => {
+	it('renders user data after loading', async () => {
 		render(<UserTable />);
 
 		// Wait for API data to load
