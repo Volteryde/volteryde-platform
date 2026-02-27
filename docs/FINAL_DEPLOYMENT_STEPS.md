@@ -309,7 +309,7 @@ aws ecr list-images --repository-name volteryde/nestjs-api --region sa-east-1
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -n production -- sh
 
 # Then inside the pod
-psql "postgresql://postgres.etbfbasoqxwxvoqefcuo:x2EOaivfJ9jQoTl9@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 ```
 
 ### Load Balancer Not Created

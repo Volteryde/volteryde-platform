@@ -502,8 +502,8 @@ aws secretsmanager create-secret \
   --name volteryde/production/database \
   --description "Supabase database credentials" \
   --secret-string '{
-    "username": "postgres.etbfbasoqxwxvoqefcuo",
-    "password": "x2EOaivfJ9jQoTl9",
+    "username": "postgres.YOUR_PROJECT_REF",
+    "password": "YOUR_DATABASE_PASSWORD",
     "host": "aws-0-sa-east-1.pooler.supabase.com",
     "port": "6543",
     "database": "postgres"
@@ -1181,7 +1181,7 @@ kubectl logs <pod-name> -n production
 ```bash
 # Test connectivity from pod
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -- sh
-psql "postgresql://postgres.etbfbasoqxwxvoqefcuo:password@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 
 # Common causes:
 # - Incorrect credentials in secrets

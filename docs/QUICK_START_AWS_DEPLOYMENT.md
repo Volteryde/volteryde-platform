@@ -134,8 +134,8 @@ helm install external-secrets external-secrets/external-secrets \
 aws secretsmanager create-secret \
   --name volteryde/production/database \
   --secret-string '{
-    "username": "postgres.etbfbasoqxwxvoqefcuo",
-    "password": "x2EOaivfJ9jQoTl9",
+    "username": "postgres.YOUR_PROJECT_REF",
+    "password": "YOUR_DATABASE_PASSWORD",
     "host": "aws-0-sa-east-1.pooler.supabase.com",
     "port": "6543",
     "database": "postgres"
@@ -301,7 +301,7 @@ kubectl logs <pod-name> -n production
 ```bash
 # Test from within cluster
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -- sh
-psql "postgresql://postgres.etbfbasoqxwxvoqefcuo:x2EOaivfJ9jQoTl9@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 ```
 
 ### Image Pull Errors

@@ -309,8 +309,8 @@ Update `secrets.yaml` with actual values before deploying:
 
 ```bash
 kubectl create secret generic volteryde-secrets \
-  --from-literal=DATABASE_USER='postgres.etbfbasoqxwxvoqefcuo' \
-  --from-literal=DATABASE_PASSWORD='x2EOaivfJ9jQoTl9' \
+  --from-literal=DATABASE_USER='postgres.YOUR_PROJECT_REF' \
+  --from-literal=DATABASE_PASSWORD='YOUR_DATABASE_PASSWORD' \
   --from-literal=TEMPORAL_API_KEY='eyJhbGciOiJFUzI1NiIsImtpZCI6Ild2dHdhQSJ9...' \
   --from-literal=JWT_SECRET='C2Z7xhu2LQ/wFDIwozGw+m93idf3Ml5IcFcsA+vkI0g=' \
   -n production

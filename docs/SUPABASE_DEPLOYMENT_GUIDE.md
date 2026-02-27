@@ -31,7 +31,7 @@ Each microservice uses a dedicated PostgreSQL schema within the same Supabase da
 - **Benefits**: Connection pooling, IPv4 compatibility, better performance
 
 **Direct Connection** (for migrations/admin tasks only):
-- **Host**: `db.etbfbasoqxwxvoqefcuo.supabase.co`
+- **Host**: `db.YOUR_PROJECT_REF.supabase.co`
 - **Port**: `5432`
 - **Note**: IPv6 only, no connection pooling
 
@@ -46,11 +46,11 @@ Each microservice uses a dedicated PostgreSQL schema within the same Supabase da
 SUPABASE_HOST=aws-0-sa-east-1.pooler.supabase.com
 SUPABASE_PORT=6543
 SUPABASE_DB=postgres
-SUPABASE_USER=postgres.etbfbasoqxwxvoqefcuo
-SUPABASE_PASSWORD=x2EOaivfJ9jQoTl9
+SUPABASE_USER=postgres.YOUR_PROJECT_REF
+SUPABASE_PASSWORD=YOUR_SUPABASE_PASSWORD
 
 # Supabase API
-SUPABASE_URL=https://etbfbasoqxwxvoqefcuo.supabase.co
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
@@ -119,8 +119,8 @@ SUPABASE_HOST=aws-0-sa-east-1.pooler.supabase.com
 SUPABASE_PORT=6543
 DATABASE_HOST=aws-0-sa-east-1.pooler.supabase.com
 DATABASE_PORT=6543
-DATABASE_USERNAME=postgres.etbfbasoqxwxvoqefcuo
-DATABASE_PASSWORD=x2EOaivfJ9jQoTl9
+DATABASE_USERNAME=postgres.YOUR_PROJECT_REF
+DATABASE_PASSWORD=YOUR_DATABASE_PASSWORD
 DATABASE_NAME=postgres
 
 # Run service
@@ -196,9 +196,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA svc_notifications GRANT ALL ON TABLES TO post
 ```bash
 # Create secret with Supabase credentials
 kubectl create secret generic volteryde-secrets \
-  --from-literal=DATABASE_USER='postgres.etbfbasoqxwxvoqefcuo' \
-  --from-literal=DATABASE_PASSWORD='x2EOaivfJ9jQoTl9' \
-  --from-literal=SUPABASE_PASSWORD='x2EOaivfJ9jQoTl9' \
+  --from-literal=DATABASE_USER='postgres.YOUR_PROJECT_REF' \
+  --from-literal=DATABASE_PASSWORD='YOUR_DATABASE_PASSWORD' \
+  --from-literal=SUPABASE_PASSWORD='YOUR_SUPABASE_PASSWORD' \
   --from-literal=TEMPORAL_API_KEY='eyJhbGciOiJFUzI1NiIsImtpZCI6Ild2dHdhQSJ9...' \
   --from-literal=JWT_SECRET='your-jwt-secret' \
   --dry-run=client -o yaml | kubectl apply -f -
@@ -304,7 +304,7 @@ TypeORM connection pool settings (already configured):
 ### Supabase Dashboard
 
 Monitor database performance in Supabase Dashboard:
-- **URL**: https://supabase.com/dashboard/project/etbfbasoqxwxvoqefcuo
+- **URL**: https://supabase.com/dashboard/project/YOUR_PROJECT_REF
 - **Metrics**: Query performance, connection count, storage usage
 - **Logs**: Real-time database logs
 
@@ -380,7 +380,7 @@ CREATE POLICY user_isolation ON svc_users.users
 
 ### Authentication Failed
 
-**Symptom**: `password authentication failed for user "postgres.etbfbasoqxwxvoqefcuo"`
+**Symptom**: `password authentication failed for user "postgres.YOUR_PROJECT_REF"`
 
 **Solutions**:
 1. Verify `SUPABASE_PASSWORD` is correct
@@ -431,7 +431,7 @@ pg_dump -h localhost -U postgres -n svc_booking -f booking_schema.sql volteryde
 
 ```bash
 # Import via psql (use direct connection)
-psql "postgresql://postgres.etbfbasoqxwxvoqefcuo:x2EOaivfJ9jQoTl9@db.etbfbasoqxwxvoqefcuo.supabase.co:5432/postgres" \
+psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres" \
   -f booking_schema.sql
 ```
 
@@ -468,7 +468,7 @@ Supabase provides automatic daily backups:
 
 ```bash
 # Backup specific schema
-pg_dump "postgresql://postgres.etbfbasoqxwxvoqefcuo:x2EOaivfJ9jQoTl9@db.etbfbasoqxwxvoqefcuo.supabase.co:5432/postgres" \
+pg_dump "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres" \
   -n svc_booking \
   -f backup_$(date +%Y%m%d).sql
 ```
@@ -510,7 +510,7 @@ Monitor usage and upgrade plan as needed:
 
 ### Supabase Resources
 - **Documentation**: https://supabase.com/docs
-- **Dashboard**: https://supabase.com/dashboard/project/etbfbasoqxwxvoqefcuo
+- **Dashboard**: https://supabase.com/dashboard/project/YOUR_PROJECT_REF
 - **Status**: https://status.supabase.com
 - **Community**: https://github.com/supabase/supabase/discussions
 
