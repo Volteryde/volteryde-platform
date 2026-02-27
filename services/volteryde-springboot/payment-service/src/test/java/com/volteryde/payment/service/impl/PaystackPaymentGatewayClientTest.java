@@ -60,7 +60,7 @@ class PaystackPaymentGatewayClientTest {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
                 new BigDecimal("1000.00"),
                 "NGN",
-                1L,
+                "1",
                 "user@example.com",
                 "REF-100",
                 "https://callback",
@@ -96,7 +96,7 @@ class PaystackPaymentGatewayClientTest {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
                 BigDecimal.TEN,
                 "NGN",
-                2L,
+                "2",
                 "user@example.com",
                 "REF-FAIL",
                 null,
@@ -118,7 +118,7 @@ class PaystackPaymentGatewayClientTest {
         PaymentInitializationRequest request = new PaymentInitializationRequest(
                 BigDecimal.ONE,
                 "NGN",
-                3L,
+                "3",
                 "user@example.com",
                 "REF-ERROR",
                 null,

@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -75,16 +74,16 @@ public class GoogleOAuthService {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> tokenInfo = restTemplate.getForObject(
-                    GOOGLE_TOKEN_INFO_URL + idToken, 
-                    Map.class
-            );
+                    GOOGLE_TOKEN_INFO_URL + idToken,
+                    Map.class);
 
             if (tokenInfo == null || tokenInfo.containsKey("error")) {
                 logger.warn("Invalid Google token: {}", tokenInfo);
                 throw new InvalidCredentialsException("Invalid Google ID token");
             }
 
-            // Austin: Verify audience matches one of our valid client IDs (Web, iOS, or Android)
+            // Austin: Verify audience matches one of our valid client IDs (Web, iOS, or
+            // Android)
             if (!validClientIds.isEmpty()) {
                 String aud = (String) tokenInfo.get("aud");
                 if (!validClientIds.contains(aud)) {
@@ -127,25 +126,60 @@ public class GoogleOAuthService {
         private String fullName;
         private String pictureUrl;
 
-        public String getGoogleId() { return googleId; }
-        public void setGoogleId(String googleId) { this.googleId = googleId; }
+        public String getGoogleId() {
+            return googleId;
+        }
 
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setGoogleId(String googleId) {
+            this.googleId = googleId;
+        }
 
-        public boolean isEmailVerified() { return emailVerified; }
-        public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+        public String getEmail() {
+            return email;
+        }
 
-        public String getFirstName() { return firstName; }
-        public void setFirstName(String firstName) { this.firstName = firstName; }
+        public void setEmail(String email) {
+            this.email = email;
+        }
 
-        public String getLastName() { return lastName; }
-        public void setLastName(String lastName) { this.lastName = lastName; }
+        public boolean isEmailVerified() {
+            return emailVerified;
+        }
 
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
+        public void setEmailVerified(boolean emailVerified) {
+            this.emailVerified = emailVerified;
+        }
 
-        public String getPictureUrl() { return pictureUrl; }
-        public void setPictureUrl(String pictureUrl) { this.pictureUrl = pictureUrl; }
+        public String getFirstName() {
+            return firstName;
+        }
+
+        public void setFirstName(String firstName) {
+            this.firstName = firstName;
+        }
+
+        public String getLastName() {
+            return lastName;
+        }
+
+        public void setLastName(String lastName) {
+            this.lastName = lastName;
+        }
+
+        public String getFullName() {
+            return fullName;
+        }
+
+        public void setFullName(String fullName) {
+            this.fullName = fullName;
+        }
+
+        public String getPictureUrl() {
+            return pictureUrl;
+        }
+
+        public void setPictureUrl(String pictureUrl) {
+            this.pictureUrl = pictureUrl;
+        }
     }
 }

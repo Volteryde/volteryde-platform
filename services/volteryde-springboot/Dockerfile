@@ -44,7 +44,9 @@ WORKDIR /app
 RUN apk add --no-cache dumb-init wget
 
 RUN addgroup -g 1001 -S spring && \
-  adduser -S spring -u 1001
+  adduser -S spring -u 1001 && \
+  mkdir -p /app/logs && \
+  chown -R spring:spring /app/logs
 
 ARG SERVICE_NAME
 # Copy the built jar

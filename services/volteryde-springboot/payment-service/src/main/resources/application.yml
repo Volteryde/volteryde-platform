@@ -6,13 +6,13 @@ server:
 spring:
   application:
     name: payment-service
-  
+
   datasource:
     url: jdbc:postgresql://localhost:5432/volteryde_payment_system
     username: postgres
     password: NewPost
     driver-class-name: org.postgresql.Driver
-    
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,6 +20,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${DATABASE_SCHEMA:public}
 
 paystack:
   secret-key: ${PAYSTACK_SECRET_KEY:sk_test_9bbb6b82c6c72285fa087721d1e293bdc68f64f1}

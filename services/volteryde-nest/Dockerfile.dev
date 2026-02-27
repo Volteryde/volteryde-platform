@@ -32,15 +32,17 @@ USER nodejs
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
     pnpm fetch
 
-# Copy source code with ownership (only what's needed for NestJS services)
+# Copy source code with ownership
 COPY --chown=nodejs:nodejs package.json ./
+# ONLY target specific required services instead of the whole monorepo
 COPY --chown=nodejs:nodejs packages ./packages
 COPY --chown=nodejs:nodejs services/volteryde-nest ./services/volteryde-nest
 
 # Install dependencies from offline store with cache mount
+# using --filter to only install dependencies for the nest service and its local package dependencies
 ENV CI=true
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,uid=1001,gid=1001 \
-    pnpm install -r
+    pnpm install --filter @volteryde/nest...
 
 # Working directory for the service
 WORKDIR /app/services/volteryde-nest

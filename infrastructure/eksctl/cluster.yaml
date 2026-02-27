@@ -1,0 +1,162 @@
+# ============================================================================
+# EKS Cluster Configuration for Volteryde Platform
+# ============================================================================
+# Usage: eksctl create cluster -f infrastructure/eksctl/cluster.yaml
+# ============================================================================
+
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: volteryde-production
+  region: sa-east-1
+  version: "1.30"
+  tags:
+    Environment: production
+    Project: Volteryde
+    ManagedBy: eksctl
+
+# IAM OIDC Provider (required for IRSA - IAM Roles for Service Accounts)
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      wellKnownPolicies:
+        awsLoadBalancerController: true
+    - metadata:
+        name: volteryde-sa
+        namespace: production
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+# VPC Configuration
+vpc:
+  cidr: 10.0.0.0/16
+  nat:
+    gateway: HighlyAvailable
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: true
+
+# Managed Node Groups
+managedNodeGroups:
+  # NestJS Services Node Group
+  - name: nestjs-services
+    instanceType: t3.medium
+    desiredCapacity: 3
+    minSize: 3
+    maxSize: 10
+    volumeSize: 50
+    volumeType: gp3
+    labels:
+      workload: nestjs
+      component: backend
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/volteryde-production: "owned"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        albIngress: true
+        ebs: true
+        efs: true
+        cloudWatch: true
+    ssh:
+      allow: true
+      publicKeyName: volteryde-eks-key  # Change to your SSH key name
+
+  # Spring Boot Services Node Group
+  - name: springboot-services
+    instanceType: t3.large
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 6
+    volumeSize: 50
+    volumeType: gp3
+    labels:
+      workload: springboot
+      component: backend
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/volteryde-production: "owned"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        albIngress: true
+        ebs: true
+        cloudWatch: true
+    ssh:
+      allow: true
+      publicKeyName: volteryde-eks-key
+
+  # Temporal Workers Node Group
+  - name: temporal-workers
+    instanceType: t3.small
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 8
+    volumeSize: 30
+    volumeType: gp3
+    labels:
+      workload: temporal
+      component: workers
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/volteryde-production: "owned"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+    ssh:
+      allow: true
+      publicKeyName: volteryde-eks-key
+
+  # System Services Node Group (Redis, monitoring, etc.)
+  - name: system-services
+    instanceType: t3.small
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 4
+    volumeSize: 30
+    volumeType: gp3
+    labels:
+      workload: system
+      component: infrastructure
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/volteryde-production: "owned"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        ebs: true
+        cloudWatch: true
+    ssh:
+      allow: true
+      publicKeyName: volteryde-eks-key
+
+# Add-ons
+addons:
+  - name: vpc-cni
+    version: latest
+  - name: coredns
+    version: latest
+  - name: kube-proxy
+    version: latest
+  - name: aws-ebs-csi-driver
+    version: latest
+    wellKnownPolicies:
+      ebsCSIController: true
+
+# CloudWatch Logging
+cloudWatch:
+  clusterLogging:
+    enableTypes:
+      - api
+      - audit
+      - authenticator
+      - controllerManager
+      - scheduler
+    logRetentionInDays: 30

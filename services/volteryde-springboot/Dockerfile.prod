@@ -88,7 +88,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Create non-root user for security
 RUN groupadd -g 1001 spring && \
-    useradd -r -u 1001 -g spring spring
+    useradd -r -u 1001 -g spring spring && \
+    mkdir -p /app/logs && \
+    chown -R spring:spring /app/logs
 
 # Copy Spring Boot layers in order of volatility
 # (least changing → most changing for optimal caching)

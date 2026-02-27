@@ -1,0 +1,132 @@
+# =============================================================================
+# Docker Compose OVERRIDE for Supabase PostgreSQL
+# =============================================================================
+# Usage: docker compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
+#
+# This override file:
+#   1. Replaces local postgres with a lightweight stub (satisfies depends_on)
+#   2. Points all services at Supabase (via env vars from .env)
+#   3. Sets the correct DATABASE_SCHEMA per service
+#   4. Disables temporal stack (not migrated to Supabase)
+#
+# Prerequisites:
+#   - Ensure your .env file contains the Supabase connection details.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Replace local postgres with a lightweight stub that passes healthchecks.
+  # This ensures depends_on: postgres still resolves for all services.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: busybox:latest
+    command: ["sh", "-c", "echo 'Supabase mode - postgres stub' && sleep infinity"]
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5s
+      timeout: 2s
+      retries: 1
+    restart: "no"
+    volumes: []
+    ports: []
+
+  # --- Temporal stack disabled (not migrated to Supabase) ---
+  temporal:
+    profiles: ["disabled"]
+  temporal-admin-tools:
+    profiles: ["disabled"]
+  temporal-ui:
+    profiles: ["disabled"]
+  temporal-workers:
+    profiles: ["disabled"]
+
+  # ============================================================================
+  # NestJS Services → Supabase
+  # ============================================================================
+
+  telematics-service:
+    environment:
+      - DATABASE_URL=postgresql://postgres:${SUPABASE_PASSWORD}@${SUPABASE_HOST}:${SUPABASE_PORT}/${SUPABASE_DB}
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${TELEMATICS_DATABASE_SCHEMA:-svc_telematics}
+
+  fleet-service:
+    environment:
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${FLEET_DATABASE_SCHEMA:-svc_fleet}
+
+  charging-service:
+    environment:
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${CHARGING_DATABASE_SCHEMA:-svc_charging}
+
+  booking-service:
+    environment:
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${BOOKING_DATABASE_SCHEMA:-svc_booking}
+
+  volteryde-api:
+    environment:
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${CORE_DATABASE_SCHEMA:-svc_core}
+
+  notifications-service:
+    environment:
+      - DATABASE_HOST=${SUPABASE_HOST}
+      - DATABASE_PORT=${SUPABASE_PORT}
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_NAME=${SUPABASE_DB}
+      - DATABASE_SCHEMA=${NOTIFICATIONS_DATABASE_SCHEMA:-svc_users}
+
+  # ============================================================================
+  # Spring Boot Services → Supabase
+  # ============================================================================
+
+  auth-service:
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${SUPABASE_HOST}:${SUPABASE_PORT}/${SUPABASE_DB}
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_SCHEMA=${AUTH_DATABASE_SCHEMA:-svc_auth}
+
+  client-auth-service:
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${SUPABASE_HOST}:${SUPABASE_PORT}/${SUPABASE_DB}
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_SCHEMA=${CLIENT_AUTH_DATABASE_SCHEMA:-svc_client_auth}
+
+  user-management-service:
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${SUPABASE_HOST}:${SUPABASE_PORT}/${SUPABASE_DB}
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_SCHEMA=${USERS_DATABASE_SCHEMA:-svc_users}
+
+  payment-service:
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${SUPABASE_HOST}:${SUPABASE_PORT}/${SUPABASE_DB}
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_PASSWORD}
+      - DATABASE_SCHEMA=${PAYMENT_DATABASE_SCHEMA:-svc_payment}

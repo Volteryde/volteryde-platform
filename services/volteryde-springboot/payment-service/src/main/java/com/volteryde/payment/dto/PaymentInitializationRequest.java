@@ -8,13 +8,13 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 public record PaymentInitializationRequest(
-                @NotNull @Positive BigDecimal amount,
-                @NotBlank String currency,
-                @NotNull Long customerId,
-                @NotBlank @Email String customerEmail,
-                @NotBlank String reference,
-                String callbackUrl,
-                String authorizationCode,
-                Map<String, Object> metadata) {
+      @NotNull @Positive BigDecimal amount,
+      @NotBlank String currency,
+      @NotBlank String customerId,
+      @NotBlank @Email String customerEmail,
+      @NotBlank String reference,
+      String callbackUrl,
+      String authorizationCode,
+      Map<String, Object> metadata) {
 
 }

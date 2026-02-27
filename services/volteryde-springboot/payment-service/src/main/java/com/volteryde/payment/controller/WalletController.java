@@ -33,7 +33,7 @@ public class WalletController {
 
 	@GetMapping("/balance")
 	public ResponseEntity<WalletBalanceResponse> getBalance(HttpServletRequest request) {
-		Long customerId = getAuthenticatedUserId(request);
+		String customerId = getAuthenticatedUserId(request);
 		if (customerId == null) {
 			return ResponseEntity.status(401).build();
 		}
@@ -42,7 +42,7 @@ public class WalletController {
 
 	@GetMapping("/{customerId}/balance")
 	public ResponseEntity<WalletBalanceResponse> internalGetBalance(
-			@PathVariable Long customerId,
+			@PathVariable String customerId,
 			@RequestHeader(value = "X-Internal-Service-Key", required = false) String internalKey) {
 		// Verify internal service key
 		if (internalServiceKey == null || internalServiceKey.isBlank() || !internalServiceKey.equals(internalKey)) {
@@ -53,7 +53,7 @@ public class WalletController {
 
 	@GetMapping("/transactions")
 	public ResponseEntity<List<WalletTransactionResponse>> getHistory(HttpServletRequest request) {
-		Long customerId = getAuthenticatedUserId(request);
+		String customerId = getAuthenticatedUserId(request);
 		if (customerId == null) {
 			return ResponseEntity.status(401).build();
 		}
@@ -64,7 +64,7 @@ public class WalletController {
 	public ResponseEntity<com.volteryde.payment.dto.WalletTopupResponse> topup(
 			@RequestBody @jakarta.validation.Valid com.volteryde.payment.dto.WalletTopupRequest request,
 			HttpServletRequest httpRequest) {
-		Long customerId = getAuthenticatedUserId(httpRequest);
+		String customerId = getAuthenticatedUserId(httpRequest);
 		if (customerId == null) {
 			return ResponseEntity.status(401).build();
 		}
@@ -79,10 +79,7 @@ public class WalletController {
 
 	@PostMapping("/credit")
 	public ResponseEntity<?> credit(@RequestBody WalletOperationRequest request) {
-		// Internal API - maps to depositRealFunds (simulating credit/refund)
-		// We generate a self-signed signature here or accept one?
-		// Since this is internal API called by Worker, we trust it and sign it
-		// ourselves in the service.
+		// Internal API
 		String sig = "INTERNAL-SIG-" + System.currentTimeMillis();
 		return ResponseEntity
 				.ok(walletService.depositRealFunds(request.userId(), request.amount(), request.referenceId(), sig));
@@ -97,18 +94,17 @@ public class WalletController {
 		return ResponseEntity.ok(walletService.refund(request.userId(), request.originalReferenceId(), request.amount()));
 	}
 
-	private Long getAuthenticatedUserId(HttpServletRequest request) {
-		Long attrId = (Long) request.getAttribute("authenticatedUserId");
-		if (attrId != null)
-			return attrId;
+	private String getAuthenticatedUserId(HttpServletRequest request) {
+		// Try request attribute first (set by auth filter)
+		Object attrId = request.getAttribute("authenticatedUserId");
+		if (attrId != null) {
+			return attrId.toString();
+		}
 
+		// Try X-User-Id header
 		String headerId = request.getHeader("X-User-Id");
-		if (headerId != null) {
-			try {
-				return Long.parseLong(headerId);
-			} catch (NumberFormatException e) {
-				return null;
-			}
+		if (headerId != null && !headerId.isBlank()) {
+			return headerId;
 		}
 		return null;
 	}

@@ -101,41 +101,43 @@ services:
     restart: unless-stopped
 
   # ============================================================================
-  # Temporal Workflow Engine
+  # Temporal Workflow Engine - DISABLED (Using Temporal Cloud)
   # ============================================================================
+  # NOTE: Temporal service is commented out because we're using Temporal Cloud.
+  # Production deployments connect to Temporal Cloud via TEMPORAL_ADDRESS env var.
 
-  temporal:
-    image: temporalio/auto-setup:latest
-    container_name: volteryde-temporal
-    environment:
-      - DB=postgres12
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=${POSTGRES_PASSWORD}
-      - POSTGRES_SEEDS=postgres
-      - DBNAME=temporal
-      - BIND_ON_IP=0.0.0.0
-      - SKIP_DB_CREATE=true
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    networks:
-      - volteryde-network
-    restart: unless-stopped
+  # temporal:
+  #   image: temporalio/auto-setup:latest
+  #   container_name: volteryde-temporal
+  #   environment:
+  #     - DB=postgres12
+  #     - DB_PORT=5432
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PWD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_SEEDS=postgres
+  #     - DBNAME=temporal
+  #     - BIND_ON_IP=0.0.0.0
+  #     - SKIP_DB_CREATE=true
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.25'
+  #         memory: 256M
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "sh", "-c", "nc -z localhost 7233"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 60s
+  #   networks:
+  #     - volteryde-network
+  #   restart: unless-stopped
 
   # ============================================================================
   # NestJS Backend Services (Production Images)

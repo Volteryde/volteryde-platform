@@ -10,5 +10,5 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     Optional<PaymentTransactionEntity> findByReference(String reference);
 
-    java.util.List<PaymentTransactionEntity> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+    java.util.List<PaymentTransactionEntity> findByCustomerIdOrderByCreatedAtDesc(String customerId);
 }

@@ -32,18 +32,23 @@ public class WalletServiceImpl implements WalletService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public WalletBalanceResponse getBalance(Long customerId) {
+	public WalletBalanceResponse getBalance(String customerId) {
 		WalletBalanceEntity wallet = walletBalanceRepository.findByCustomerId(customerId)
 				.orElseGet(() -> createWallet(customerId)); // Create if not exists (signed)
 
 		verifyIntegrity(wallet);
 
-		return new WalletBalanceResponse(customerId, wallet.getTotalBalance(), "GHS");
+		return new WalletBalanceResponse(
+				customerId,
+				wallet.getRealBalance(),
+				wallet.getPromoBalance(),
+				wallet.getTotalBalance(),
+				"GHS");
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<WalletTransactionResponse> getHistory(Long customerId) {
+	public List<WalletTransactionResponse> getHistory(String customerId) {
 		return walletTransactionRepository.findByCustomerIdOrderByCreatedAtDesc(customerId)
 				.stream()
 				.map(tx -> new WalletTransactionResponse(
@@ -57,7 +62,8 @@ public class WalletServiceImpl implements WalletService {
 
 	@Override
 	@Transactional
-	public WalletBalanceEntity depositRealFunds(Long customerId, BigDecimal amount, String referenceId, String signature) {
+	public WalletBalanceEntity depositRealFunds(String customerId, BigDecimal amount, String referenceId,
+			String signature) {
 		WalletBalanceEntity wallet = walletBalanceRepository.findByCustomerId(customerId)
 				.orElseGet(() -> createWallet(customerId));
 
@@ -70,13 +76,14 @@ public class WalletServiceImpl implements WalletService {
 
 		wallet = walletBalanceRepository.save(wallet);
 
-		createTransaction(wallet, amount, WalletTransactionType.CREDIT, "Paystack Deposit: " + referenceId, "REAL", referenceId);
+		createTransaction(wallet, amount, WalletTransactionType.CREDIT, "Paystack Deposit: " + referenceId, "REAL",
+				referenceId);
 		return wallet;
 	}
 
 	@Override
 	@Transactional
-	public WalletBalanceEntity addSupportFunds(Long customerId, BigDecimal amount, String reason, String adminId) {
+	public WalletBalanceEntity addSupportFunds(String customerId, BigDecimal amount, String reason, String adminId) {
 		WalletBalanceEntity wallet = walletBalanceRepository.findByCustomerId(customerId)
 				.orElseGet(() -> createWallet(customerId));
 
@@ -90,15 +97,15 @@ public class WalletServiceImpl implements WalletService {
 		wallet = walletBalanceRepository.save(wallet);
 
 		String description = String.format("Support Credit: %s (Admin: %s)", reason, adminId);
-		String referenceId = "SUP-" + System.currentTimeMillis();
+		String refId = "SUP-" + System.currentTimeMillis();
 
-		createTransaction(wallet, amount, WalletTransactionType.CREDIT, description, "PROMO", referenceId);
+		createTransaction(wallet, amount, WalletTransactionType.CREDIT, description, "PROMO", refId);
 		return wallet;
 	}
 
 	@Override
 	@Transactional
-	public WalletBalanceEntity debit(Long customerId, BigDecimal amount, String referenceId) {
+	public WalletBalanceEntity debit(String customerId, BigDecimal amount, String referenceId) {
 		WalletBalanceEntity wallet = walletBalanceRepository.findByCustomerId(customerId)
 				.orElseThrow(() -> new IllegalArgumentException("Wallet not found"));
 
@@ -134,15 +141,11 @@ public class WalletServiceImpl implements WalletService {
 
 	@Override
 	@Transactional
-	public WalletBalanceEntity refund(Long customerId, String originalReferenceId, BigDecimal amount) {
+	public WalletBalanceEntity refund(String customerId, String originalReferenceId, BigDecimal amount) {
 		WalletBalanceEntity wallet = walletBalanceRepository.findByCustomerId(customerId)
 				.orElseThrow(() -> new IllegalArgumentException("Wallet not found"));
 
 		verifyIntegrity(wallet);
-
-		// Ensure the original transaction exists (optional but good practice)
-		// boolean txExists = walletTransactionRepository.existsByReferenceId(originalReferenceId);
-		// if (!txExists) throw new IllegalArgumentException("Original transaction not found");
 
 		// Credit Real Balance for Refunds
 		wallet.setRealBalance(wallet.getRealBalance().add(amount));
@@ -151,25 +154,26 @@ public class WalletServiceImpl implements WalletService {
 		wallet = walletBalanceRepository.save(wallet);
 
 		String refundRef = "REFUND-" + originalReferenceId + "-" + System.currentTimeMillis();
-		createTransaction(wallet, amount, WalletTransactionType.CREDIT, "Refund for: " + originalReferenceId, "REAL", refundRef);
+		createTransaction(wallet, amount, WalletTransactionType.CREDIT, "Refund for: " + originalReferenceId, "REAL",
+				refundRef);
 
 		return wallet;
 	}
 
 	@Override
 	@Transactional
-	public WalletBalanceEntity credit(Long customerId, BigDecimal amount) {
+	public WalletBalanceEntity credit(String customerId, BigDecimal amount) {
 		// Deprecated
 		return depositRealFunds(customerId, amount, "LEGACY-" + System.currentTimeMillis(), "mock-sig");
 	}
 
-	private WalletBalanceEntity createWallet(Long customerId) {
+	private WalletBalanceEntity createWallet(String customerId) {
 		WalletBalanceEntity newWallet = new WalletBalanceEntity();
 		newWallet.setCustomerId(customerId);
 		newWallet.setRealBalance(BigDecimal.ZERO);
-		newWallet.setPromoBalance(BigDecimal.ZERO);
+		newWallet.setPromoBalance(new BigDecimal("12.00")); // Welcome bonus of ₵12.00
 
-		// Sign the initial empty wallet
+		// Sign the initial wallet
 		updateSignature(newWallet);
 
 		return walletBalanceRepository.save(newWallet);
@@ -189,8 +193,7 @@ public class WalletServiceImpl implements WalletService {
 				wallet.getCustomerId(),
 				amount,
 				type.toString(),
-				referenceId
-		);
+				referenceId);
 		tx.setSignature(signature);
 
 		walletTransactionRepository.save(tx);
@@ -198,10 +201,10 @@ public class WalletServiceImpl implements WalletService {
 
 	private void verifyIntegrity(WalletBalanceEntity wallet) {
 		// New wallets created in this flow are signed.
-		// If signature is missing or invalid, freeze.
 		if (wallet.getId() != null) { // Only verify existing persisted wallets
 			if (!securityService.validateBalance(wallet)) {
-				throw new SecurityException("ACCOUNT FROZEN: Wallet integrity check failed for customer " + wallet.getCustomerId());
+				throw new SecurityException(
+						"ACCOUNT FROZEN: Wallet integrity check failed for customer " + wallet.getCustomerId());
 			}
 		}
 	}
@@ -210,8 +213,7 @@ public class WalletServiceImpl implements WalletService {
 		String sig = securityService.signBalance(
 				wallet.getCustomerId(),
 				wallet.getRealBalance(),
-				wallet.getPromoBalance()
-		);
+				wallet.getPromoBalance());
 		wallet.setSignature(sig);
 	}
 }

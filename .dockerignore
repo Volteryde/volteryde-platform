@@ -48,6 +48,7 @@ docker-compose*.yml
 # ============================================================================
 **/node_modules/
 **/.next/
+apps/admin-dashboard/.next/
 **/dist/
 **/build/
 **/.cache/

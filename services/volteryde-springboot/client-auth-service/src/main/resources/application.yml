@@ -16,6 +16,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: ${DATABASE_SCHEMA:public}
         format_sql: true
   security:
     jwt:
@@ -39,17 +40,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
 
 # OTP Configuration
 # Using Gatekeeper Pro API for OTP generation and verification
 otp:
-  expiration-minutes: 10  # Gatekeeper Pro uses 10-minute expiration
+  expiration-minutes: 10 # Gatekeeper Pro uses 10-minute expiration
   length: 6
-  use-external-provider: true  # Use Gatekeeper Pro API for OTP
+  use-external-provider: true # Use Gatekeeper Pro API for OTP
 
 # SMS Provider Configuration (Gatekeeper Pro)
 # API handles both OTP generation and SMS delivery in one call
