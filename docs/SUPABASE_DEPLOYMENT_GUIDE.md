@@ -435,6 +435,8 @@ psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@db.YOUR_PROJECT_REF.s
   -f booking_schema.sql
 ```
 
+
+
 ### 3. Update Application Configuration
 
 ```bash
