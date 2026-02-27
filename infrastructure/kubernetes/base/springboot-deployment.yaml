@@ -5,9 +5,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: springboot-service
+  name: volteryde-auth
   labels:
-    app: springboot-service
+    app: volteryde-auth
     component: backend
     domain: authentication-payment
 spec:
@@ -19,11 +19,11 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      app: springboot-service
+      app: volteryde-auth
   template:
     metadata:
       labels:
-        app: springboot-service
+        app: volteryde-auth
         component: backend
         tech: springboot
       annotations:
@@ -35,7 +35,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: springboot
-          image: REGISTRY_URL/volteryde/springboot-service:latest
+          image: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-auth:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -47,16 +47,16 @@ spec:
             - name: SERVER_PORT
               value: "8080"
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
+              value: "jdbc:postgresql://${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: volteryde-secrets
+                  name: volteryde-auth-db
                   key: DATABASE_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: volteryde-secrets
+                  name: volteryde-auth-db
                   key: DATABASE_PASSWORD
             - name: DATABASE_HOST
               valueFrom:
@@ -70,19 +70,14 @@ spec:
                   key: DATABASE_PORT
             - name: DATABASE_NAME
               valueFrom:
-                configMapKeyRef:
-                  name: volteryde-config
+                secretKeyRef:
+                  name: volteryde-auth-db
                   key: DATABASE_NAME
-            - name: SPRING_REDIS_HOST
+            - name: SPRING_DATA_REDIS_URL
               valueFrom:
-                configMapKeyRef:
-                  name: volteryde-config
-                  key: REDIS_HOST
-            - name: SPRING_REDIS_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: volteryde-config
-                  key: REDIS_PORT
+                secretKeyRef:
+                  name: volteryde-secrets
+                  key: REDIS_URL
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -98,23 +93,20 @@ spec:
               memory: "2Gi"
               cpu: "2000m"
           startupProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 30
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
+            tcpSocket:
               port: 8080
             periodSeconds: 5
             timeoutSeconds: 3
@@ -129,12 +121,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: springboot-service
+  name: volteryde-auth
   labels:
-    app: springboot-service
+    app: volteryde-auth
 spec:
   selector:
-    app: springboot-service
+    app: volteryde-auth
   ports:
     - port: 80
       targetPort: 8080
@@ -146,12 +138,12 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: springboot-service-hpa
+  name: volteryde-auth-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: springboot-service
+    name: volteryde-auth
   minReplicas: 3
   maxReplicas: 10
   metrics:

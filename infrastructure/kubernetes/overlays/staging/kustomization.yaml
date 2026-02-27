@@ -34,9 +34,9 @@ images:
 
 # Resource adjustments for staging (moderate scale)
 replicas:
-  - name: nestjs-service
+  - name: volteryde-api
     count: 2
-  - name: springboot-service
+  - name: volteryde-auth
     count: 2
   - name: temporal-workers
     count: 1

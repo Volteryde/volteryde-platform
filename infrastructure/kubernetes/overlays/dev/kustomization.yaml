@@ -34,9 +34,9 @@ images:
 
 # Resource adjustments for dev (lower limits)
 replicas:
-  - name: nestjs-service
+  - name: volteryde-api
     count: 1
-  - name: springboot-service
+  - name: volteryde-auth
     count: 1
   - name: temporal-workers
     count: 1

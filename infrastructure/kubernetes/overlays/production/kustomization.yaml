@@ -35,9 +35,9 @@ images:
 
 # Production scale
 replicas:
-  - name: nestjs-service
+  - name: volteryde-api
     count: 3
-  - name: springboot-service
+  - name: volteryde-auth
     count: 3
   - name: temporal-workers
     count: 2

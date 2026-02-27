@@ -5,7 +5,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nestjs-service
+  name: volteryde-api
 spec:
   template:
     spec:
@@ -23,7 +23,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: springboot-service
+  name: volteryde-auth
 spec:
   template:
     spec:

@@ -438,7 +438,12 @@ load-test-results/
 # !.mvn/wrapper/maven-wrapper.jar
 # !gradle/wrapper/gradle-wrapper.jar
 .env.central
-.env.example
+
 
 # Snyk Security Extension - AI Rules (auto-generated)
 .agent/rules/snyk_rules.md
+
+# Windsurf / Agent artifacts (never commit)
+.windsurf/
+.agent/
+.agents/
