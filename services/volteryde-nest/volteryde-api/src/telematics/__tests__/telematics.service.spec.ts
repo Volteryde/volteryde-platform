@@ -8,6 +8,8 @@ import { NotFoundException } from '@nestjs/common';
 import { TelematicsService } from '../services/telematics.service';
 import { TimestreamService } from '../services/timestream.service';
 import { LocationUpdateDto } from '../dto/location-update.dto';
+import { MqttService } from '../../mqtt/mqtt.service';
+import { NotificationService } from '../../booking/services/notification.service';
 
 describe('TelematicsService', () => {
   let service: TelematicsService;
@@ -22,6 +24,14 @@ describe('TelematicsService', () => {
     getLatestDiagnostics: jest.fn(),
   };
 
+  const mockMqttService = {
+    publish: jest.fn(),
+  };
+
+  const mockNotificationService = {
+    sendNotification: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +39,14 @@ describe('TelematicsService', () => {
         {
           provide: TimestreamService,
           useValue: mockTimestreamService,
+        },
+        {
+          provide: MqttService,
+          useValue: mockMqttService,
+        },
+        {
+          provide: NotificationService,
+          useValue: mockNotificationService,
         },
       ],
     }).compile();
@@ -70,6 +88,7 @@ describe('TelematicsService', () => {
         heading: locationData.heading,
         accuracy: locationData.accuracy,
         timestamp: undefined,
+        geohash: expect.any(String),
       });
       expect(timestreamService.writeLocation).toHaveBeenCalledTimes(1);
     });

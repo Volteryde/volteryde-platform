@@ -64,10 +64,10 @@ services:
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup
       DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
-      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-volteryde_secure_password}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
       DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-volteryde}
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-telematics}
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     ports:
       - "8086:8086"
     volumes:
@@ -239,7 +239,7 @@ services:
       - DATABASE_SCHEMA=${TELEMATICS_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-volteryde_super_secret_token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-volteryde}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-telematics}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
@@ -536,10 +536,10 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       # Google OAuth Client IDs (defaults are already in application.yml)
-      - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
-      - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
-      - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID:-348743430414-nr958v7e3084kc58029g3qq5t72bbpj.apps.googleusercontent.com}
-      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY:-86965578-0517-4092-9b64-4462d84d6bd0}
+      - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}
+      - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
+      - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID}
+      - SMS_PROVIDER_API_KEY=${SMS_PROVIDER_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy

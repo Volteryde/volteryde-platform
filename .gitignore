@@ -35,6 +35,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Spring Boot / Maven build output (never commit)
+services/volteryde-springboot/**/target/
+
 # Gradle (if used)
 .gradle/
 build/
@@ -257,6 +260,7 @@ docker-compose.override.yml
 *.tfstate.*
 *.tfvars
 *.tfplan
+tfplan
 crash.log
 crash.*.log
 override.tf

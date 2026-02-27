@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.5.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -39,17 +39,17 @@ module "vpc" {
 module "eks" {
   source = "./modules/eks"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  cluster_version       = var.eks_cluster_version
-  vpc_id                = module.vpc.vpc_id
-  private_subnet_ids    = module.vpc.private_subnet_ids
-  
+  project_name       = var.project_name
+  environment        = var.environment
+  cluster_version    = var.eks_cluster_version
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+
   # Node groups configuration
-  nestjs_instance_type  = var.nestjs_node_instance_type
-  nestjs_min_size       = var.nestjs_node_min_size
-  nestjs_max_size       = var.nestjs_node_max_size
-  
+  nestjs_instance_type = var.nestjs_node_instance_type
+  nestjs_min_size      = var.nestjs_node_min_size
+  nestjs_max_size      = var.nestjs_node_max_size
+
   springboot_instance_type = var.springboot_node_instance_type
   springboot_min_size      = var.springboot_node_min_size
   springboot_max_size      = var.springboot_node_max_size
@@ -72,13 +72,13 @@ module "elasticache" {
 module "msk" {
   source = "./modules/msk"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  vpc_id              = module.vpc.vpc_id
-  subnet_ids          = module.vpc.private_subnet_ids
-  instance_type       = var.msk_instance_type
-  number_of_brokers   = var.msk_number_of_brokers
-  security_group_ids  = [module.eks.cluster_security_group_id]
+  project_name       = var.project_name
+  environment        = var.environment
+  vpc_id             = module.vpc.vpc_id
+  subnet_ids         = module.vpc.private_subnet_ids
+  instance_type      = var.msk_instance_type
+  number_of_brokers  = var.msk_number_of_brokers
+  security_group_ids = [module.eks.cluster_security_group_id]
 }
 
 # Amazon Timestream Module
@@ -95,7 +95,7 @@ module "ecr" {
 
   project_name = var.project_name
   environment  = var.environment
-  
+
   repositories = [
     "nestjs-booking",
     "nestjs-charging",
@@ -157,8 +157,8 @@ module "monitoring" {
 module "iam" {
   source = "./modules/iam"
 
-  project_name     = var.project_name
-  environment      = var.environment
-  eks_cluster_name = module.eks.cluster_name
+  project_name          = var.project_name
+  environment           = var.environment
+  eks_cluster_name      = module.eks.cluster_name
   eks_oidc_provider_arn = module.eks.oidc_provider_arn
 }

@@ -11,6 +11,7 @@ import {
   WorkflowInfo,
   workflowInfo,
   defineSignal,
+  defineQuery,
   setHandler,
   condition,
 } from "@temporalio/workflow";
@@ -33,6 +34,9 @@ import { BookingStatus } from "../interfaces";
 export const cancelRideSignal =
   defineSignal<[{ reason: string; timestamp: Date }]>("cancelRideSignal");
 export const completeRideSignal = defineSignal<[]>("completeRideSignal");
+
+// Queries
+export const bookingStatusQuery = defineQuery<BookingStatus>("bookingStatus");
 
 // Activity Proxies
 const {
@@ -74,11 +78,11 @@ export async function bookRideWorkflow(
   // Signal state
   let rideCancelled = false;
   let rideCompleted = false;
-  let cancelReason = "";
+  let _cancelReason = "";
 
   setHandler(cancelRideSignal, (payload) => {
     rideCancelled = true;
-    cancelReason = payload.reason;
+    _cancelReason = payload.reason;
     console.log(`[WORKFLOW] Cancellation signal received: ${payload.reason}`);
   });
 
@@ -86,6 +90,8 @@ export async function bookRideWorkflow(
     rideCompleted = true;
     console.log(`[WORKFLOW] Ride completion signal received`);
   });
+
+  setHandler(bookingStatusQuery, () => bookingStatus);
 
   try {
     // Step 1: Check Wallet Balance
@@ -240,8 +246,4 @@ export async function bookRideWorkflow(
     }
     throw new Error(`Booking failed: ${errorMessage}`);
   }
-}
-
-export function getBookingStatus(): BookingStatus {
-  return BookingStatus.PENDING;
 }

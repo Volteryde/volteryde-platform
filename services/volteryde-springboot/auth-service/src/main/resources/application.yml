@@ -10,7 +10,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/volteryde_auth
     username: ${DB_USERNAME:volteryde_auth}
-    password: ${DB_PASSWORD:auth_password}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -24,7 +24,7 @@ spring:
 
   security:
     jwt:
-      secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890}
+      secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:86400000} # 24 hours
       refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
 

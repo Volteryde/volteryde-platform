@@ -19,15 +19,14 @@ describe('NotificationsInternalController', () => {
             sendNotification: jest.fn(),
           },
         },
-        {
-          provide: InternalServiceGuard,
-          useValue: {
-            canActivate: jest.fn(() => true), // Mock guard to always allow
-          },
-        },
         Logger, // Provide Logger
       ],
-    }).compile();
+    })
+      .overrideGuard(InternalServiceGuard)
+      .useValue({
+        canActivate: jest.fn(() => true),
+      })
+      .compile();
 
     controller = module.get<NotificationsInternalController>(NotificationsInternalController);
     notificationService = module.get<NotificationService>(NotificationService);

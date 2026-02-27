@@ -66,7 +66,7 @@ services:
       - DATABASE_NAME=volteryde
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - JWT_SECRET=my-secret-key-for-volteryde-platform
+      - JWT_SECRET=${JWT_SECRET}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -90,7 +90,7 @@ services:
       - DATABASE_NAME=volteryde
       - DATABASE_USERNAME=postgres
       - DATABASE_PASSWORD=postgres
-      - PAYSTACK_SECRET_KEY=your-paystack-secret-key
+      - PAYSTACK_SECRET_KEY=${PAYSTACK_SECRET_KEY}
     depends_on:
       - postgres
       - service-discovery
