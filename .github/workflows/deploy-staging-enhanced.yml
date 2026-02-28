@@ -41,7 +41,7 @@ jobs:
       - name: Build & Push NestJS Service
         uses: docker/build-push-action@v5
         with:
-          context: services/volteryde-nest
+          context: .
           file: services/volteryde-nest/Dockerfile.prod
           push: true
           tags: |
@@ -55,7 +55,7 @@ jobs:
       - name: Build & Push Spring Boot Service
         uses: docker/build-push-action@v5
         with:
-          context: services/volteryde-springboot
+          context: .
           file: services/volteryde-springboot/Dockerfile
           push: true
           tags: |
@@ -63,11 +63,13 @@ jobs:
             ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:staging-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=api-gateway
       
       - name: Build & Push Temporal Workers
         uses: docker/build-push-action@v5
         with:
-          context: workers/temporal-workers
+          context: .
           file: workers/temporal-workers/Dockerfile
           push: true
           tags: |

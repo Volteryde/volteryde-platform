@@ -81,8 +81,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: services/volteryde-nest
-          file: services/volteryde-nest/Dockerfile
+          context: .
+          file: services/volteryde-nest/Dockerfile.prod
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -142,13 +142,15 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: services/volteryde-springboot
+          context: .
           file: services/volteryde-springboot/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=api-gateway
       
 
 
@@ -190,7 +192,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: workers/temporal-workers
+          context: .
           file: workers/temporal-workers/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
