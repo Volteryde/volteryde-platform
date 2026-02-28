@@ -35,7 +35,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: springboot
-          image: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-auth:latest
+          image: volteryde/springboot-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

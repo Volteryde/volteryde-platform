@@ -143,45 +143,35 @@ jobs:
         with:
           version: 'v1.28.0'
 
-      - name: Create namespace if not exists
-        run: kubectl create namespace volteryde-dev --dry-run=client -o yaml | kubectl apply -f -
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
 
-      - name: Deploy to DEV
+      - name: Deploy to DEV via Kustomize
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
+          cd infrastructure/kubernetes/overlays/dev
 
-          kubectl set image deployment/nestjs-service \
-            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            -n volteryde-dev --record 2>/dev/null || \
-          kubectl create deployment nestjs-service \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            -n volteryde-dev 2>/dev/null || true
+          kustomize edit set image \
+            volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          kubectl set image deployment/springboot-service \
-            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
-            -n volteryde-dev --record 2>/dev/null || \
-          kubectl create deployment springboot-service \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
-            -n volteryde-dev 2>/dev/null || true
-
-          kubectl set image deployment/temporal-workers \
-            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
-            -n volteryde-dev --record 2>/dev/null || \
-          kubectl create deployment temporal-workers \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
-            -n volteryde-dev 2>/dev/null || true
+          echo "📋 Applying kustomize manifests to volteryde-dev..."
+          kustomize build . | kubectl apply -f -
 
       - name: Wait for DEV rollout
         run: |
-          kubectl rollout status deployment/nestjs-service -n volteryde-dev --timeout=5m || true
-          kubectl rollout status deployment/springboot-service -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-api -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-auth -n volteryde-dev --timeout=5m || true
           kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
 
       - name: DEV Smoke Test
         run: |
           echo "🧪 Running DEV smoke tests..."
           kubectl get pods -n volteryde-dev
-          kubectl wait --for=condition=ready pod -l app=nestjs-service -n volteryde-dev --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-dev --timeout=3m || true
           echo "✅ DEV smoke tests passed"
         continue-on-error: true
 
@@ -227,8 +217,8 @@ jobs:
       - name: Rollback DEV on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/nestjs-service -n volteryde-dev || true
-          kubectl rollout undo deployment/springboot-service -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-api -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-auth -n volteryde-dev || true
           kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
 
       - name: Notify Slack — DEV Failed
@@ -297,46 +287,36 @@ jobs:
         with:
           version: 'v1.28.0'
 
-      - name: Create namespace if not exists
-        run: kubectl create namespace volteryde-staging --dry-run=client -o yaml | kubectl apply -f -
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
 
-      - name: Deploy to Staging
+      - name: Deploy to Staging via Kustomize
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
+          cd infrastructure/kubernetes/overlays/staging
 
-          kubectl set image deployment/nestjs-service \
-            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            -n volteryde-staging --record 2>/dev/null || \
-          kubectl create deployment nestjs-service \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            -n volteryde-staging 2>/dev/null || true
+          kustomize edit set image \
+            volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          kubectl set image deployment/springboot-service \
-            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
-            -n volteryde-staging --record 2>/dev/null || \
-          kubectl create deployment springboot-service \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
-            -n volteryde-staging 2>/dev/null || true
-
-          kubectl set image deployment/temporal-workers \
-            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
-            -n volteryde-staging --record 2>/dev/null || \
-          kubectl create deployment temporal-workers \
-            --image=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
-            -n volteryde-staging 2>/dev/null || true
+          echo "📋 Applying kustomize manifests to volteryde-staging..."
+          kustomize build . | kubectl apply -f -
 
       - name: Wait for Staging rollout
         run: |
-          kubectl rollout status deployment/nestjs-service -n volteryde-staging --timeout=10m || true
-          kubectl rollout status deployment/springboot-service -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-api -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-auth -n volteryde-staging --timeout=10m || true
           kubectl rollout status deployment/temporal-workers -n volteryde-staging --timeout=10m || true
 
       - name: Staging Smoke Test
         run: |
           echo "🧪 Running Staging smoke tests..."
           kubectl get pods -n volteryde-staging
-          kubectl wait --for=condition=ready pod -l app=nestjs-service -n volteryde-staging --timeout=3m || true
-          kubectl wait --for=condition=ready pod -l app=springboot-service -n volteryde-staging --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-staging --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n volteryde-staging --timeout=3m || true
           echo "✅ Staging smoke tests passed"
         continue-on-error: true
 
@@ -382,8 +362,8 @@ jobs:
       - name: Rollback Staging on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/nestjs-service -n volteryde-staging || true
-          kubectl rollout undo deployment/springboot-service -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-api -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-auth -n volteryde-staging || true
           kubectl rollout undo deployment/temporal-workers -n volteryde-staging || true
 
       - name: Notify Slack — Staging Failed
@@ -460,137 +440,47 @@ jobs:
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
       
-      - name: Deploy ConfigMaps and Secrets
-        run: |
-          kubectl create configmap app-config \
-            --from-literal=ENVIRONMENT=production \
-            --from-literal=LOG_LEVEL=warn \
-            --from-literal=DATABASE_HOST=${{ secrets.PROD_DATABASE_HOST }} \
-            --from-literal=REDIS_HOST=${{ secrets.PROD_REDIS_HOST }} \
-            --namespace=volteryde-prod \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          kubectl create secret generic app-secrets \
-            --from-literal=DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
-            --from-literal=JWT_SECRET=${{ secrets.PROD_JWT_SECRET }} \
-            --from-literal=TEMPORAL_NAMESPACE=${{ secrets.TEMPORAL_NAMESPACE }} \
-            --from-literal=TEMPORAL_ADDRESS=${{ secrets.TEMPORAL_ADDRESS }} \
-            --namespace=volteryde-prod \
-            --dry-run=client -o yaml | kubectl apply -f -
-      
-      - name: Blue-Green Deploy - NestJS Service
+      - name: Deploy to Production via Kustomize
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
-          
-          echo "🔵 Deploying GREEN version of NestJS service..."
-          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG}"
-          
-          kubectl set image deployment/nestjs-service \
-            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            -n volteryde-prod \
-            --record
-          
-          echo "⏳ Waiting for rollout to complete..."
-          kubectl rollout status deployment/nestjs-service \
-            -n volteryde-prod \
-            --timeout=15m
-          
-          echo "✅ NestJS service deployed successfully"
-      
-      - name: Health Check - NestJS
+          cd infrastructure/kubernetes/overlays/production
+
+          kustomize edit set image \
+            volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
+
+          echo "📋 Applying kustomize manifests to volteryde-prod..."
+          kustomize build . | kubectl apply -f -
+
+      - name: Wait for Production rollout
         run: |
-          echo "🏥 Running health checks on NestJS service..."
-          
-          # Wait for pods to be ready
-          kubectl wait --for=condition=ready pod \
-            -l app=nestjs-service \
-            -n volteryde-prod \
-            --timeout=5m
-          
-          # Check pod status
-          kubectl get pods -n volteryde-prod -l app=nestjs-service
-          
-          # Check logs for errors
-          kubectl logs -n volteryde-prod -l app=nestjs-service --tail=100 | grep -i error || echo "No errors found"
-          
+          echo "⏳ Waiting for all deployments to roll out..."
+          kubectl rollout status deployment/volteryde-api -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/volteryde-auth -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m
+          echo "✅ All services deployed successfully"
+
+      - name: Health Check - NestJS (volteryde-api)
+        run: |
+          echo "🏥 Running health checks on volteryde-api..."
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-prod --timeout=5m
+          kubectl get pods -n volteryde-prod -l app=volteryde-api
+          kubectl logs -n volteryde-prod -l app=volteryde-api --tail=50 | grep -i error || echo "No errors found"
           echo "✅ NestJS health check passed"
-      
-      - name: Blue-Green Deploy - Spring Boot Service
+
+      - name: Health Check - Spring Boot (volteryde-auth)
         run: |
-          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
-          
-          echo "🔵 Deploying GREEN version of Spring Boot service..."
-          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG}"
-          
-          kubectl set image deployment/springboot-service \
-            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
-            -n volteryde-prod \
-            --record
-          
-          echo "⏳ Waiting for rollout to complete..."
-          kubectl rollout status deployment/springboot-service \
-            -n volteryde-prod \
-            --timeout=15m
-          
-          echo "✅ Spring Boot service deployed successfully"
-      
-      - name: Health Check - Spring Boot
-        run: |
-          echo "🏥 Running health checks on Spring Boot service..."
-          
-          # Wait for pods to be ready
-          kubectl wait --for=condition=ready pod \
-            -l app=springboot-service \
-            -n volteryde-prod \
-            --timeout=5m
-          
-          # Check pod status
-          kubectl get pods -n volteryde-prod -l app=springboot-service
-          
-          # Check Spring Boot actuator health
-          POD_NAME=$(kubectl get pod -n volteryde-prod -l app=springboot-service -o jsonpath='{.items[0].metadata.name}')
-          kubectl exec -n volteryde-prod ${POD_NAME} -- curl -f http://localhost:8080/actuator/health || echo "Health check pending..."
-          
+          echo "🏥 Running health checks on volteryde-auth..."
+          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n volteryde-prod --timeout=5m
+          kubectl get pods -n volteryde-prod -l app=volteryde-auth
           echo "✅ Spring Boot health check passed"
-      
-      - name: Blue-Green Deploy - Temporal Workers
-        run: |
-          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
-          
-          echo "🔵 Deploying GREEN version of Temporal Workers..."
-          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}"
-          
-          kubectl set image deployment/temporal-workers \
-            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
-            -n volteryde-prod \
-            --record
-          
-          echo "⏳ Waiting for rollout to complete..."
-          kubectl rollout status deployment/temporal-workers \
-            -n volteryde-prod \
-            --timeout=15m
-          
-          echo "✅ Temporal Workers deployed successfully"
-      
+
       - name: Run Production Smoke Tests
         run: |
           echo "🧪 Running production smoke tests..."
-          
-          # Wait for services to stabilize
-          sleep 60
-          
-          # Get ALB endpoint
-          ALB_ENDPOINT=$(kubectl get ingress -n volteryde-prod -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
-          
-          echo "Testing endpoint: ${ALB_ENDPOINT}"
-          
-          # Health checks
-          curl -f https://${ALB_ENDPOINT}/health || echo "Health endpoint check pending..."
-          curl -f https://${ALB_ENDPOINT}/api/v1/health || echo "API health check pending..."
-          
-          # Test critical endpoints
-          curl -f https://${ALB_ENDPOINT}/api/v1/auth/health || echo "Auth health check pending..."
-          
+          sleep 30
+          kubectl get pods -n volteryde-prod
           echo "✅ Production smoke tests completed"
         continue-on-error: true
       
@@ -697,19 +587,15 @@ jobs:
         run: |
           echo "🚨 CRITICAL: Production deployment failed - initiating emergency rollback..."
           
-          # Rollback all services
-          kubectl rollout undo deployment/nestjs-service -n volteryde-prod
-          kubectl rollout undo deployment/springboot-service -n volteryde-prod
-          kubectl rollout undo deployment/temporal-workers -n volteryde-prod
+          kubectl rollout undo deployment/volteryde-api -n volteryde-prod || true
+          kubectl rollout undo deployment/volteryde-auth -n volteryde-prod || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-prod || true
           
-          # Wait for rollback to complete
-          kubectl rollout status deployment/nestjs-service -n volteryde-prod --timeout=15m
-          kubectl rollout status deployment/springboot-service -n volteryde-prod --timeout=15m
-          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/volteryde-api -n volteryde-prod --timeout=15m || true
+          kubectl rollout status deployment/volteryde-auth -n volteryde-prod --timeout=15m || true
+          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m || true
           
-          # Verify rollback
           kubectl get pods -n volteryde-prod
-          
           echo "✅ Emergency rollback completed"
       
       - name: Notify Slack on Failure

@@ -29,7 +29,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: temporal-workers
-        image: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/temporal-workers:latest
+        image: volteryde/temporal-workers:latest
         imagePullPolicy: Always
         env:
         - name: NODE_ENV
