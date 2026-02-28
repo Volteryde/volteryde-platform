@@ -4,6 +4,7 @@ Production-grade electric mobility platform designed for high reliability and fi
 
 ## 🏗️ Architecture
 
+
 The platform follows a hybrid microservices architecture, leveraging **Java Spring Boot** for security-critical financial operations and **NestJS** with **Temporal** for reliable operational workflows.
 
 ### 🔐 Financial Core (Spring Boot)
