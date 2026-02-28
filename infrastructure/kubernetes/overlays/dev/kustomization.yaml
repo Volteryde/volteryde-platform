@@ -7,32 +7,26 @@ kind: Kustomization
 
 namespace: volteryde-dev
 
-bases:
+resources:
   - ../../base
 
-# Environment-specific labels
 commonLabels:
   environment: development
   cost-center: development
 
-# ConfigMap patches for dev environment
 patchesStrategicMerge:
   - configmap-patch.yaml
   - replicas-patch.yaml
 
-# Image tags for dev
+# Image overrides — CI/CD will dynamically set tags via: kustomize edit set image
 images:
-  - name: REGISTRY_URL/volteryde/nestjs-service
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/nestjs-service
-    newTag: develop-latest
-  - name: REGISTRY_URL/volteryde/springboot-service
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/springboot-service
-    newTag: develop-latest
-  - name: REGISTRY_URL/volteryde/temporal-workers
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/temporal-workers
-    newTag: develop-latest
+  - name: volteryde/nestjs-service
+    newTag: latest
+  - name: volteryde/springboot-service
+    newTag: latest
+  - name: volteryde/temporal-workers
+    newTag: latest
 
-# Resource adjustments for dev (lower limits)
 replicas:
   - name: volteryde-api
     count: 1

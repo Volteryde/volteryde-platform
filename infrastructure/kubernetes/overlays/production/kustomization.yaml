@@ -7,33 +7,27 @@ kind: Kustomization
 
 namespace: volteryde-prod
 
-bases:
+resources:
   - ../../base
 
-# Environment-specific labels
 commonLabels:
   environment: production
   cost-center: production
 
-# ConfigMap patches for production environment
 patchesStrategicMerge:
   - configmap-patch.yaml
   - replicas-patch.yaml
   - resources-patch.yaml
 
-# Image tags for production (use specific versions, not latest)
+# Image overrides — CI/CD will dynamically set tags via: kustomize edit set image
 images:
-  - name: REGISTRY_URL/volteryde/nestjs-service
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/nestjs-service
-    newTag: v1.0.0  # Use semantic versioning in production
-  - name: REGISTRY_URL/volteryde/springboot-service
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/springboot-service
-    newTag: v1.0.0
-  - name: REGISTRY_URL/volteryde/temporal-workers
-    newName: YOUR_AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/volteryde/temporal-workers
-    newTag: v1.0.0
+  - name: volteryde/nestjs-service
+    newTag: latest
+  - name: volteryde/springboot-service
+    newTag: latest
+  - name: volteryde/temporal-workers
+    newTag: latest
 
-# Production scale
 replicas:
   - name: volteryde-api
     count: 3
