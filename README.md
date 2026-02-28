@@ -11,6 +11,7 @@ The platform follows a hybrid microservices architecture, leveraging **Java Spri
 ### 🔐 Financial Core (Spring Boot)
 Located in `services/volteryde-springboot/`, these services manage identity and money.
 
+
 *   **Payment Service**: Implements a **Dual-Ledger Wallet System** with cryptographic integrity.
     *   **Real Balance**: Reflects actual cash deposits (e.g., Paystack).
     *   **Promo Balance**: Reflects system credits/compensations.
