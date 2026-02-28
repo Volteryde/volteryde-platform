@@ -150,14 +150,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL",
-              "blocks": [
+              "text": "Production deployment successful",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*🎉 Deployment to PRODUCTION successful*\n\n*Version:* ${{ github.event.inputs.version }}\n*Author:* ${{ github.actor }}\n*URL:* https://api.volteryde.com\n\n✅ All health checks passed"
-                  }
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🎉 Production — Deployment Successful" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nProduction (`volteryde-prod`)" },
+                        { "type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Version:*\n`${{ github.event.inputs.version }}`" },
+                        { "type": "mrkdwn", "text": "*API URL:*\nhttps://api.volteryde.com" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Services:*  `nestjs-service`  •  `springboot-service`"
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "✅ Health checks passed  |  ✅ Smoke tests passed  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -180,14 +205,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚨 PRODUCTION DEPLOYMENT FAILED",
-              "blocks": [
+              "text": "CRITICAL: Production deployment failed",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*🚨 PRODUCTION deployment FAILED and was ROLLED BACK*\n\n*Version:* ${{ github.event.inputs.version }}\n*Author:* ${{ github.actor }}\n\n⚠️ URGENT: Manual intervention required\n\n*Action Items:*\n1. Check deployment logs\n2. Review error messages\n3. Verify rollback completed successfully"
-                  }
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🚨 Production — DEPLOYMENT FAILED" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nProduction (`volteryde-prod`)" },
+                        { "type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Version:*\n`${{ github.event.inputs.version }}`" },
+                        { "type": "mrkdwn", "text": "*Severity:*\n🔴 Critical" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "⚠️ Emergency rollback executed for `nestjs-service` and `springboot-service`\n\n*Do NOT retry* until root cause is identified."
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "🚨 Production incident  |  🔄 Rollback executed  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }

@@ -213,14 +213,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} Docker Build Completed",
-              "blocks": [
+              "text": "Docker Build ${{ job.status }}",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Docker Build ${{ job.status }}*\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
+                  "color": "${{ job.status == 'success' && '#36a64f' || '#cc0000' }}",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "${{ job.status == 'success' && '📦' || '❌' }} Docker Build — ${{ job.status == 'success' && 'Images Pushed to ECR' || 'Build Failed' }}" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Registry:*\nAmazon ECR" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Image Build Results:*\n${{ needs.build-nestjs-service.result == 'success' && '✅' || '❌' }} `volteryde/nestjs-service`\n${{ needs.build-springboot-service.result == 'success' && '✅' || '❌' }} `volteryde/springboot-service`\n${{ needs.build-temporal-workers.result == 'success' && '✅' || '❌' }} `volteryde/temporal-workers`"
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Build Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }

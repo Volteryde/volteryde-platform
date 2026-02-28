@@ -63,14 +63,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ Terraform Apply Successful",
-              "blocks": [
+              "text": "Terraform Apply to Development succeeded",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Development succeeded*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🏗️ Terraform — DEV Infrastructure Updated" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Status:*\n✅ Applied" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Terraform Output>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -84,14 +102,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ Terraform Apply Failed",
-              "blocks": [
+              "text": "Terraform Apply to Development failed",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Development failed*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Manual intervention required"
-                  }
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🔴 Terraform — DEV Infrastructure Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Status:*\n❌ Failed" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "⚠️ Manual intervention required  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -140,14 +176,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ Terraform Apply Successful",
-              "blocks": [
+              "text": "Terraform Apply to Staging succeeded",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Staging succeeded*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🏗️ Terraform — Staging Infrastructure Updated" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nStaging" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Status:*\n✅ Applied" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Terraform Output>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -161,14 +215,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ Terraform Apply Failed",
-              "blocks": [
+              "text": "Terraform Apply to Staging failed",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Staging failed*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Manual intervention required"
-                  }
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🔴 Terraform — Staging Infrastructure Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nStaging" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Status:*\n❌ Failed" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "⚠️ Manual intervention required  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -217,14 +289,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ Terraform Apply Successful",
-              "blocks": [
+              "text": "Terraform Apply to Production succeeded",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Production succeeded*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}"
-                  }
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🏗️ Terraform — Production Infrastructure Updated" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nProduction" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Status:*\n✅ Applied" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Terraform Output>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -238,14 +328,32 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ Terraform Apply Failed",
-              "blocks": [
+              "text": "Terraform Apply to Production failed",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Terraform Apply to Production failed*\n\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Manual intervention required"
-                  }
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🚨 Terraform — Production Infrastructure Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nProduction" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Severity:*\n🔴 Critical" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "🚨 Production infra change failed  |  ⚠️ Manual intervention required  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
