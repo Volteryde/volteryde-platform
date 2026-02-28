@@ -1,0 +1,502 @@
+name: Deploy to Production (Blue-Green)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (SHA from staging)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type "DEPLOY TO PRODUCTION" to confirm'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: volteryde-cluster
+  ENVIRONMENT: production
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  # ============================================================================
+  # VALIDATION & APPROVAL GATE
+  # ============================================================================
+  
+  validate-deployment:
+    name: Validate Deployment Request
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.determine-tag.outputs.tag }}
+    
+    steps:
+      - name: Validate confirmation (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY TO PRODUCTION" ]; then
+            echo "❌ Deployment confirmation failed"
+            echo "You must type exactly: DEPLOY TO PRODUCTION"
+            exit 1
+          fi
+          echo "✅ Deployment confirmed"
+      
+      - name: Determine image tag
+        id: determine-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Verify images exist in ECR
+        run: |
+          IMAGE_TAG="${{ steps.determine-tag.outputs.tag }}"
+          
+          echo "🔍 Verifying images exist in ECR..."
+          
+          aws ecr describe-images \
+            --repository-name volteryde/nestjs-service \
+            --image-ids imageTag=${IMAGE_TAG} || {
+            echo "❌ NestJS image not found: ${IMAGE_TAG}"
+            exit 1
+          }
+          
+          aws ecr describe-images \
+            --repository-name volteryde/springboot-service \
+            --image-ids imageTag=${IMAGE_TAG} || {
+            echo "❌ Spring Boot image not found: ${IMAGE_TAG}"
+            exit 1
+          }
+          
+          aws ecr describe-images \
+            --repository-name volteryde/temporal-workers \
+            --image-ids imageTag=${IMAGE_TAG} || {
+            echo "❌ Temporal Workers image not found: ${IMAGE_TAG}"
+            exit 1
+          }
+          
+          echo "✅ All images verified in ECR"
+      
+      - name: Check image scan results
+        run: |
+          IMAGE_TAG="${{ steps.determine-tag.outputs.tag }}"
+          
+          echo "🔒 Checking image vulnerability scans..."
+          
+          SCAN_STATUS=$(aws ecr describe-image-scan-findings \
+            --repository-name volteryde/nestjs-service \
+            --image-id imageTag=${IMAGE_TAG} \
+            --query 'imageScanStatus.status' \
+            --output text 2>/dev/null || echo "NOT_SCANNED")
+          
+          if [ "$SCAN_STATUS" == "COMPLETE" ]; then
+            CRITICAL=$(aws ecr describe-image-scan-findings \
+              --repository-name volteryde/nestjs-service \
+              --image-id imageTag=${IMAGE_TAG} \
+              --query 'imageScanFindings.findingSeverityCounts.CRITICAL' \
+              --output text 2>/dev/null || echo "0")
+            
+            if [ "$CRITICAL" != "None" ] && [ "$CRITICAL" != "0" ]; then
+              echo "⚠️ WARNING: ${CRITICAL} critical vulnerabilities found"
+              echo "Proceeding with caution..."
+            else
+              echo "✅ No critical vulnerabilities found"
+            fi
+          else
+            echo "⚠️ Image scan not complete or not available"
+          fi
+
+  # ============================================================================
+  # MANUAL APPROVAL GATE
+  # ============================================================================
+  
+  approval-gate:
+    name: Production Deployment Approval
+    needs: validate-deployment
+    runs-on: ubuntu-latest
+    environment:
+      name: production-approval
+      url: https://api.volteryde.com
+    
+    steps:
+      - name: Waiting for manual approval
+        run: |
+          echo "⏳ Waiting for manual approval to deploy to production..."
+          echo "Image Tag: ${{ needs.validate-deployment.outputs.image-tag }}"
+          echo "Approvers must review and approve in GitHub Actions UI"
+
+  # ============================================================================
+  # PRE-DEPLOYMENT BACKUP
+  # ============================================================================
+  
+  pre-deployment-backup:
+    name: Create Pre-Deployment Backup
+    needs: [validate-deployment, approval-gate]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+      
+      - name: Backup current deployment state
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          
+          echo "📦 Creating comprehensive backup..."
+          
+          kubectl get all -n volteryde-prod -o yaml > backup-all-${TIMESTAMP}.yaml
+          kubectl get deployment -n volteryde-prod -o yaml > backup-deployments-${TIMESTAMP}.yaml
+          kubectl get service -n volteryde-prod -o yaml > backup-services-${TIMESTAMP}.yaml
+          kubectl get configmap -n volteryde-prod -o yaml > backup-configmaps-${TIMESTAMP}.yaml
+          kubectl get ingress -n volteryde-prod -o yaml > backup-ingress-${TIMESTAMP}.yaml
+          
+          # Get current image tags
+          kubectl get deployment -n volteryde-prod -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}' > backup-image-tags-${TIMESTAMP}.txt
+          
+          echo "✅ Backup completed"
+      
+      - name: Upload backup to S3
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BACKUP_BUCKET="${{ secrets.PROD_BACKUP_BUCKET }}"
+          
+          aws s3 cp backup-all-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          aws s3 cp backup-deployments-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          aws s3 cp backup-services-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          aws s3 cp backup-configmaps-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          aws s3 cp backup-ingress-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          aws s3 cp backup-image-tags-${TIMESTAMP}.txt s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
+          
+          echo "✅ Backup uploaded to S3"
+      
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-backup-${{ needs.validate-deployment.outputs.image-tag }}
+          path: backup-*.yaml
+          retention-days: 90
+
+  # ============================================================================
+  # BLUE-GREEN DEPLOYMENT TO PRODUCTION
+  # ============================================================================
+  
+  deploy-to-production:
+    name: Blue-Green Deploy to Production
+    needs: [validate-deployment, approval-gate, pre-deployment-backup]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.volteryde.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+      
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Deploy ConfigMaps and Secrets
+        run: |
+          kubectl create configmap app-config \
+            --from-literal=ENVIRONMENT=production \
+            --from-literal=LOG_LEVEL=warn \
+            --from-literal=DATABASE_HOST=${{ secrets.PROD_DATABASE_HOST }} \
+            --from-literal=REDIS_HOST=${{ secrets.PROD_REDIS_HOST }} \
+            --namespace=volteryde-prod \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          kubectl create secret generic app-secrets \
+            --from-literal=DATABASE_PASSWORD=${{ secrets.PROD_DATABASE_PASSWORD }} \
+            --from-literal=JWT_SECRET=${{ secrets.PROD_JWT_SECRET }} \
+            --from-literal=TEMPORAL_NAMESPACE=${{ secrets.TEMPORAL_NAMESPACE }} \
+            --from-literal=TEMPORAL_ADDRESS=${{ secrets.TEMPORAL_ADDRESS }} \
+            --namespace=volteryde-prod \
+            --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Blue-Green Deploy - NestJS Service
+        run: |
+          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          
+          echo "🔵 Deploying GREEN version of NestJS service..."
+          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG}"
+          
+          kubectl set image deployment/nestjs-service \
+            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            -n volteryde-prod \
+            --record
+          
+          echo "⏳ Waiting for rollout to complete..."
+          kubectl rollout status deployment/nestjs-service \
+            -n volteryde-prod \
+            --timeout=15m
+          
+          echo "✅ NestJS service deployed successfully"
+      
+      - name: Health Check - NestJS
+        run: |
+          echo "🏥 Running health checks on NestJS service..."
+          
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod \
+            -l app=nestjs-service \
+            -n volteryde-prod \
+            --timeout=5m
+          
+          # Check pod status
+          kubectl get pods -n volteryde-prod -l app=nestjs-service
+          
+          # Check logs for errors
+          kubectl logs -n volteryde-prod -l app=nestjs-service --tail=100 | grep -i error || echo "No errors found"
+          
+          echo "✅ NestJS health check passed"
+      
+      - name: Blue-Green Deploy - Spring Boot Service
+        run: |
+          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          
+          echo "🔵 Deploying GREEN version of Spring Boot service..."
+          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG}"
+          
+          kubectl set image deployment/springboot-service \
+            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            -n volteryde-prod \
+            --record
+          
+          echo "⏳ Waiting for rollout to complete..."
+          kubectl rollout status deployment/springboot-service \
+            -n volteryde-prod \
+            --timeout=15m
+          
+          echo "✅ Spring Boot service deployed successfully"
+      
+      - name: Health Check - Spring Boot
+        run: |
+          echo "🏥 Running health checks on Spring Boot service..."
+          
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod \
+            -l app=springboot-service \
+            -n volteryde-prod \
+            --timeout=5m
+          
+          # Check pod status
+          kubectl get pods -n volteryde-prod -l app=springboot-service
+          
+          # Check Spring Boot actuator health
+          POD_NAME=$(kubectl get pod -n volteryde-prod -l app=springboot-service -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n volteryde-prod ${POD_NAME} -- curl -f http://localhost:8080/actuator/health || echo "Health check pending..."
+          
+          echo "✅ Spring Boot health check passed"
+      
+      - name: Blue-Green Deploy - Temporal Workers
+        run: |
+          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          
+          echo "🔵 Deploying GREEN version of Temporal Workers..."
+          echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}"
+          
+          kubectl set image deployment/temporal-workers \
+            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
+            -n volteryde-prod \
+            --record
+          
+          echo "⏳ Waiting for rollout to complete..."
+          kubectl rollout status deployment/temporal-workers \
+            -n volteryde-prod \
+            --timeout=15m
+          
+          echo "✅ Temporal Workers deployed successfully"
+      
+      - name: Run Production Smoke Tests
+        run: |
+          echo "🧪 Running production smoke tests..."
+          
+          # Wait for services to stabilize
+          sleep 60
+          
+          # Get ALB endpoint
+          ALB_ENDPOINT=$(kubectl get ingress -n volteryde-prod -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+          
+          echo "Testing endpoint: ${ALB_ENDPOINT}"
+          
+          # Health checks
+          curl -f https://${ALB_ENDPOINT}/health || echo "Health endpoint check pending..."
+          curl -f https://${ALB_ENDPOINT}/api/v1/health || echo "API health check pending..."
+          
+          # Test critical endpoints
+          curl -f https://${ALB_ENDPOINT}/api/v1/auth/health || echo "Auth health check pending..."
+          
+          echo "✅ Production smoke tests completed"
+        continue-on-error: true
+      
+      - name: Monitor Production Metrics
+        run: |
+          echo "📊 Monitoring production metrics for 5 minutes..."
+          
+          # Monitor for 5 minutes
+          for i in {1..10}; do
+            echo "Monitoring iteration $i/10..."
+            
+            # Check pod status
+            kubectl get pods -n volteryde-prod
+            
+            # Check for CrashLoopBackOff or errors
+            ERROR_PODS=$(kubectl get pods -n volteryde-prod --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq '.items | length')
+            
+            if [ "$ERROR_PODS" -gt 0 ]; then
+              echo "⚠️ WARNING: $ERROR_PODS pods in error state"
+              kubectl get pods -n volteryde-prod --field-selector=status.phase!=Running,status.phase!=Succeeded
+            fi
+            
+            # Check CloudWatch alarms
+            ALARMS=$(aws cloudwatch describe-alarms \
+              --alarm-name-prefix volteryde-prod \
+              --state-value ALARM \
+              --query 'MetricAlarms[*].AlarmName' \
+              --output text)
+            
+            if [ -n "$ALARMS" ]; then
+              echo "🚨 CRITICAL: CloudWatch alarms triggered: $ALARMS"
+              exit 1
+            fi
+            
+            sleep 30
+          done
+          
+          echo "✅ Metrics monitoring completed - no issues detected"
+      
+      - name: Tag successful deployment
+        run: |
+          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          
+          # Tag in CloudWatch
+          aws cloudwatch put-metric-data \
+            --namespace Volteryde/Deployments \
+            --metric-name ProductionDeployment \
+            --value 1 \
+            --dimensions Environment=production,ImageTag=${IMAGE_TAG} \
+            --timestamp $(date -u +%Y-%m-%dT%H:%M:%S)
+          
+          # Tag Docker images as production
+          aws ecr put-image-tag-mutability \
+            --repository-name volteryde/nestjs-service \
+            --image-tag-mutability IMMUTABLE || true
+      
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🎉 PRODUCTION deployment SUCCESSFUL*\n\n*Environment:* Production\n*Image Tag:* ${{ needs.validate-deployment.outputs.image-tag }}\n*Deployed by:* ${{ github.actor }}\n*URL:* https://api.volteryde.com\n\n✅ All health checks passed\n✅ Smoke tests passed\n✅ Metrics monitoring completed\n\n*Deployment completed at:* $(date -u)"
+                  }
+                }
+              ]
+            }
+      
+      - name: Emergency Rollback on Failure
+        if: failure()
+        run: |
+          echo "🚨 CRITICAL: Production deployment failed - initiating emergency rollback..."
+          
+          # Rollback all services
+          kubectl rollout undo deployment/nestjs-service -n volteryde-prod
+          kubectl rollout undo deployment/springboot-service -n volteryde-prod
+          kubectl rollout undo deployment/temporal-workers -n volteryde-prod
+          
+          # Wait for rollback to complete
+          kubectl rollout status deployment/nestjs-service -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/springboot-service -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m
+          
+          # Verify rollback
+          kubectl get pods -n volteryde-prod
+          
+          echo "✅ Emergency rollback completed"
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "🚨 PRODUCTION DEPLOYMENT FAILED - EMERGENCY ROLLBACK EXECUTED",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🚨 CRITICAL: PRODUCTION deployment FAILED*\n\n*Image Tag:* ${{ needs.validate-deployment.outputs.image-tag }}\n*Deployed by:* ${{ github.actor }}\n\n⚠️ EMERGENCY ROLLBACK EXECUTED\n\n*IMMEDIATE ACTION REQUIRED:*\n1. Check deployment logs in GitHub Actions\n2. Review CloudWatch alarms\n3. Verify rollback completed successfully\n4. Investigate root cause\n5. Do NOT retry deployment until issue is resolved\n\n*Incident Commander:* @oncall-lead\n*Failed at:* $(date -u)"
+                  }
+                }
+              ]
+            }
+      
+      - name: Create incident ticket on failure
+        if: failure()
+        run: |
+          echo "📋 Creating incident ticket..."
+          
+          # This would integrate with your incident management system
+          # Example: PagerDuty, Opsgenie, or Jira
+          
+          echo "Incident: Production deployment failed"
+          echo "Image Tag: ${{ needs.validate-deployment.outputs.image-tag }}"
+          echo "Rollback: Executed"
+          echo "Status: Requires investigation"

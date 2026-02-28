@@ -14,7 +14,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER: volteryde-production
+  EKS_CLUSTER: volteryde-cluster
   ENVIRONMENT: production
 
 jobs:
@@ -55,8 +55,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Update kubeconfig
@@ -142,11 +142,12 @@ jobs:
           sleep 300
           echo "✅ Metrics look good"
       
-      - name: Notify Slack on Success
+      - name: Notify Slack - Success
         if: success()
         uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
               "text": "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL",
@@ -171,11 +172,12 @@ jobs:
           kubectl rollout status deployment/nestjs-service -n volteryde-prod --timeout=10m
           kubectl rollout status deployment/springboot-service -n volteryde-prod --timeout=10m
       
-      - name: Notify Slack on Failure
+      - name: Notify Slack - Failure
         if: failure()
         uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
               "text": "🚨 PRODUCTION DEPLOYMENT FAILED",

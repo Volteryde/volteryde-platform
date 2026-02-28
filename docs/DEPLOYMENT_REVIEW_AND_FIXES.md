@@ -202,7 +202,7 @@ This document outlines all issues found in the deployment scripts, Terraform con
 Use existing managed services and skip complex Terraform:
 
 1. **Skip Terraform entirely** - use eksctl to create cluster
-2. **Use existing Supabase** for database (already configured)
+2. **Use RDS PostgreSQL** for database (to be configured)
 3. **Use existing Temporal Cloud** for workflows (already configured)
 4. **Deploy local Redis** to Kubernetes (StatefulSet)
 5. **Deploy local Kafka** to Kubernetes (Strimzi operator)
