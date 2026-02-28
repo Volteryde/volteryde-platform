@@ -1,0 +1,262 @@
+name: Deploy to Development (Enhanced)
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: volteryde-cluster
+  ENVIRONMENT: development
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  # ============================================================================
+  # BUILD & PUSH DOCKER IMAGES
+  # ============================================================================
+  
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/volteryde
+          tags: |
+            type=sha,prefix=dev-
+            type=ref,event=branch
+            type=raw,value=dev-latest
+      
+      - name: Build & Push NestJS Service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/volteryde-nest
+          file: services/volteryde-nest/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=development
+      
+      - name: Build & Push Spring Boot Service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/volteryde-springboot
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build & Push Temporal Workers
+        uses: docker/build-push-action@v5
+        with:
+          context: workers/temporal-workers
+          file: workers/temporal-workers/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # DEPLOY TO DEVELOPMENT EKS
+  # ============================================================================
+  
+  deploy-to-dev:
+    name: Deploy to Development
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: https://dev-api.volteryde.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+      
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace volteryde-dev --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy ConfigMaps and Secrets
+        run: |
+          kubectl create configmap app-config \
+            --from-literal=ENVIRONMENT=development \
+            --from-literal=LOG_LEVEL=debug \
+            --from-literal=DATABASE_HOST=${{ secrets.DEV_DATABASE_HOST }} \
+            --from-literal=REDIS_HOST=${{ secrets.DEV_REDIS_HOST }} \
+            --namespace=volteryde-dev \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          kubectl create secret generic app-secrets \
+            --from-literal=DATABASE_PASSWORD=${{ secrets.DEV_DATABASE_PASSWORD }} \
+            --from-literal=JWT_SECRET=${{ secrets.DEV_JWT_SECRET }} \
+            --from-literal=TEMPORAL_NAMESPACE=${{ secrets.TEMPORAL_NAMESPACE }} \
+            --from-literal=TEMPORAL_ADDRESS=${{ secrets.TEMPORAL_ADDRESS }} \
+            --namespace=volteryde-dev \
+            --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy with Kustomize
+        run: |
+          cd infrastructure/kubernetes/overlays/dev
+          kustomize edit set image \
+            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }} \
+            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }} \
+            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
+          
+          kustomize build . | kubectl apply -f -
+      
+      - name: Wait for rollout - NestJS
+        run: |
+          kubectl rollout status deployment/nestjs-service \
+            -n volteryde-dev \
+            --timeout=5m
+      
+      - name: Wait for rollout - Spring Boot
+        run: |
+          kubectl rollout status deployment/springboot-service \
+            -n volteryde-dev \
+            --timeout=5m
+      
+      - name: Wait for rollout - Temporal Workers
+        run: |
+          kubectl rollout status deployment/temporal-workers \
+            -n volteryde-dev \
+            --timeout=5m
+      
+      - name: Verify deployment health
+        run: |
+          echo "🏥 Checking pod health..."
+          kubectl get pods -n volteryde-dev
+          
+          echo "🔍 Checking service endpoints..."
+          kubectl get svc -n volteryde-dev
+          
+          echo "📊 Checking pod logs for errors..."
+          kubectl logs -n volteryde-dev -l app=nestjs-service --tail=50 || true
+      
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          
+          # Wait for services to be ready
+          sleep 30
+          
+          # Get service endpoint
+          NESTJS_ENDPOINT=$(kubectl get svc nestjs-service -n volteryde-dev -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          
+          # Health check
+          curl -f http://${NESTJS_ENDPOINT}/health || echo "Health check pending..."
+          
+          echo "✅ Smoke tests completed"
+        continue-on-error: true
+      
+      - name: Tag deployment in CloudWatch
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace Volteryde/Deployments \
+            --metric-name DeploymentCount \
+            --value 1 \
+            --dimensions Environment=development,Service=all \
+            --timestamp $(date -u +%Y-%m-%dT%H:%M:%S)
+      
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "✅ DEV Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*✅ Deployment to DEV successful*\n\n*Environment:* Development\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Image Tag:* ${{ github.sha }}\n*URL:* https://dev-api.volteryde.com"
+                  }
+                }
+              ]
+            }
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 Rolling back deployment..."
+          kubectl rollout undo deployment/nestjs-service -n volteryde-dev || true
+          kubectl rollout undo deployment/springboot-service -n volteryde-dev || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
+          
+          kubectl rollout status deployment/nestjs-service -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/springboot-service -n volteryde-dev --timeout=5m || true
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "❌ DEV Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ DEV deployment FAILED*\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Automatic rollback executed\n\n*Action Required:*\n1. Check deployment logs\n2. Review error messages\n3. Fix issues and retry"
+                  }
+                }
+              ]
+            }

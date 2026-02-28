@@ -150,10 +150,10 @@ Create the referenced modules - this is more work but gives you IaC:
 
 ### Already Configured Correctly ✅
 
-1. **Supabase PostgreSQL** - Fully configured in ConfigMap
-   - Host: `aws-0-sa-east-1.pooler.supabase.com`
-   - Port: `6543`
-   - Connection pooling enabled
+1. **PostgreSQL** - RDS instance configured
+   - Host: RDS endpoint
+   - Port: `5432`
+   - Multi-AZ enabled
 
 2. **Temporal Cloud** - Fully configured in ConfigMap
    - Address: `sa-east-1.aws.api.temporal.io:7233`
@@ -290,7 +290,7 @@ chmod +x scripts/deploy-to-aws.sh
 
 ## Updated ConfigMap Needed
 
-Current ConfigMap has correct Supabase and Temporal endpoints, but Redis points to local service (which is fine if using the redis-deployment.yaml).
+Current ConfigMap has correct database and Temporal endpoints, but Redis points to local service (which is fine if using the redis-deployment.yaml).
 
 **No changes needed** if deploying Redis to Kubernetes.
 

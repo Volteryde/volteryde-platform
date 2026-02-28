@@ -8,8 +8,6 @@ services:
   # ============================================================================
   # Databases & Cache
   # ============================================================================
-  # NOTE: For Supabase PostgreSQL, use: docker-compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
-  # This will override the local postgres service and connect all services to Supabase.
 
   postgres:
     # Note: postgis/postgis doesn't have ARM64 images - runs via Rosetta on Apple Silicon

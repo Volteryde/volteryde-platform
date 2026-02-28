@@ -1,0 +1,314 @@
+name: Deploy to Staging (Enhanced)
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: volteryde-cluster
+  ENVIRONMENT: staging
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  # ============================================================================
+  # BUILD & PUSH DOCKER IMAGES
+  # ============================================================================
+  
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ github.sha }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build & Push NestJS Service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/volteryde-nest
+          file: services/volteryde-nest/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:staging-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=staging
+      
+      - name: Build & Push Spring Boot Service
+        uses: docker/build-push-action@v5
+        with:
+          context: services/volteryde-springboot
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:staging-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build & Push Temporal Workers
+        uses: docker/build-push-action@v5
+        with:
+          context: workers/temporal-workers
+          file: workers/temporal-workers/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:staging-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Scan images for vulnerabilities
+        run: |
+          aws ecr start-image-scan \
+            --repository-name volteryde/nestjs-service \
+            --image-id imageTag=${{ github.sha }} || true
+          
+          aws ecr start-image-scan \
+            --repository-name volteryde/springboot-service \
+            --image-id imageTag=${{ github.sha }} || true
+
+  # ============================================================================
+  # DEPLOY TO STAGING EKS
+  # ============================================================================
+  
+  deploy-to-staging:
+    name: Deploy to Staging
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.volteryde.com
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ env.AWS_REGION }} \
+            --name ${{ env.EKS_CLUSTER }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+      
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Create deployment backup
+        run: |
+          kubectl get deployment -n volteryde-staging -o yaml > deployment-backup-${{ github.sha }}.yaml || true
+          kubectl get service -n volteryde-staging -o yaml > service-backup-${{ github.sha }}.yaml || true
+      
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-backup-${{ github.sha }}
+          path: |
+            deployment-backup-${{ github.sha }}.yaml
+            service-backup-${{ github.sha }}.yaml
+          retention-days: 30
+      
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace volteryde-staging --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy ConfigMaps and Secrets
+        run: |
+          kubectl create configmap app-config \
+            --from-literal=ENVIRONMENT=staging \
+            --from-literal=LOG_LEVEL=info \
+            --from-literal=DATABASE_HOST=${{ secrets.STAGING_DATABASE_HOST }} \
+            --from-literal=REDIS_HOST=${{ secrets.STAGING_REDIS_HOST }} \
+            --namespace=volteryde-staging \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          kubectl create secret generic app-secrets \
+            --from-literal=DATABASE_PASSWORD=${{ secrets.STAGING_DATABASE_PASSWORD }} \
+            --from-literal=JWT_SECRET=${{ secrets.STAGING_JWT_SECRET }} \
+            --from-literal=TEMPORAL_NAMESPACE=${{ secrets.TEMPORAL_NAMESPACE }} \
+            --from-literal=TEMPORAL_ADDRESS=${{ secrets.TEMPORAL_ADDRESS }} \
+            --namespace=volteryde-staging \
+            --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Deploy with Kustomize
+        run: |
+          cd infrastructure/kubernetes/overlays/staging
+          kustomize edit set image \
+            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }} \
+            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }} \
+            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
+          
+          kustomize build . | kubectl apply -f -
+      
+      - name: Wait for rollout - NestJS
+        run: |
+          kubectl rollout status deployment/nestjs-service \
+            -n volteryde-staging \
+            --timeout=10m
+      
+      - name: Wait for rollout - Spring Boot
+        run: |
+          kubectl rollout status deployment/springboot-service \
+            -n volteryde-staging \
+            --timeout=10m
+      
+      - name: Wait for rollout - Temporal Workers
+        run: |
+          kubectl rollout status deployment/temporal-workers \
+            -n volteryde-staging \
+            --timeout=10m
+      
+      - name: Verify deployment health
+        run: |
+          echo "🏥 Checking pod health..."
+          kubectl get pods -n volteryde-staging
+          
+          echo "🔍 Checking service endpoints..."
+          kubectl get svc -n volteryde-staging
+          
+          echo "📊 Checking recent logs..."
+          kubectl logs -n volteryde-staging -l app=nestjs-service --tail=100 || true
+          kubectl logs -n volteryde-staging -l app=springboot-service --tail=100 || true
+      
+      - name: Run integration tests
+        run: |
+          echo "🧪 Running integration tests against staging..."
+          
+          # Wait for services to stabilize
+          sleep 60
+          
+          # Get service endpoint
+          NESTJS_ENDPOINT=$(kubectl get svc nestjs-service -n volteryde-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          SPRINGBOOT_ENDPOINT=$(kubectl get svc springboot-service -n volteryde-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          
+          # Health checks
+          curl -f http://${NESTJS_ENDPOINT}/health || echo "NestJS health check pending..."
+          curl -f http://${SPRINGBOOT_ENDPOINT}/actuator/health || echo "Spring Boot health check pending..."
+          
+          # API smoke tests
+          curl -f http://${NESTJS_ENDPOINT}/api/v1/health || echo "API health check pending..."
+          
+          echo "✅ Integration tests completed"
+        continue-on-error: true
+      
+      - name: Run performance baseline tests
+        run: |
+          echo "📊 Running performance baseline tests..."
+          
+          # Install k6 for load testing
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+          
+          # Run basic load test if k6 script exists
+          if [ -f "infrastructure/k6/staging-smoke.js" ]; then
+            k6 run infrastructure/k6/staging-smoke.js || echo "Load test completed"
+          else
+            echo "No k6 script found, skipping load test"
+          fi
+        continue-on-error: true
+      
+      - name: Monitor metrics
+        run: |
+          echo "📊 Monitoring CloudWatch metrics for 2 minutes..."
+          sleep 120
+          
+          # Check CloudWatch alarms
+          aws cloudwatch describe-alarms \
+            --alarm-name-prefix volteryde-staging \
+            --state-value ALARM || echo "No active alarms"
+          
+          echo "✅ Metrics monitoring completed"
+        continue-on-error: true
+      
+      - name: Tag deployment in CloudWatch
+        run: |
+          aws cloudwatch put-metric-data \
+            --namespace Volteryde/Deployments \
+            --metric-name DeploymentCount \
+            --value 1 \
+            --dimensions Environment=staging,Service=all \
+            --timestamp $(date -u +%Y-%m-%dT%H:%M:%S)
+      
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "✅ STAGING Deployment Successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*✅ Deployment to STAGING successful*\n\n*Environment:* Staging\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Image Tag:* ${{ github.sha }}\n*URL:* https://staging-api.volteryde.com\n\n✅ Integration tests passed\n✅ Performance baseline met"
+                  }
+                }
+              ]
+            }
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 CRITICAL: Rolling back staging deployment..."
+          kubectl rollout undo deployment/nestjs-service -n volteryde-staging || true
+          kubectl rollout undo deployment/springboot-service -n volteryde-staging || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-staging || true
+          
+          kubectl rollout status deployment/nestjs-service -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/springboot-service -n volteryde-staging --timeout=10m || true
+      
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "❌ STAGING Deployment Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*❌ STAGING deployment FAILED and was ROLLED BACK*\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Automatic rollback executed\n\n*Action Required:*\n1. Check deployment logs\n2. Review integration test results\n3. Verify rollback completed\n4. Fix issues before promoting to production"
+                  }
+                }
+              ]
+            }

@@ -130,15 +130,15 @@ helm install external-secrets external-secrets/external-secrets \
 ### Create AWS Secrets
 
 ```bash
-# Database credentials (Supabase)
+# Database credentials (RDS PostgreSQL)
 aws secretsmanager create-secret \
   --name volteryde/production/database \
   --secret-string '{
-    "username": "postgres.YOUR_PROJECT_REF",
+    "username": "postgres",
     "password": "YOUR_DATABASE_PASSWORD",
-    "host": "aws-0-sa-east-1.pooler.supabase.com",
-    "port": "6543",
-    "database": "postgres"
+    "host": "YOUR_RDS_ENDPOINT.rds.amazonaws.com",
+    "port": "5432",
+    "database": "volteryde"
   }' \
   --region sa-east-1
 
@@ -301,7 +301,7 @@ kubectl logs <pod-name> -n production
 ```bash
 # Test from within cluster
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -- sh
-psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres:YOUR_PASSWORD@YOUR_RDS_ENDPOINT.rds.amazonaws.com:5432/volteryde"
 ```
 
 ### Image Pull Errors
@@ -483,7 +483,7 @@ terraform destroy -var="environment=production"
 
 - **Documentation**: `/docs/AWS_CLOUD_MIGRATION_GUIDE.md`
 - **Temporal Guide**: `/docs/TEMPORAL_CLOUD_MIGRATION.md`
-- **Supabase Guide**: `/docs/SUPABASE_DEPLOYMENT_GUIDE.md`
+- **Infrastructure Setup**: `/docs/AWS_INFRASTRUCTURE_SETUP.md`
 - **AWS Support**: https://console.aws.amazon.com/support/
 - **EKS Best Practices**: https://aws.github.io/aws-eks-best-practices/
 

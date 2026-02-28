@@ -23,7 +23,7 @@ This guide provides a complete roadmap for migrating the Volteryde Platform back
 
 ### Current Architecture (Local)
 - **Backend**: NestJS (6 services) + Spring Boot (4 services)
-- **Database**: Supabase PostgreSQL (managed)
+- **Database**: PostgreSQL (local/Docker)
 - **Workflows**: Temporal Cloud (managed)
 - **Cache**: Local Redis
 - **Time-Series**: Local InfluxDB
@@ -95,10 +95,6 @@ This guide provides a complete roadmap for migrating the Volteryde Platform back
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │              External Managed Services                    │  │
 │  │  ┌────────────────────────────────────────────────────┐  │  │
-│  │  │  Supabase PostgreSQL (already configured)         │  │  │
-│  │  │  - aws-0-sa-east-1.pooler.supabase.com:6543       │  │  │
-│  │  └────────────────────────────────────────────────────┘  │  │
-│  │  ┌────────────────────────────────────────────────────┐  │  │
 │  │  │  Temporal Cloud (already configured)              │  │  │
 │  │  │  - sa-east-1.aws.api.temporal.io:7233             │  │  │
 │  │  └────────────────────────────────────────────────────┘  │  │
@@ -154,7 +150,7 @@ This guide provides a complete roadmap for migrating the Volteryde Platform back
 
 | Component | Local | AWS Service | Configuration |
 |-----------|-------|-------------|---------------|
-| PostgreSQL | Supabase (external) | Supabase PostgreSQL | Already configured |
+| PostgreSQL | Docker PostgreSQL | Amazon RDS PostgreSQL | db.t3.large, Multi-AZ |
 | Redis Cache | Docker Redis | ElastiCache Redis | cache.t3.medium, Multi-AZ |
 | Time-Series DB | Docker InfluxDB | Amazon Timestream | On-demand pricing |
 | Message Queue | Docker Kafka | Amazon MSK | kafka.t3.small, 3 brokers |
@@ -500,13 +496,13 @@ kubectl config set-context --current --namespace=production
 # Create AWS Secrets Manager secrets
 aws secretsmanager create-secret \
   --name volteryde/production/database \
-  --description "Supabase database credentials" \
+  --description "RDS PostgreSQL database credentials" \
   --secret-string '{
-    "username": "postgres.YOUR_PROJECT_REF",
+    "username": "postgres",
     "password": "YOUR_DATABASE_PASSWORD",
-    "host": "aws-0-sa-east-1.pooler.supabase.com",
-    "port": "6543",
-    "database": "postgres"
+    "host": "YOUR_RDS_ENDPOINT.rds.amazonaws.com",
+    "port": "5432",
+    "database": "volteryde"
   }' \
   --region sa-east-1
 
@@ -1181,13 +1177,13 @@ kubectl logs <pod-name> -n production
 ```bash
 # Test connectivity from pod
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -- sh
-psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres:YOUR_PASSWORD@YOUR_RDS_ENDPOINT.rds.amazonaws.com:5432/volteryde"
 
 # Common causes:
 # - Incorrect credentials in secrets
 # - Network policy blocking traffic
-# - Supabase IP allowlist
-# - Security group rules
+# - RDS security group rules
+# - VPC/subnet configuration
 ```
 
 #### 3. High Latency
@@ -1312,7 +1308,7 @@ kubectl apply -f infrastructure/kubernetes/maintenance-mode.yaml
 ### Internal Resources
 - Architecture Docs: `/docs/ARCHITECTURE.md`
 - Temporal Guide: `/docs/TEMPORAL_CLOUD_MIGRATION.md`
-- Supabase Guide: `/docs/SUPABASE_DEPLOYMENT_GUIDE.md`
+- AWS Infrastructure Setup: `/docs/AWS_INFRASTRUCTURE_SETUP.md`
 
 ### Team Contacts
 - DevOps Lead: [Your contact]

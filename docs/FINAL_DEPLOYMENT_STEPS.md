@@ -11,7 +11,7 @@ After comprehensive review, your deployment infrastructure is **95% complete**. 
 ### ✅ What's Already Perfect
 
 1. **All Kubernetes manifests exist** - ServiceAccount, Ingress, Deployments, ConfigMaps, Secrets
-2. **Supabase PostgreSQL configured** - Connection pooler, credentials, schemas
+2. **PostgreSQL configured** - RDS instance, credentials, schemas
 3. **Temporal Cloud configured** - API key, namespace, task queue
 4. **Health checks configured** - Startup, liveness, readiness probes
 5. **Auto-scaling configured** - HPA with CPU/memory thresholds
@@ -309,7 +309,7 @@ aws ecr list-images --repository-name volteryde/nestjs-api --region sa-east-1
 kubectl run -it --rm debug --image=postgres:15 --restart=Never -n production -- sh
 
 # Then inside the pod
-psql "postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+psql "postgresql://postgres:YOUR_PASSWORD@YOUR_RDS_ENDPOINT.rds.amazonaws.com:5432/volteryde"
 ```
 
 ### Load Balancer Not Created
@@ -433,7 +433,7 @@ done
 - **Full Guide**: `docs/AWS_CLOUD_MIGRATION_GUIDE.md`
 - **Fixes Summary**: `docs/DEPLOYMENT_FIXES_SUMMARY.md`
 - **Temporal Guide**: `docs/TEMPORAL_CLOUD_MIGRATION.md`
-- **Supabase Guide**: `docs/SUPABASE_DEPLOYMENT_GUIDE.md`
+- **Infrastructure Setup**: `docs/AWS_INFRASTRUCTURE_SETUP.md`
 
 ---
 
@@ -449,7 +449,7 @@ done
 | ECR Storage | $5 |
 | **Total** | **~$630/month** |
 
-*Note: Supabase and Temporal Cloud are billed separately*
+*Note: Temporal Cloud is billed separately*
 
 ---
 

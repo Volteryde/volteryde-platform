@@ -205,11 +205,12 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Send Slack notification
+      - name: Notify Slack
         if: always()
         uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
               "text": "${{ job.status == 'success' && '✅' || '❌' }} Docker Build Completed",
