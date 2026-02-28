@@ -369,14 +369,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} Quality Gate ${{ job.status }}",
-              "blocks": [
+              "text": "CI Quality Gate ${{ job.status }}",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Quality Gate ${{ job.status }}*\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n*Results:*\n• Security: ${{ needs.security-scan.result }}\n• NestJS: ${{ needs.nestjs-quality-gate.result }}\n• Spring Boot: ${{ needs.springboot-quality-gate.result }}\n• Temporal: ${{ needs.temporal-workers-quality-gate.result }}\n• Frontend: ${{ needs.frontend-quality-gate.result }}"
-                  }
+                  "color": "${{ job.status == 'success' && '#36a64f' || '#cc0000' }}",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "${{ job.status == 'success' && '✅' || '❌' }} CI Quality Gate — ${{ job.status == 'success' && 'All Checks Passed' || 'Checks Failed' }}" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Pipeline:*\nComprehensive CI" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Service Results:*\n${{ needs.security-scan.result == 'success' && '✅' || '❌' }} Security Scan\n${{ needs.nestjs-quality-gate.result == 'success' && '✅' || '❌' }} NestJS Service — `nestjs-service`\n${{ needs.springboot-quality-gate.result == 'success' && '✅' || '❌' }} Spring Boot Service — `springboot-service`\n${{ needs.temporal-workers-quality-gate.result == 'success' && '✅' || '❌' }} Temporal Workers — `temporal-workers`\n${{ needs.frontend-quality-gate.result == 'success' && '✅' || '❌' }} Frontend"
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Full Report>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }

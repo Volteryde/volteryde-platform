@@ -218,14 +218,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "✅ DEV Deployment Successful",
-              "blocks": [
+              "text": "Deployment to DEV Sandbox succeeded",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*✅ Deployment to DEV successful*\n\n*Environment:* Development\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Image Tag:* ${{ github.sha }}\n*URL:* https://dev-api.volteryde.com"
-                  }
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🚀 DEV Sandbox — Deployment Successful" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment (`volteryde-dev`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Services Deployed:*\n• `nestjs-service` — API Gateway & Core Services\n• `springboot-service` — Auth & Payment\n• `temporal-workers` — Workflow Engine"
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "✅ All services healthy  |  ✅ Smoke tests passed  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -249,14 +274,39 @@ jobs:
         with:
           payload: |
             {
-              "text": "❌ DEV Deployment Failed",
-              "blocks": [
+              "text": "DEV Sandbox deployment failed",
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*❌ DEV deployment FAILED*\n\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n\n⚠️ Automatic rollback executed\n\n*Action Required:*\n1. Check deployment logs\n2. Review error messages\n3. Fix issues and retry"
-                  }
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🔴 DEV Sandbox — Deployment Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment (`volteryde-dev`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Branch:*\n`${{ github.ref_name }}`" },
+                        { "type": "mrkdwn", "text": "*Commit:*\n`${{ github.sha }}`" }
+                      ]
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Rollback Status:*\n⚠️ Automatic rollback executed for all services:\n• `nestjs-service`\n• `springboot-service`\n• `temporal-workers`"
+                      }
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "❌ Deployment failed  |  🔄 Rollback complete  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
