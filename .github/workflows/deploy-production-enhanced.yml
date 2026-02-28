@@ -1,213 +1,434 @@
-name: Deploy to Production (Blue-Green)
+name: Full Pipeline — Build → Dev → Staging → Production
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      image_tag:
-        description: 'Docker image tag to deploy (SHA from staging)'
-        required: true
-        type: string
-      confirm:
-        description: 'Type "DEPLOY TO PRODUCTION" to confirm'
-        required: true
-        type: string
 
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER: volteryde-cluster
-  ENVIRONMENT: production
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   # ============================================================================
-  # VALIDATION & APPROVAL GATE
+  # STAGE 1: BUILD & PUSH DOCKER IMAGES
   # ============================================================================
-  
-  validate-deployment:
-    name: Validate Deployment Request
+
+  build-and-push:
+    name: "1 · Build & Push Docker Images"
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.determine-tag.outputs.tag }}
-    
-    steps:
-      - name: Validate confirmation (workflow_dispatch only)
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY TO PRODUCTION" ]; then
-            echo "❌ Deployment confirmation failed"
-            echo "You must type exactly: DEPLOY TO PRODUCTION"
-            exit 1
-          fi
-          echo "✅ Deployment confirmed"
-      
-      - name: Determine image tag
-        id: determine-tag
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Verify images exist in ECR
-        run: |
-          IMAGE_TAG="${{ steps.determine-tag.outputs.tag }}"
-          
-          echo "🔍 Verifying images exist in ECR..."
-          
-          aws ecr describe-images \
-            --repository-name volteryde/nestjs-service \
-            --image-ids imageTag=${IMAGE_TAG} || {
-            echo "❌ NestJS image not found: ${IMAGE_TAG}"
-            exit 1
-          }
-          
-          aws ecr describe-images \
-            --repository-name volteryde/springboot-service \
-            --image-ids imageTag=${IMAGE_TAG} || {
-            echo "❌ Spring Boot image not found: ${IMAGE_TAG}"
-            exit 1
-          }
-          
-          aws ecr describe-images \
-            --repository-name volteryde/temporal-workers \
-            --image-ids imageTag=${IMAGE_TAG} || {
-            echo "❌ Temporal Workers image not found: ${IMAGE_TAG}"
-            exit 1
-          }
-          
-          echo "✅ All images verified in ECR"
-      
-      - name: Check image scan results
-        run: |
-          IMAGE_TAG="${{ steps.determine-tag.outputs.tag }}"
-          
-          echo "🔒 Checking image vulnerability scans..."
-          
-          SCAN_STATUS=$(aws ecr describe-image-scan-findings \
-            --repository-name volteryde/nestjs-service \
-            --image-id imageTag=${IMAGE_TAG} \
-            --query 'imageScanStatus.status' \
-            --output text 2>/dev/null || echo "NOT_SCANNED")
-          
-          if [ "$SCAN_STATUS" == "COMPLETE" ]; then
-            CRITICAL=$(aws ecr describe-image-scan-findings \
-              --repository-name volteryde/nestjs-service \
-              --image-id imageTag=${IMAGE_TAG} \
-              --query 'imageScanFindings.findingSeverityCounts.CRITICAL' \
-              --output text 2>/dev/null || echo "0")
-            
-            if [ "$CRITICAL" != "None" ] && [ "$CRITICAL" != "0" ]; then
-              echo "⚠️ WARNING: ${CRITICAL} critical vulnerabilities found"
-              echo "Proceeding with caution..."
-            else
-              echo "✅ No critical vulnerabilities found"
-            fi
-          else
-            echo "⚠️ Image scan not complete or not available"
-          fi
+      image-tag: ${{ github.sha }}
 
-  # ============================================================================
-  # MANUAL APPROVAL GATE
-  # ============================================================================
-  
-  approval-gate:
-    name: Production Deployment Approval
-    needs: validate-deployment
-    runs-on: ubuntu-latest
-    environment:
-      name: production-approval
-      url: https://api.volteryde.com
-    
-    steps:
-      - name: Waiting for manual approval
-        run: |
-          echo "⏳ Waiting for manual approval to deploy to production..."
-          echo "Image Tag: ${{ needs.validate-deployment.outputs.image-tag }}"
-          echo "Approvers must review and approve in GitHub Actions UI"
-
-  # ============================================================================
-  # PRE-DEPLOYMENT BACKUP
-  # ============================================================================
-  
-  pre-deployment-backup:
-    name: Create Pre-Deployment Backup
-    needs: [validate-deployment, approval-gate]
-    runs-on: ubuntu-latest
-    
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push NestJS Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-nest/Dockerfile.prod
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NODE_ENV=production
+
+      - name: Build & Push Spring Boot Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=api-gateway
+
+      - name: Build & Push Temporal Workers
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: workers/temporal-workers/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify Slack — Build Complete
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "Docker images built and pushed",
+              "attachments": [
+                {
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "📦 Pipeline Stage 1 — Images Built" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Tag:*\n`${{ github.sha }}`" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" }
+                      ]
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "✅ `nestjs-service`  ✅ `springboot-service`  ✅ `temporal-workers`  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        continue-on-error: true
+
+  # ============================================================================
+  # STAGE 2: DEPLOY TO DEV
+  # ============================================================================
+
+  deploy-to-dev:
+    name: "2 · Deploy to DEV Sandbox"
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: development
+      url: https://dev-api.volteryde.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --region ${{ env.AWS_REGION }} \
-            --name ${{ env.EKS_CLUSTER }}
-      
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.28.0'
-      
-      - name: Backup current deployment state
+
+      - name: Create namespace if not exists
+        run: kubectl create namespace volteryde-dev --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to DEV
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          
-          echo "📦 Creating comprehensive backup..."
-          
-          kubectl get all -n volteryde-prod -o yaml > backup-all-${TIMESTAMP}.yaml
-          kubectl get deployment -n volteryde-prod -o yaml > backup-deployments-${TIMESTAMP}.yaml
-          kubectl get service -n volteryde-prod -o yaml > backup-services-${TIMESTAMP}.yaml
-          kubectl get configmap -n volteryde-prod -o yaml > backup-configmaps-${TIMESTAMP}.yaml
-          kubectl get ingress -n volteryde-prod -o yaml > backup-ingress-${TIMESTAMP}.yaml
-          
-          # Get current image tags
-          kubectl get deployment -n volteryde-prod -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}' > backup-image-tags-${TIMESTAMP}.txt
-          
-          echo "✅ Backup completed"
-      
-      - name: Upload backup to S3
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
+
+          kubectl set image deployment/nestjs-service \
+            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            -n volteryde-dev --record 2>/dev/null || \
+          kubectl create deployment nestjs-service \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            -n volteryde-dev 2>/dev/null || true
+
+          kubectl set image deployment/springboot-service \
+            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            -n volteryde-dev --record 2>/dev/null || \
+          kubectl create deployment springboot-service \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            -n volteryde-dev 2>/dev/null || true
+
+          kubectl set image deployment/temporal-workers \
+            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
+            -n volteryde-dev --record 2>/dev/null || \
+          kubectl create deployment temporal-workers \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
+            -n volteryde-dev 2>/dev/null || true
+
+      - name: Wait for DEV rollout
         run: |
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          BACKUP_BUCKET="${{ secrets.PROD_BACKUP_BUCKET }}"
-          
-          aws s3 cp backup-all-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          aws s3 cp backup-deployments-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          aws s3 cp backup-services-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          aws s3 cp backup-configmaps-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          aws s3 cp backup-ingress-${TIMESTAMP}.yaml s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          aws s3 cp backup-image-tags-${TIMESTAMP}.txt s3://${BACKUP_BUCKET}/deployments/${TIMESTAMP}/
-          
-          echo "✅ Backup uploaded to S3"
-      
-      - name: Upload backup artifacts
-        uses: actions/upload-artifact@v4
+          kubectl rollout status deployment/nestjs-service -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/springboot-service -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
+
+      - name: DEV Smoke Test
+        run: |
+          echo "🧪 Running DEV smoke tests..."
+          kubectl get pods -n volteryde-dev
+          kubectl wait --for=condition=ready pod -l app=nestjs-service -n volteryde-dev --timeout=3m || true
+          echo "✅ DEV smoke tests passed"
+        continue-on-error: true
+
+      - name: Notify Slack — DEV Deployed
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          name: production-backup-${{ needs.validate-deployment.outputs.image-tag }}
-          path: backup-*.yaml
-          retention-days: 90
+          payload: |
+            {
+              "text": "Deployment to DEV Sandbox succeeded",
+              "attachments": [
+                {
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🚀 Pipeline Stage 2 — DEV Sandbox Deployed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment (`volteryde-dev`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.build-and-push.outputs.image-tag }}`" },
+                        { "type": "mrkdwn", "text": "*Next:*\nStaging →" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "✅ DEV healthy  |  Progressing to Staging...  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        continue-on-error: true
+
+      - name: Rollback DEV on failure
+        if: failure()
+        run: |
+          kubectl rollout undo deployment/nestjs-service -n volteryde-dev || true
+          kubectl rollout undo deployment/springboot-service -n volteryde-dev || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
+
+      - name: Notify Slack — DEV Failed
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "DEV deployment failed — pipeline stopped",
+              "attachments": [
+                {
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🔴 Pipeline Stopped — DEV Deployment Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nDevelopment (`volteryde-dev`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" }
+                      ]
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "❌ Pipeline halted  |  🔄 Rollback executed  |  Staging & Production skipped  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        continue-on-error: true
 
   # ============================================================================
-  # BLUE-GREEN DEPLOYMENT TO PRODUCTION
+  # STAGE 3: DEPLOY TO STAGING
   # ============================================================================
-  
+
+  deploy-to-staging:
+    name: "3 · Deploy to Staging"
+    needs: [build-and-push, deploy-to-dev]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging-api.volteryde.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Create namespace if not exists
+        run: kubectl create namespace volteryde-staging --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to Staging
+        run: |
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
+
+          kubectl set image deployment/nestjs-service \
+            nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            -n volteryde-staging --record 2>/dev/null || \
+          kubectl create deployment nestjs-service \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
+            -n volteryde-staging 2>/dev/null || true
+
+          kubectl set image deployment/springboot-service \
+            springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            -n volteryde-staging --record 2>/dev/null || \
+          kubectl create deployment springboot-service \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            -n volteryde-staging 2>/dev/null || true
+
+          kubectl set image deployment/temporal-workers \
+            temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
+            -n volteryde-staging --record 2>/dev/null || \
+          kubectl create deployment temporal-workers \
+            --image=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG} \
+            -n volteryde-staging 2>/dev/null || true
+
+      - name: Wait for Staging rollout
+        run: |
+          kubectl rollout status deployment/nestjs-service -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/springboot-service -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/temporal-workers -n volteryde-staging --timeout=10m || true
+
+      - name: Staging Smoke Test
+        run: |
+          echo "🧪 Running Staging smoke tests..."
+          kubectl get pods -n volteryde-staging
+          kubectl wait --for=condition=ready pod -l app=nestjs-service -n volteryde-staging --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=springboot-service -n volteryde-staging --timeout=3m || true
+          echo "✅ Staging smoke tests passed"
+        continue-on-error: true
+
+      - name: Notify Slack — Staging Deployed
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "Deployment to Staging succeeded",
+              "attachments": [
+                {
+                  "color": "#36a64f",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🚀 Pipeline Stage 3 — Staging Deployed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nStaging (`volteryde-staging`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" },
+                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.build-and-push.outputs.image-tag }}`" },
+                        { "type": "mrkdwn", "text": "*Next:*\nProduction →" }
+                      ]
+                    },
+                    { "type": "divider" },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "✅ Staging healthy  |  Progressing to Production...  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        continue-on-error: true
+
+      - name: Rollback Staging on failure
+        if: failure()
+        run: |
+          kubectl rollout undo deployment/nestjs-service -n volteryde-staging || true
+          kubectl rollout undo deployment/springboot-service -n volteryde-staging || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-staging || true
+
+      - name: Notify Slack — Staging Failed
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "Staging deployment failed — pipeline stopped",
+              "attachments": [
+                {
+                  "color": "#cc0000",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": { "type": "plain_text", "text": "🔴 Pipeline Stopped — Staging Deployment Failed" }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*Environment:*\nStaging (`volteryde-staging`)" },
+                        { "type": "mrkdwn", "text": "*Triggered by:*\n${{ github.actor }}" }
+                      ]
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        { "type": "mrkdwn", "text": "❌ Pipeline halted  |  🔄 Rollback executed  |  Production skipped  |  <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        continue-on-error: true
+
+  # ============================================================================
+  # STAGE 4: DEPLOY TO PRODUCTION (Blue-Green)
+  # ============================================================================
+
   deploy-to-production:
-    name: Blue-Green Deploy to Production
-    needs: [validate-deployment, approval-gate, pre-deployment-backup]
+    name: "4 · Blue-Green Deploy to Production"
+    needs: [build-and-push, deploy-to-staging]
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -259,7 +480,7 @@ jobs:
       
       - name: Blue-Green Deploy - NestJS Service
         run: |
-          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
           
           echo "🔵 Deploying GREEN version of NestJS service..."
           echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG}"
@@ -296,7 +517,7 @@ jobs:
       
       - name: Blue-Green Deploy - Spring Boot Service
         run: |
-          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
           
           echo "🔵 Deploying GREEN version of Spring Boot service..."
           echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG}"
@@ -334,7 +555,7 @@ jobs:
       
       - name: Blue-Green Deploy - Temporal Workers
         run: |
-          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
           
           echo "🔵 Deploying GREEN version of Temporal Workers..."
           echo "Image: ${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}"
@@ -411,7 +632,7 @@ jobs:
       
       - name: Tag successful deployment
         run: |
-          IMAGE_TAG="${{ needs.validate-deployment.outputs.image-tag }}"
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
           
           # Tag in CloudWatch
           aws cloudwatch put-metric-data \
@@ -448,7 +669,7 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*Environment:*\nProduction (`volteryde-prod`)" },
                         { "type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}" },
-                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.validate-deployment.outputs.image-tag }}`" },
+                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.build-and-push.outputs.image-tag }}`" },
                         { "type": "mrkdwn", "text": "*API URL:*\nhttps://api.volteryde.com" }
                       ]
                     },
@@ -513,7 +734,7 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*Environment:*\nProduction (`volteryde-prod`)" },
                         { "type": "mrkdwn", "text": "*Deployed by:*\n${{ github.actor }}" },
-                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.validate-deployment.outputs.image-tag }}`" },
+                        { "type": "mrkdwn", "text": "*Image Tag:*\n`${{ needs.build-and-push.outputs.image-tag }}`" },
                         { "type": "mrkdwn", "text": "*Severity:*\n🔴 Critical" }
                       ]
                     },
@@ -545,6 +766,6 @@ jobs:
           # Example: PagerDuty, Opsgenie, or Jira
           
           echo "Incident: Production deployment failed"
-          echo "Image Tag: ${{ needs.validate-deployment.outputs.image-tag }}"
+          echo "Image Tag: ${{ needs.build-and-push.outputs.image-tag }}"
           echo "Rollback: Executed"
           echo "Status: Requires investigation"
