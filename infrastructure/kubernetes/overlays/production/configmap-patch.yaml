@@ -11,7 +11,7 @@ data:
   NODE_ENV: "production"
   LOG_LEVEL: "warn"
   API_GATEWAY_URL: "https://api.volteryde.com"
-  CORS_ORIGINS: "https://volteryde.com,https://www.volteryde.com,https://admin.volteryde.com"
+  CORS_ORIGINS: "https://volteryde.com,https://www.volteryde.com,https://volteryde.org,https://www.volteryde.org,https://admin.volteryde.com,https://admin.volteryde.org,https://auth.volteryde.com,https://auth.volteryde.org,https://docs.volteryde.org,https://docs.volteryde.com,https://dispatch.volteryde.org,https://dispatch.volteryde.com,https://partners.volteryde.org,https://partners.volteryde.com,https://support.volteryde.org,https://support.volteryde.com,https://driver.volteryde.org,https://driver.volteryde.com,https://api.volteryde.com,https://api.volteryde.org"
   DATABASE_HOST: "volteryde-prod-postgres.cbucoeyea98s.sa-east-1.rds.amazonaws.com"
   DATABASE_NAME: "volteryde"
   TEMPORAL_NAMESPACE: "quickstart-volteryde.svqe2"

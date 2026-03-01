@@ -40,7 +40,7 @@ const envSchema = z.object({
   JWT_EXPIRATION: z.string().default("86400"), // 24 hours in seconds
 
   // AWS Configuration
-  AWS_REGION: z.string().default("us-east-1"),
+  AWS_REGION: z.string().default("sa-east-1"),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
 

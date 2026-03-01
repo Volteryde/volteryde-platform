@@ -9,6 +9,51 @@
 
 ---
 
+## Execution Plan (Phased)
+
+### Phase 0 — Decide final public URLs (5 minutes)
+
+- **Backend API (AWS/EKS)**
+  - Production: `https://api.volteryde.com`
+  - Staging: `https://staging-api.volteryde.com`
+  - Dev: `https://dev-api.volteryde.com`
+- **Frontend web apps (Vercel)**
+  - Root site: `https://volteryde.org`
+  - Auth: `https://auth.volteryde.org`
+  - Admin: `https://admin.volteryde.org`
+  - Partners: `https://partners.volteryde.org`
+  - Support: `https://support.volteryde.org`
+  - Dispatch: `https://dispatch.volteryde.org`
+
+### Phase 1 — Vercel domains first (fastest validation)
+
+1. In Vercel, add these domains to the correct projects:
+   - `volteryde.org` → landing page project
+   - `auth.volteryde.org` → auth frontend
+   - `admin.volteryde.org` → admin dashboard
+   - `partners.volteryde.org` → BI partner app
+   - `support.volteryde.org` → customer/support app
+   - `dispatch.volteryde.org` → dispatcher app
+2. Create DNS records for `volteryde.org` (A record + CNAMEs) and wait for Vercel verification.
+
+### Phase 2 — AWS backend next (Route 53 + ACM + Ingress)
+
+1. Request ACM certificate in **sa-east-1** for:
+   - `*.volteryde.com`
+   - `volteryde.com`
+2. Validate ACM via DNS.
+3. Deploy Ingress and obtain the ALB hostname.
+4. Create DNS CNAME records for `api`, `staging-api`, `dev-api`.
+5. Ensure Ingress uses the ACM certificate ARN.
+
+### Phase 3 — Wiring + verification
+
+1. Verify backend health:
+   - `curl -f https://api.volteryde.com/api/v1/health`
+2. Verify frontends load and can call the backend (CORS).
+
+---
+
 ## Complete Subdomain Map
 
 ### `volteryde.com` — Backend (AWS / EKS)
@@ -17,9 +62,9 @@ All backend subdomains resolve to the **AWS ALB** created by the EKS Ingress Con
 
 | Subdomain | Target | Purpose | Environment |
 | --- | --- | --- | --- |
-| `api.volteryde.com` | ALB (EKS Ingress, `volteryde-prod`) | Production API Gateway | Production |
-| `staging-api.volteryde.com` | ALB (EKS Ingress, `volteryde-staging`) | Staging API Gateway | Staging |
-| `dev-api.volteryde.com` | ALB (EKS Ingress, `volteryde-dev`) | Dev API Gateway | Development |
+| `api.volteryde.com` | ALB (EKS Ingress, `production`) | Production API Gateway | Production |
+| `staging-api.volteryde.com` | ALB (EKS Ingress, `staging`) | Staging API Gateway | Staging |
+| `dev-api.volteryde.com` | ALB (EKS Ingress, `development`) | Dev API Gateway | Development |
 | `volteryde.com` | Redirect → `volteryde.org` | Root domain redirect | — |
 | `www.volteryde.com` | Redirect → `volteryde.org` | WWW redirect | — |
 
@@ -36,6 +81,18 @@ All frontend subdomains are deployed on **Vercel** and point via CNAME to `cname
 | `support.volteryde.org` | `apps/customer-and-support-app/` | Customer support interface | 4004 |
 | `dispatch.volteryde.org` | `apps/dispatcher-app/` | Fleet dispatcher interface | 4005 |
 | `docs.volteryde.org` | Fumadocs (separate) | Developer documentation | 3002 |
+
+#### Vercel project mapping (from your Vercel team)
+
+| Domain | Vercel Project | Project ID |
+| --- | --- | --- |
+| `volteryde.org` | `volteryde-platform-landing-page` | `prj_BNfkar0WHtLYoZnbpB6FUJrBirQW` |
+| `auth.volteryde.org` | `volteryde-platform-auth-frontend` | `prj_ms0UFRMhDmJm52E1o0QgejAUZ6z6` |
+| `admin.volteryde.org` | `volteryde-platform-admin-dashboard` | `prj_itq31UDhHFVRhVTdeAwEggzW1tYG` |
+| `partners.volteryde.org` | `volteryde-platform-bi-partner-app` | `prj_gy26PrLvh1y9URGY3OnOcR5KQEVE` |
+| `support.volteryde.org` | `volteryde-platform-customer-and-support-app` | `prj_tZS2h2Im5SnvAMt2JU6Smsbkv3t0` |
+| `dispatch.volteryde.org` | `volteryde-platform-dispatcher-app` | `prj_GfHuyrEwi351UceaeRNLWO3wMtk4` |
+| `docs.volteryde.org` | `volteryde-platform-docs` | *(create — see below)* |
 
 ### Mobile Apps (React Native — no DNS needed)
 
@@ -54,8 +111,8 @@ All frontend subdomains are deployed on **Vercel** and point via CNAME to `cname
 After deploying the K8s Ingress, get your ALB hostname:
 
 ```bash
-kubectl get ingress volteryde-ingress -n volteryde-prod -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-# Example output: k8s-volteryd-volteryd-abc123-1234567890.us-east-1.elb.amazonaws.com
+kubectl get ingress volteryde-ingress -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+# Example output: k8s-volteryd-volteryd-abc123-1234567890.sa-east-1.elb.amazonaws.com
 ```
 
 Then create these records:
@@ -96,9 +153,9 @@ Then create these records:
 
 ### Backend (`volteryde.com`) — AWS Certificate Manager (ACM)
 
-Request a **wildcard certificate** in ACM (us-east-1):
+Request a **wildcard certificate** in ACM (sa-east-1):
 
-```
+```text
 *.volteryde.com
 volteryde.com
 ```
@@ -106,7 +163,7 @@ volteryde.com
 Then reference the ARN in the Ingress annotation:
 
 ```yaml
-alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:<ACCOUNT_ID>:certificate/<CERT_ID>
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:sa-east-1:<ACCOUNT_ID>:certificate/<CERT_ID>
 ```
 
 ### Frontend (`volteryde.org`) — Vercel
@@ -178,7 +235,7 @@ EXPO_PUBLIC_API_URL=https://api.volteryde.com/api/v1
 | --- | --- | --- |
 | Dev | `https://dev-api.volteryde.com` | `http://localhost:3000,http://localhost:3001,https://dev.volteryde.com` |
 | Staging | `https://staging-api.volteryde.com` | `https://staging.volteryde.com,https://staging-admin.volteryde.com` |
-| Production | `https://api.volteryde.com` | `https://volteryde.com,https://www.volteryde.com,https://admin.volteryde.com` |
+| Production | `https://api.volteryde.com` | All `.volteryde.com` + `.volteryde.org` subdomains (see ConfigMap) |
 
 ---
 

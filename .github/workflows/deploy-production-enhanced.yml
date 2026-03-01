@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  EKS_CLUSTER: volteryde-cluster
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  AWS_REGION: sa-east-1
+  EKS_CLUSTER: volteryde-production
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.sa-east-1.amazonaws.com
 
 jobs:
   # ============================================================================
@@ -58,8 +58,8 @@ jobs:
           file: services/volteryde-springboot/Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:latest
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -155,23 +155,23 @@ jobs:
 
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          echo "📋 Applying kustomize manifests to volteryde-dev..."
+          echo "📋 Applying kustomize manifests to development..."
           kustomize build . | kubectl apply -f -
 
       - name: Wait for DEV rollout
         run: |
-          kubectl rollout status deployment/volteryde-api -n volteryde-dev --timeout=5m || true
-          kubectl rollout status deployment/volteryde-auth -n volteryde-dev --timeout=5m || true
-          kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-api -n development --timeout=5m || true
+          kubectl rollout status deployment/volteryde-auth -n development --timeout=5m || true
+          kubectl rollout status deployment/temporal-workers -n development --timeout=5m || true
 
       - name: DEV Smoke Test
         run: |
           echo "🧪 Running DEV smoke tests..."
-          kubectl get pods -n volteryde-dev
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-dev --timeout=3m || true
+          kubectl get pods -n development
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n development --timeout=3m || true
           echo "✅ DEV smoke tests passed"
         continue-on-error: true
 
@@ -217,9 +217,9 @@ jobs:
       - name: Rollback DEV on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/volteryde-api -n volteryde-dev || true
-          kubectl rollout undo deployment/volteryde-auth -n volteryde-dev || true
-          kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-api -n development || true
+          kubectl rollout undo deployment/volteryde-auth -n development || true
+          kubectl rollout undo deployment/temporal-workers -n development || true
 
       - name: Notify Slack — DEV Failed
         if: failure()
@@ -299,24 +299,24 @@ jobs:
 
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          echo "📋 Applying kustomize manifests to volteryde-staging..."
+          echo "📋 Applying kustomize manifests to staging..."
           kustomize build . | kubectl apply -f -
 
       - name: Wait for Staging rollout
         run: |
-          kubectl rollout status deployment/volteryde-api -n volteryde-staging --timeout=10m || true
-          kubectl rollout status deployment/volteryde-auth -n volteryde-staging --timeout=10m || true
-          kubectl rollout status deployment/temporal-workers -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-api -n staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-auth -n staging --timeout=10m || true
+          kubectl rollout status deployment/temporal-workers -n staging --timeout=10m || true
 
       - name: Staging Smoke Test
         run: |
           echo "🧪 Running Staging smoke tests..."
-          kubectl get pods -n volteryde-staging
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-staging --timeout=3m || true
-          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n volteryde-staging --timeout=3m || true
+          kubectl get pods -n staging
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n staging --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n staging --timeout=3m || true
           echo "✅ Staging smoke tests passed"
         continue-on-error: true
 
@@ -362,9 +362,9 @@ jobs:
       - name: Rollback Staging on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/volteryde-api -n volteryde-staging || true
-          kubectl rollout undo deployment/volteryde-auth -n volteryde-staging || true
-          kubectl rollout undo deployment/temporal-workers -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-api -n staging || true
+          kubectl rollout undo deployment/volteryde-auth -n staging || true
+          kubectl rollout undo deployment/temporal-workers -n staging || true
 
       - name: Notify Slack — Staging Failed
         if: failure()
@@ -447,40 +447,40 @@ jobs:
 
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
-            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${IMAGE_TAG} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          echo "📋 Applying kustomize manifests to volteryde-prod..."
+          echo "📋 Applying kustomize manifests to production..."
           kustomize build . | kubectl apply -f -
 
       - name: Wait for Production rollout
         run: |
           echo "⏳ Waiting for all deployments to roll out..."
-          kubectl rollout status deployment/volteryde-api -n volteryde-prod --timeout=15m
-          kubectl rollout status deployment/volteryde-auth -n volteryde-prod --timeout=15m
-          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m
+          kubectl rollout status deployment/volteryde-api -n production --timeout=15m
+          kubectl rollout status deployment/volteryde-auth -n production --timeout=15m
+          kubectl rollout status deployment/temporal-workers -n production --timeout=15m
           echo "✅ All services deployed successfully"
 
       - name: Health Check - NestJS (volteryde-api)
         run: |
           echo "🏥 Running health checks on volteryde-api..."
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-prod --timeout=5m
-          kubectl get pods -n volteryde-prod -l app=volteryde-api
-          kubectl logs -n volteryde-prod -l app=volteryde-api --tail=50 | grep -i error || echo "No errors found"
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n production --timeout=5m
+          kubectl get pods -n production -l app=volteryde-api
+          kubectl logs -n production -l app=volteryde-api --tail=50 | grep -i error || echo "No errors found"
           echo "✅ NestJS health check passed"
 
       - name: Health Check - Spring Boot (volteryde-auth)
         run: |
           echo "🏥 Running health checks on volteryde-auth..."
-          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n volteryde-prod --timeout=5m
-          kubectl get pods -n volteryde-prod -l app=volteryde-auth
+          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n production --timeout=5m
+          kubectl get pods -n production -l app=volteryde-auth
           echo "✅ Spring Boot health check passed"
 
       - name: Run Production Smoke Tests
         run: |
           echo "🧪 Running production smoke tests..."
           sleep 30
-          kubectl get pods -n volteryde-prod
+          kubectl get pods -n production
           echo "✅ Production smoke tests completed"
         continue-on-error: true
       
@@ -493,14 +493,14 @@ jobs:
             echo "Monitoring iteration $i/10..."
             
             # Check pod status
-            kubectl get pods -n volteryde-prod
+            kubectl get pods -n production
             
             # Check for CrashLoopBackOff or errors
-            ERROR_PODS=$(kubectl get pods -n volteryde-prod --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq '.items | length')
+            ERROR_PODS=$(kubectl get pods -n production --field-selector=status.phase!=Running,status.phase!=Succeeded -o json | jq '.items | length')
             
             if [ "$ERROR_PODS" -gt 0 ]; then
               echo "⚠️ WARNING: $ERROR_PODS pods in error state"
-              kubectl get pods -n volteryde-prod --field-selector=status.phase!=Running,status.phase!=Succeeded
+              kubectl get pods -n production --field-selector=status.phase!=Running,status.phase!=Succeeded
             fi
             
             # Check CloudWatch alarms
@@ -587,15 +587,15 @@ jobs:
         run: |
           echo "🚨 CRITICAL: Production deployment failed - initiating emergency rollback..."
           
-          kubectl rollout undo deployment/volteryde-api -n volteryde-prod || true
-          kubectl rollout undo deployment/volteryde-auth -n volteryde-prod || true
-          kubectl rollout undo deployment/temporal-workers -n volteryde-prod || true
+          kubectl rollout undo deployment/volteryde-api -n production || true
+          kubectl rollout undo deployment/volteryde-auth -n production || true
+          kubectl rollout undo deployment/temporal-workers -n production || true
           
-          kubectl rollout status deployment/volteryde-api -n volteryde-prod --timeout=15m || true
-          kubectl rollout status deployment/volteryde-auth -n volteryde-prod --timeout=15m || true
-          kubectl rollout status deployment/temporal-workers -n volteryde-prod --timeout=15m || true
+          kubectl rollout status deployment/volteryde-api -n production --timeout=15m || true
+          kubectl rollout status deployment/volteryde-auth -n production --timeout=15m || true
+          kubectl rollout status deployment/temporal-workers -n production --timeout=15m || true
           
-          kubectl get pods -n volteryde-prod
+          kubectl get pods -n production
           echo "✅ Emergency rollback completed"
       
       - name: Notify Slack on Failure

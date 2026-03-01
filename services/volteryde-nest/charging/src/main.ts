@@ -20,7 +20,9 @@ async function bootstrap() {
     origin: process.env.ALLOWED_ORIGINS?.split(',') || [
       /^(http:\/\/localhost:[0-9]+)$/,
       /^(https:\/\/.*\.volteryde\.org)$/,
-      'https://volteryde.org'
+      'https://volteryde.org',
+      /^(https:\/\/.*\.volteryde\.com)$/,
+      'https://volteryde.com'
     ],
     credentials: true,
   });

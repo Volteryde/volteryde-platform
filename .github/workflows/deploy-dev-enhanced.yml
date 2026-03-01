@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  EKS_CLUSTER: volteryde-cluster
+  AWS_REGION: sa-east-1
+  EKS_CLUSTER: volteryde-production
   ENVIRONMENT: development
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.sa-east-1.amazonaws.com
 
 jobs:
   # ============================================================================
@@ -69,8 +69,8 @@ jobs:
           file: services/volteryde-springboot/Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:dev-latest
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:dev-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -131,7 +131,7 @@ jobs:
           cd infrastructure/kubernetes/overlays/dev
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }} \
-            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${{ github.sha }} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
 
           echo "📋 Applying kustomize manifests to volteryde-dev..."
@@ -139,15 +139,15 @@ jobs:
       
       - name: Wait for DEV rollout
         run: |
-          kubectl rollout status deployment/volteryde-api -n volteryde-dev --timeout=5m || true
-          kubectl rollout status deployment/volteryde-auth -n volteryde-dev --timeout=5m || true
-          kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-api -n development --timeout=5m || true
+          kubectl rollout status deployment/volteryde-auth -n development --timeout=5m || true
+          kubectl rollout status deployment/temporal-workers -n development --timeout=5m || true
       
       - name: DEV Smoke Test
         run: |
           echo "🧪 Running DEV smoke tests..."
-          kubectl get pods -n volteryde-dev
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-dev --timeout=3m || true
+          kubectl get pods -n development
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n development --timeout=3m || true
           echo "✅ DEV smoke tests passed"
         continue-on-error: true
       
@@ -200,9 +200,9 @@ jobs:
         if: failure()
         run: |
           echo "🔄 Rolling back deployment..."
-          kubectl rollout undo deployment/volteryde-api -n volteryde-dev || true
-          kubectl rollout undo deployment/volteryde-auth -n volteryde-dev || true
-          kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-api -n development || true
+          kubectl rollout undo deployment/volteryde-auth -n development || true
+          kubectl rollout undo deployment/temporal-workers -n development || true
       
       - name: Notify Slack on Failure
         if: failure()
