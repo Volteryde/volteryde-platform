@@ -1,13 +1,10 @@
-# ============================================================================
-# Production Environment Ingress Overrides
-# ============================================================================
-
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: volteryde-ingress
   annotations:
-    alb.ingress.kubernetes.io/certificate-arn: ${ACM_CERTIFICATE_ARN}
+    alb.ingress.kubernetes.io/group.name: volteryde-shared
+    alb.ingress.kubernetes.io/group.order: "30"
 spec:
   rules:
   - host: api.volteryde.com
@@ -45,9 +42,12 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: routing-service
+            name: volteryde-api
             port:
               number: 80
+  - host: api.volteryde.com
+    http:
+      paths:
       - path: /api/v1/auth
         pathType: Prefix
         backend:
@@ -62,6 +62,9 @@ spec:
             name: volteryde-auth
             port:
               number: 80
+  - host: api.volteryde.com
+    http:
+      paths:
       - path: /api/v1/health
         pathType: Exact
         backend:
@@ -69,3 +72,24 @@ spec:
             name: volteryde-api
             port:
               number: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-ui-ingress
+  annotations:
+    alb.ingress.kubernetes.io/group.name: volteryde-shared
+    alb.ingress.kubernetes.io/group.order: "50"
+spec:
+  rules:
+  - host: temporal.volteryde.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: temporal-ui-service
+            port:
+              number: 8080

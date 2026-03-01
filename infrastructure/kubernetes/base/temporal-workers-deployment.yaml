@@ -71,11 +71,6 @@ spec:
             configMapKeyRef:
               name: volteryde-config
               key: DATABASE_NAME
-        - name: DATABASE_USERNAME
-          valueFrom:
-            configMapKeyRef:
-              name: volteryde-config
-              key: DATABASE_USERNAME
         - name: DATABASE_USER
           valueFrom:
             secretKeyRef:

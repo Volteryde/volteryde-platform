@@ -5,34 +5,33 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: volteryde-prod
+namespace: production
 
 resources:
   - ../../base
 
-commonLabels:
-  environment: production
-  cost-center: production
+labels:
+  - pairs:
+      environment: production
+      cost-center: production
+    includeSelectors: false
 
 patchesStrategicMerge:
   - configmap-patch.yaml
   - replicas-patch.yaml
   - resources-patch.yaml
   - ingress-patch.yaml
+  - hpa-patch.yaml
+  - nodeselector-patch.yaml
 
 # Image overrides — CI/CD will dynamically set tags via: kustomize edit set image
 images:
   - name: volteryde/nestjs-service
+    newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/nestjs-service
     newTag: latest
   - name: volteryde/springboot-service
+    newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-auth
     newTag: latest
   - name: volteryde/temporal-workers
+    newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/temporal-workers
     newTag: latest
-
-replicas:
-  - name: volteryde-api
-    count: 3
-  - name: volteryde-auth
-    count: 3
-  - name: temporal-workers
-    count: 2

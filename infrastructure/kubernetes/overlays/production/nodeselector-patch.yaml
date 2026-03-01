@@ -1,0 +1,57 @@
+# ============================================================================
+# Production nodeSelector — route pods to their dedicated node groups
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volteryde-api
+spec:
+  template:
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: nestjs-services
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volteryde-auth
+spec:
+  template:
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: springboot-services
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-workers
+spec:
+  template:
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: temporal-workers
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  template:
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: system-services
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  template:
+    spec:
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: system-services

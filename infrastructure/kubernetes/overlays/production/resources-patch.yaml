@@ -13,11 +13,11 @@ spec:
       - name: nestjs
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "512Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "2000m"
+            memory: "1Gi"
+            cpu: "1000m"
 
 ---
 apiVersion: apps/v1
@@ -31,11 +31,11 @@ spec:
       - name: springboot
         resources:
           requests:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
           limits:
-            memory: "4Gi"
-            cpu: "4000m"
+            memory: "2Gi"
+            cpu: "1500m"
 
 ---
 apiVersion: apps/v1
@@ -49,8 +49,8 @@ spec:
       - name: temporal-workers
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "512Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "2000m"
+            memory: "1Gi"
+            cpu: "1000m"

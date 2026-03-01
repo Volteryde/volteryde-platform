@@ -6,23 +6,23 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - namespace.yaml
   - serviceaccount.yaml
   - configmap.yaml
-  - secrets.yaml
   - network-policies.yaml
   - postgres-deployment.yaml
   - redis-deployment.yaml
   - nestjs-deployment.yaml
   - springboot-deployment.yaml
   - temporal-workers-deployment.yaml
-  - routing-service-deployment.yaml
+  # routing-service-deployment.yaml excluded — placeholder image, not ready for deployment
   - ingress.yaml
 
-# Common labels applied to all resources
-commonLabels:
-  platform: volteryde
-  managed-by: kustomize
+# Common labels applied to metadata only (not selectors — selectors are immutable)
+labels:
+  - pairs:
+      platform: volteryde
+      managed-by: kustomize
+    includeSelectors: false
 
 # Common annotations
 commonAnnotations:

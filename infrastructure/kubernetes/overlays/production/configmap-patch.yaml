@@ -12,3 +12,6 @@ data:
   LOG_LEVEL: "warn"
   API_GATEWAY_URL: "https://api.volteryde.com"
   CORS_ORIGINS: "https://volteryde.com,https://www.volteryde.com,https://admin.volteryde.com"
+  DATABASE_HOST: "volteryde-prod-postgres.cbucoeyea98s.sa-east-1.rds.amazonaws.com"
+  DATABASE_NAME: "volteryde"
+  TEMPORAL_NAMESPACE: "quickstart-volteryde.svqe2"

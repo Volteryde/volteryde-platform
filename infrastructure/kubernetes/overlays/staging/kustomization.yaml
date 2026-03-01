@@ -17,7 +17,14 @@ commonLabels:
 patchesStrategicMerge:
   - configmap-patch.yaml
   - replicas-patch.yaml
-  - ingress-patch.yaml
+
+patchesJson6902:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: volteryde-ingress
+    path: ingress-patch.yaml
 
 # Image overrides — CI/CD will dynamically set tags via: kustomize edit set image
 images:
