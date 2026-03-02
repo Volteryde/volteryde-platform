@@ -51,7 +51,7 @@ jobs:
           build-args: |
             NODE_ENV=production
 
-      - name: Build & Push Spring Boot Service
+      - name: Build & Push Spring Boot Auth Service
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -64,6 +64,20 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             SERVICE_NAME=api-gateway
+
+      - name: Build & Push Spring Boot Payment Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=payment-service
 
       - name: Build & Push Temporal Workers
         uses: docker/build-push-action@v5
@@ -141,7 +155,7 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.28.0'
+          version: "v1.28.0"
 
       - name: Install Kustomize
         run: |
@@ -156,6 +170,7 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to development..."
@@ -165,6 +180,7 @@ jobs:
         run: |
           kubectl rollout status deployment/volteryde-api -n development --timeout=5m || true
           kubectl rollout status deployment/volteryde-auth -n development --timeout=5m || true
+          kubectl rollout status deployment/volteryde-payment -n development --timeout=5m || true
           kubectl rollout status deployment/temporal-workers -n development --timeout=5m || true
 
       - name: DEV Smoke Test
@@ -219,6 +235,7 @@ jobs:
         run: |
           kubectl rollout undo deployment/volteryde-api -n development || true
           kubectl rollout undo deployment/volteryde-auth -n development || true
+          kubectl rollout undo deployment/volteryde-payment -n development || true
           kubectl rollout undo deployment/temporal-workers -n development || true
 
       - name: Notify Slack — DEV Failed
@@ -285,7 +302,7 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.28.0'
+          version: "v1.28.0"
 
       - name: Install Kustomize
         run: |
@@ -300,6 +317,7 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to staging..."
@@ -309,6 +327,7 @@ jobs:
         run: |
           kubectl rollout status deployment/volteryde-api -n staging --timeout=10m || true
           kubectl rollout status deployment/volteryde-auth -n staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-payment -n staging --timeout=10m || true
           kubectl rollout status deployment/temporal-workers -n staging --timeout=10m || true
 
       - name: Staging Smoke Test
@@ -364,6 +383,7 @@ jobs:
         run: |
           kubectl rollout undo deployment/volteryde-api -n staging || true
           kubectl rollout undo deployment/volteryde-auth -n staging || true
+          kubectl rollout undo deployment/volteryde-payment -n staging || true
           kubectl rollout undo deployment/temporal-workers -n staging || true
 
       - name: Notify Slack — Staging Failed
@@ -413,33 +433,33 @@ jobs:
     environment:
       name: production
       url: https://api.volteryde.com
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
             --region ${{ env.AWS_REGION }} \
             --name ${{ env.EKS_CLUSTER }}
-      
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: 'v1.28.0'
-      
+          version: "v1.28.0"
+
       - name: Install Kustomize
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
-      
+
       - name: Deploy to Production via Kustomize
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
@@ -448,6 +468,7 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to production..."
@@ -458,6 +479,7 @@ jobs:
           echo "⏳ Waiting for all deployments to roll out..."
           kubectl rollout status deployment/volteryde-api -n production --timeout=15m
           kubectl rollout status deployment/volteryde-auth -n production --timeout=15m
+          kubectl rollout status deployment/volteryde-payment -n production --timeout=15m
           kubectl rollout status deployment/temporal-workers -n production --timeout=15m
           echo "✅ All services deployed successfully"
 
@@ -469,12 +491,19 @@ jobs:
           kubectl logs -n production -l app=volteryde-api --tail=50 | grep -i error || echo "No errors found"
           echo "✅ NestJS health check passed"
 
-      - name: Health Check - Spring Boot (volteryde-auth)
+      - name: Health Check - Spring Boot Auth (volteryde-auth)
         run: |
           echo "🏥 Running health checks on volteryde-auth..."
           kubectl wait --for=condition=ready pod -l app=volteryde-auth -n production --timeout=5m
           kubectl get pods -n production -l app=volteryde-auth
-          echo "✅ Spring Boot health check passed"
+          echo "✅ Spring Boot Auth health check passed"
+
+      - name: Health Check - Spring Boot Payment (volteryde-payment)
+        run: |
+          echo "🏥 Running health checks on volteryde-payment..."
+          kubectl wait --for=condition=ready pod -l app=volteryde-payment -n production --timeout=5m
+          kubectl get pods -n production -l app=volteryde-payment
+          echo "✅ Spring Boot Payment health check passed"
 
       - name: Run Production Smoke Tests
         run: |
@@ -483,11 +512,11 @@ jobs:
           kubectl get pods -n production
           echo "✅ Production smoke tests completed"
         continue-on-error: true
-      
+
       - name: Monitor Production Metrics
         run: |
           echo "📊 Monitoring production metrics for 5 minutes..."
-          
+
           # Monitor for 5 minutes
           for i in {1..10}; do
             echo "Monitoring iteration $i/10..."
@@ -517,13 +546,13 @@ jobs:
             
             sleep 30
           done
-          
+
           echo "✅ Metrics monitoring completed - no issues detected"
-      
+
       - name: Tag successful deployment
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
-          
+
           # Tag in CloudWatch
           aws cloudwatch put-metric-data \
             --namespace Volteryde/Deployments \
@@ -531,12 +560,12 @@ jobs:
             --value 1 \
             --dimensions Environment=production,ImageTag=${IMAGE_TAG} \
             --timestamp $(date -u +%Y-%m-%dT%H:%M:%S)
-          
+
           # Tag Docker images as production
           aws ecr put-image-tag-mutability \
             --repository-name volteryde/nestjs-service \
             --image-tag-mutability IMMUTABLE || true
-      
+
       - name: Notify Slack on Success
         if: success()
         uses: slackapi/slack-github-action@v1
@@ -581,23 +610,25 @@ jobs:
                 }
               ]
             }
-      
+
       - name: Emergency Rollback on Failure
         if: failure()
         run: |
           echo "🚨 CRITICAL: Production deployment failed - initiating emergency rollback..."
-          
+
           kubectl rollout undo deployment/volteryde-api -n production || true
           kubectl rollout undo deployment/volteryde-auth -n production || true
+          kubectl rollout undo deployment/volteryde-payment -n production || true
           kubectl rollout undo deployment/temporal-workers -n production || true
-          
+
           kubectl rollout status deployment/volteryde-api -n production --timeout=15m || true
           kubectl rollout status deployment/volteryde-auth -n production --timeout=15m || true
+          kubectl rollout status deployment/volteryde-payment -n production --timeout=15m || true
           kubectl rollout status deployment/temporal-workers -n production --timeout=15m || true
-          
+
           kubectl get pods -n production
           echo "✅ Emergency rollback completed"
-      
+
       - name: Notify Slack on Failure
         if: failure()
         uses: slackapi/slack-github-action@v1
@@ -642,15 +673,15 @@ jobs:
                 }
               ]
             }
-      
+
       - name: Create incident ticket on failure
         if: failure()
         run: |
           echo "📋 Creating incident ticket..."
-          
+
           # This would integrate with your incident management system
           # Example: PagerDuty, Opsgenie, or Jira
-          
+
           echo "Incident: Production deployment failed"
           echo "Image Tag: ${{ needs.build-and-push.outputs.image-tag }}"
           echo "Rollback: Executed"
