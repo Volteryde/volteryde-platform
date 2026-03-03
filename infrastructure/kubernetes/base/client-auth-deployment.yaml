@@ -88,6 +88,28 @@ spec:
                   key: JWT_SECRET
             - name: SPRING_JPA_HIBERNATE_DDL_AUTO
               value: "update"
+            # Austin: Google OAuth client IDs for token validation (web, iOS, Android)
+            - name: GOOGLE_WEB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: volteryde-secrets
+                  key: GOOGLE_WEB_CLIENT_ID
+            - name: GOOGLE_IOS_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: volteryde-secrets
+                  key: GOOGLE_IOS_CLIENT_ID
+            - name: GOOGLE_ANDROID_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: volteryde-secrets
+                  key: GOOGLE_ANDROID_CLIENT_ID
+            # Austin: SMS Provider (Gatekeeper Pro) for OTP delivery
+            - name: SMS_PROVIDER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: volteryde-secrets
+                  key: SMS_PROVIDER_API_KEY
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
             - name: JAVA_OPTS
