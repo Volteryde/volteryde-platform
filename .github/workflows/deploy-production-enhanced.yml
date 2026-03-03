@@ -174,7 +174,7 @@ jobs:
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to development..."
-          kustomize build . | kubectl apply -f -
+          kustomize build . | kubectl apply --server-side --force-conflicts -f -
 
       - name: Wait for DEV rollout
         run: |
@@ -321,7 +321,7 @@ jobs:
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to staging..."
-          kustomize build . | kubectl apply -f -
+          kustomize build . | kubectl apply --server-side --force-conflicts -f -
 
       - name: Wait for Staging rollout
         run: |
@@ -472,7 +472,7 @@ jobs:
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
           echo "📋 Applying kustomize manifests to production..."
-          kustomize build . | kubectl apply -f -
+          kustomize build . | kubectl apply --server-side --force-conflicts -f -
 
       - name: Wait for Production rollout
         run: |
