@@ -27,7 +27,7 @@ import {
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 
 @ApiTags('Telematics')
-@Controller('api/v1/telematics')
+@Controller('telematics')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class TelematicsController {
