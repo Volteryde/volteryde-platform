@@ -162,6 +162,21 @@ jobs:
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
 
+      - name: Cleanup stale DEV deployments (one-time selector migration)
+        run: |
+          echo "🧹 Deleting deployments with stale label selectors in volteryde-dev..."
+          for deploy in volteryde-api volteryde-auth volteryde-payment redis routing-service temporal-workers; do
+            if kubectl get deployment "$deploy" -n volteryde-dev &>/dev/null; then
+              SELECTOR=$(kubectl get deployment "$deploy" -n volteryde-dev -o=jsonpath='{.spec.selector.matchLabels.environment}' 2>/dev/null)
+              if [ -n "$SELECTOR" ]; then
+                echo "  Deleting $deploy (has environment=$SELECTOR in selector)..."
+                kubectl delete deployment "$deploy" -n volteryde-dev --ignore-not-found || true
+              fi
+            fi
+          done
+          echo "✅ Cleanup complete"
+        continue-on-error: true
+
       - name: Deploy to DEV via Kustomize
         run: |
           IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
@@ -308,6 +323,21 @@ jobs:
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
+
+      - name: Cleanup stale Staging deployments (one-time selector migration)
+        run: |
+          echo "🧹 Deleting deployments with stale label selectors in volteryde-staging..."
+          for deploy in volteryde-api volteryde-auth volteryde-payment redis routing-service temporal-workers; do
+            if kubectl get deployment "$deploy" -n volteryde-staging &>/dev/null; then
+              SELECTOR=$(kubectl get deployment "$deploy" -n volteryde-staging -o=jsonpath='{.spec.selector.matchLabels.environment}' 2>/dev/null)
+              if [ -n "$SELECTOR" ]; then
+                echo "  Deleting $deploy (has environment=$SELECTOR in selector)..."
+                kubectl delete deployment "$deploy" -n volteryde-staging --ignore-not-found || true
+              fi
+            fi
+          done
+          echo "✅ Cleanup complete"
+        continue-on-error: true
 
       - name: Deploy to Staging via Kustomize
         run: |
