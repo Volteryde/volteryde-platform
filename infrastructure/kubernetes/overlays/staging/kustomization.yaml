@@ -10,9 +10,11 @@ namespace: volteryde-staging
 resources:
   - ../../base
 
-commonLabels:
-  environment: staging
-  cost-center: staging
+labels:
+  - pairs:
+      environment: staging
+      cost-center: staging
+    includeSelectors: false
 
 patchesStrategicMerge:
   - configmap-patch.yaml
