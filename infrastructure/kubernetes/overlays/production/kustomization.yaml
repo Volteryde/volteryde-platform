@@ -32,6 +32,9 @@ images:
   - name: volteryde/springboot-service
     newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-auth
     newTag: latest
+  - name: volteryde/springboot-client-auth
+    newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-client-auth
+    newTag: latest
   - name: volteryde/springboot-payment
     newName: 776127042419.dkr.ecr.sa-east-1.amazonaws.com/volteryde/springboot-payment
     newTag: latest

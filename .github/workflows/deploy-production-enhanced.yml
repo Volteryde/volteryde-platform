@@ -65,6 +65,20 @@ jobs:
           build-args: |
             SERVICE_NAME=api-gateway
 
+      - name: Build & Push Spring Boot Client Auth Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=client-auth-service
+
       - name: Build & Push Spring Boot Payment Service
         uses: docker/build-push-action@v5
         with:
@@ -164,16 +178,30 @@ jobs:
 
       - name: Cleanup stale DEV deployments (one-time selector migration)
         run: |
-          echo "🧹 Deleting deployments with stale label selectors in volteryde-dev..."
-          for deploy in volteryde-api volteryde-auth volteryde-payment redis routing-service temporal-workers; do
+          echo "🧹 Cleaning up stale resources in volteryde-dev..."
+          
+          # Delete deployments with stale label selectors (environment/cost-center baked into spec.selector)
+          for deploy in volteryde-api volteryde-auth volteryde-payment postgres redis routing-service temporal-workers; do
             if kubectl get deployment "$deploy" -n volteryde-dev &>/dev/null; then
               SELECTOR=$(kubectl get deployment "$deploy" -n volteryde-dev -o=jsonpath='{.spec.selector.matchLabels.environment}' 2>/dev/null)
               if [ -n "$SELECTOR" ]; then
-                echo "  Deleting $deploy (has environment=$SELECTOR in selector)..."
+                echo "  Deleting deployment $deploy (has stale environment=$SELECTOR in selector)..."
                 kubectl delete deployment "$deploy" -n volteryde-dev --ignore-not-found || true
               fi
             fi
           done
+
+          # Delete PVCs with wrong StorageClass (gp3 → gp2 migration, PVC spec is immutable)
+          for pvc in postgres-pvc redis-pvc routing-data-pvc; do
+            if kubectl get pvc "$pvc" -n volteryde-dev &>/dev/null; then
+              SC=$(kubectl get pvc "$pvc" -n volteryde-dev -o=jsonpath='{.spec.storageClassName}' 2>/dev/null)
+              if [ "$SC" != "gp2" ]; then
+                echo "  Deleting PVC $pvc (has storageClass=$SC, expected gp2)..."
+                kubectl delete pvc "$pvc" -n volteryde-dev --ignore-not-found || true
+              fi
+            fi
+          done
+
           echo "✅ Cleanup complete"
         continue-on-error: true
 
@@ -185,24 +213,26 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-client-auth=${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:${IMAGE_TAG} \
             volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          echo "📋 Applying kustomize manifests to development..."
+          echo "📋 Applying kustomize manifests to volteryde-dev..."
           kustomize build . | kubectl apply --server-side --force-conflicts -f -
 
       - name: Wait for DEV rollout
         run: |
-          kubectl rollout status deployment/volteryde-api -n development --timeout=5m || true
-          kubectl rollout status deployment/volteryde-auth -n development --timeout=5m || true
-          kubectl rollout status deployment/volteryde-payment -n development --timeout=5m || true
-          kubectl rollout status deployment/temporal-workers -n development --timeout=5m || true
+          kubectl rollout status deployment/volteryde-api -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-auth -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-client-auth -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-payment -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
 
       - name: DEV Smoke Test
         run: |
           echo "🧪 Running DEV smoke tests..."
-          kubectl get pods -n development
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n development --timeout=3m || true
+          kubectl get pods -n volteryde-dev
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-dev --timeout=3m || true
           echo "✅ DEV smoke tests passed"
         continue-on-error: true
 
@@ -248,10 +278,11 @@ jobs:
       - name: Rollback DEV on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/volteryde-api -n development || true
-          kubectl rollout undo deployment/volteryde-auth -n development || true
-          kubectl rollout undo deployment/volteryde-payment -n development || true
-          kubectl rollout undo deployment/temporal-workers -n development || true
+          kubectl rollout undo deployment/volteryde-api -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-auth -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-client-auth -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-payment -n volteryde-dev || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
 
       - name: Notify Slack — DEV Failed
         if: failure()
@@ -326,16 +357,30 @@ jobs:
 
       - name: Cleanup stale Staging deployments (one-time selector migration)
         run: |
-          echo "🧹 Deleting deployments with stale label selectors in volteryde-staging..."
-          for deploy in volteryde-api volteryde-auth volteryde-payment redis routing-service temporal-workers; do
+          echo "🧹 Cleaning up stale resources in volteryde-staging..."
+          
+          # Delete deployments with stale label selectors
+          for deploy in volteryde-api volteryde-auth volteryde-payment postgres redis routing-service temporal-workers; do
             if kubectl get deployment "$deploy" -n volteryde-staging &>/dev/null; then
               SELECTOR=$(kubectl get deployment "$deploy" -n volteryde-staging -o=jsonpath='{.spec.selector.matchLabels.environment}' 2>/dev/null)
               if [ -n "$SELECTOR" ]; then
-                echo "  Deleting $deploy (has environment=$SELECTOR in selector)..."
+                echo "  Deleting deployment $deploy (has stale environment=$SELECTOR in selector)..."
                 kubectl delete deployment "$deploy" -n volteryde-staging --ignore-not-found || true
               fi
             fi
           done
+
+          # Delete PVCs with wrong StorageClass (gp3 → gp2 migration, PVC spec is immutable)
+          for pvc in postgres-pvc redis-pvc routing-data-pvc; do
+            if kubectl get pvc "$pvc" -n volteryde-staging &>/dev/null; then
+              SC=$(kubectl get pvc "$pvc" -n volteryde-staging -o=jsonpath='{.spec.storageClassName}' 2>/dev/null)
+              if [ "$SC" != "gp2" ]; then
+                echo "  Deleting PVC $pvc (has storageClass=$SC, expected gp2)..."
+                kubectl delete pvc "$pvc" -n volteryde-staging --ignore-not-found || true
+              fi
+            fi
+          done
+
           echo "✅ Cleanup complete"
         continue-on-error: true
 
@@ -347,25 +392,27 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-client-auth=${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:${IMAGE_TAG} \
             volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
-          echo "📋 Applying kustomize manifests to staging..."
+          echo "📋 Applying kustomize manifests to volteryde-staging..."
           kustomize build . | kubectl apply --server-side --force-conflicts -f -
 
       - name: Wait for Staging rollout
         run: |
-          kubectl rollout status deployment/volteryde-api -n staging --timeout=10m || true
-          kubectl rollout status deployment/volteryde-auth -n staging --timeout=10m || true
-          kubectl rollout status deployment/volteryde-payment -n staging --timeout=10m || true
-          kubectl rollout status deployment/temporal-workers -n staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-api -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-auth -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-client-auth -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/volteryde-payment -n volteryde-staging --timeout=10m || true
+          kubectl rollout status deployment/temporal-workers -n volteryde-staging --timeout=10m || true
 
       - name: Staging Smoke Test
         run: |
           echo "🧪 Running Staging smoke tests..."
-          kubectl get pods -n staging
-          kubectl wait --for=condition=ready pod -l app=volteryde-api -n staging --timeout=3m || true
-          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n staging --timeout=3m || true
+          kubectl get pods -n volteryde-staging
+          kubectl wait --for=condition=ready pod -l app=volteryde-api -n volteryde-staging --timeout=3m || true
+          kubectl wait --for=condition=ready pod -l app=volteryde-auth -n volteryde-staging --timeout=3m || true
           echo "✅ Staging smoke tests passed"
         continue-on-error: true
 
@@ -411,10 +458,11 @@ jobs:
       - name: Rollback Staging on failure
         if: failure()
         run: |
-          kubectl rollout undo deployment/volteryde-api -n staging || true
-          kubectl rollout undo deployment/volteryde-auth -n staging || true
-          kubectl rollout undo deployment/volteryde-payment -n staging || true
-          kubectl rollout undo deployment/temporal-workers -n staging || true
+          kubectl rollout undo deployment/volteryde-api -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-auth -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-client-auth -n volteryde-staging || true
+          kubectl rollout undo deployment/volteryde-payment -n volteryde-staging || true
+          kubectl rollout undo deployment/temporal-workers -n volteryde-staging || true
 
       - name: Notify Slack — Staging Failed
         if: failure()
@@ -498,6 +546,7 @@ jobs:
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${IMAGE_TAG} \
             volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${IMAGE_TAG} \
+            volteryde/springboot-client-auth=${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:${IMAGE_TAG} \
             volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${IMAGE_TAG} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${IMAGE_TAG}
 
@@ -509,6 +558,7 @@ jobs:
           echo "⏳ Waiting for all deployments to roll out..."
           kubectl rollout status deployment/volteryde-api -n production --timeout=15m
           kubectl rollout status deployment/volteryde-auth -n production --timeout=15m
+          kubectl rollout status deployment/volteryde-client-auth -n production --timeout=15m
           kubectl rollout status deployment/volteryde-payment -n production --timeout=15m
           kubectl rollout status deployment/temporal-workers -n production --timeout=15m
           echo "✅ All services deployed successfully"
@@ -527,6 +577,13 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=volteryde-auth -n production --timeout=5m
           kubectl get pods -n production -l app=volteryde-auth
           echo "✅ Spring Boot Auth health check passed"
+
+      - name: Health Check - Spring Boot Client Auth (volteryde-client-auth)
+        run: |
+          echo "🏥 Running health checks on volteryde-client-auth..."
+          kubectl wait --for=condition=ready pod -l app=volteryde-client-auth -n production --timeout=5m
+          kubectl get pods -n production -l app=volteryde-client-auth
+          echo "✅ Spring Boot Client Auth health check passed"
 
       - name: Health Check - Spring Boot Payment (volteryde-payment)
         run: |
@@ -648,11 +705,13 @@ jobs:
 
           kubectl rollout undo deployment/volteryde-api -n production || true
           kubectl rollout undo deployment/volteryde-auth -n production || true
+          kubectl rollout undo deployment/volteryde-client-auth -n production || true
           kubectl rollout undo deployment/volteryde-payment -n production || true
           kubectl rollout undo deployment/temporal-workers -n production || true
 
           kubectl rollout status deployment/volteryde-api -n production --timeout=15m || true
           kubectl rollout status deployment/volteryde-auth -n production --timeout=15m || true
+          kubectl rollout status deployment/volteryde-client-auth -n production --timeout=15m || true
           kubectl rollout status deployment/volteryde-payment -n production --timeout=15m || true
           kubectl rollout status deployment/temporal-workers -n production --timeout=15m || true
 

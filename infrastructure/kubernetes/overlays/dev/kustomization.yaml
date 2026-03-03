@@ -34,6 +34,8 @@ images:
     newTag: latest
   - name: volteryde/springboot-service
     newTag: latest
+  - name: volteryde/springboot-client-auth
+    newTag: latest
   - name: volteryde/springboot-payment
     newTag: latest
   - name: volteryde/temporal-workers
@@ -43,6 +45,8 @@ replicas:
   - name: volteryde-api
     count: 1
   - name: volteryde-auth
+    count: 1
+  - name: volteryde-client-auth
     count: 1
   - name: volteryde-payment
     count: 1

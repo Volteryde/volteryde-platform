@@ -13,6 +13,7 @@ resources:
   - redis-deployment.yaml
   - nestjs-deployment.yaml
   - springboot-deployment.yaml
+  - client-auth-deployment.yaml
   - payment-deployment.yaml
   - temporal-workers-deployment.yaml
   # routing-service-deployment.yaml excluded — placeholder image, not ready for deployment
