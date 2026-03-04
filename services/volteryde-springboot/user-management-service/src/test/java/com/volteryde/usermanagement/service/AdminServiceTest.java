@@ -65,9 +65,6 @@ public class AdminServiceTest {
 		AdminDto.DriverResponse response = adminService.onboardDriver(request);
 
 		assertNotNull(response);
-		assertEquals("ACTIVE", response.getStatus()); // Note: logic in service maps INACTIVE -> name(), so verifying
-																		// mocked return
-		// Actually service maps savedProfile.getStatus().name()
-		// Mock returns INACTIVE, so assert INACTIVE
+		assertEquals("INACTIVE", response.getStatus()); // Austin: Mock returns INACTIVE, service maps via .name()
 	}
 }

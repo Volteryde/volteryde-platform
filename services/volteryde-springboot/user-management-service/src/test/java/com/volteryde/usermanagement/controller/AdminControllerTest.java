@@ -3,6 +3,8 @@ package com.volteryde.usermanagement.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.volteryde.usermanagement.dto.AdminDto;
 import com.volteryde.usermanagement.service.AdminService;
+import com.volteryde.usermanagement.security.JwtAuthenticationFilter;
+import com.volteryde.usermanagement.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,12 @@ public class AdminControllerTest {
 
 	@MockitoBean
 	private AdminService adminService;
+
+	@MockitoBean
+	private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	@MockitoBean
+	private JwtUtil jwtUtil;
 
 	@Autowired
 	private ObjectMapper objectMapper;
