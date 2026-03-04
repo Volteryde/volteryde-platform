@@ -44,10 +44,11 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						// Health and metrics endpoints - public
 						.requestMatchers("/actuator/**").permitAll()
-						// API endpoints - require authentication via token or internal call
-						// For now, permit all API calls since authentication is handled by API Gateway
-						// In production, this would validate JWT tokens
-						.requestMatchers("/api/**").permitAll()
+						// Austin: Admin endpoints require ADMIN/SUPER_ADMIN/SYSTEM_SUPPORT authority.
+						// JwtAuthenticationFilter populates SecurityContext from JWT before this check.
+						.requestMatchers("/api/admin/**").hasAnyAuthority("SYSTEM_SUPPORT", "ADMIN", "SUPER_ADMIN")
+						// Remaining API endpoints - require authentication (JWT validated by filter)
+						.requestMatchers("/api/**").authenticated()
 						// All other requests require authentication
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter,

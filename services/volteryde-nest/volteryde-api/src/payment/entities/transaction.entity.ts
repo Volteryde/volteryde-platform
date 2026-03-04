@@ -22,7 +22,7 @@ export enum TransactionType {
 	DEBIT = 'DEBIT',
 }
 
-@Entity('transactions')
+@Entity({ name: 'transactions', schema: process.env.PAYMENT_DATABASE_SCHEMA || 'svc_payment' })
 export class Transaction {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;

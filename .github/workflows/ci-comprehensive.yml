@@ -15,7 +15,7 @@ permissions:
 env:
   NODE_VERSION: '20'
   JAVA_VERSION: '17'
-  PNPM_VERSION: '8'
+  PNPM_VERSION: '9'
 
 jobs:
   # ============================================================================
@@ -134,7 +134,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: services/volteryde-nest
       
       - name: Lint (ESLint)
         run: pnpm lint
@@ -229,7 +228,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: test
       
       - name: Generate Coverage Report
-        run: ./mvnw jacoco:report
+        run: ./mvnw org.jacoco:jacoco-maven-plugin:report
         working-directory: services/volteryde-springboot
       
       - name: Upload Coverage
@@ -273,7 +272,6 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: workers/temporal-workers
       
       - name: Lint
         run: pnpm lint || echo "Lint completed"

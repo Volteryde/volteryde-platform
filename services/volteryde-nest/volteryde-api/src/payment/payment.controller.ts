@@ -10,15 +10,19 @@ import {
 	Logger,
 	Query,
 	Req,
+	Res,
+	Param,
+	UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import { InitializeTopUpDto, PaystackWebhookDto } from './dto/payment.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { InternalServiceGuard } from '../shared/guards/internal-service.guard';
 
-@ApiTags('payment')
-@Controller('payment')
+@ApiTags('wallet')
+@Controller('wallet')
 export class PaymentController {
 	private readonly logger = new Logger(PaymentController.name);
 
@@ -54,7 +58,48 @@ export class PaymentController {
 		return this.paymentService.handleWebhook(signature, payload);
 	}
 
-	@Get('wallet')
+	// Austin: Paystack redirects here after payment completion. Since the checkout
+	// opens in SFSafariViewController (expo-web-browser), we return a simple HTML
+	// page telling the user to close the browser. The actual balance update happens
+	// via the Paystack webhook — this is purely a UX landing page.
+	@Get('callback')
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({ summary: 'Paystack payment callback (redirect after checkout)' })
+	async paymentCallback(
+		@Query('trxref') trxref: string,
+		@Query('reference') reference: string,
+		@Res() res: Response,
+	) {
+		this.logger.log(`Payment callback received — trxref: ${trxref}, reference: ${reference}`);
+		res.setHeader('Content-Type', 'text/html');
+		res.send(`
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta name="viewport" content="width=device-width, initial-scale=1">
+				<title>Payment Complete</title>
+				<style>
+					body { font-family: -apple-system, system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+					.card { background: white; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); max-width: 360px; }
+					.check { font-size: 48px; margin-bottom: 16px; }
+					h2 { color: #1a1a1a; margin: 0 0 8px; }
+					p { color: #666; margin: 0 0 20px; font-size: 14px; }
+					.ref { font-size: 12px; color: #999; word-break: break-all; }
+				</style>
+			</head>
+			<body>
+				<div class="card">
+					<div class="check">✅</div>
+					<h2>Payment Successful</h2>
+					<p>Your wallet will be credited shortly.<br/>You can close this window now.</p>
+					<div class="ref">Ref: ${reference || trxref || 'N/A'}</div>
+				</div>
+			</body>
+			</html>
+		`);
+	}
+
+	@Get('balance')
 	@ApiBearerAuth()
 	@ApiOperation({ summary: 'Get current wallet balance' })
 	@ApiResponse({ status: 200, description: 'Wallet balance retrieved' })
@@ -83,6 +128,61 @@ export class PaymentController {
 		const userId = this.resolveUserId(user, req);
 		const maxResults = Math.min(parseInt(limit, 10) || 50, 100);
 		return this.paymentService.getTransactionHistory(userId, maxResults);
+	}
+
+	// ─── Internal Wallet Endpoints (Temporal Workers) ─────────────────────────
+
+	@Get('internal/:userId/balance')
+	@UseGuards(InternalServiceGuard)
+	@HttpCode(HttpStatus.OK)
+	@ApiExcludeEndpoint()
+	async internalGetBalance(@Param('userId') userId: string) {
+		return this.paymentService.internalGetBalance(userId);
+	}
+
+	@Post('internal/deduct')
+	@UseGuards(InternalServiceGuard)
+	@HttpCode(HttpStatus.OK)
+	@ApiExcludeEndpoint()
+	async internalDeduct(
+		@Body() body: { userId: string; amount: number; referenceId: string; reason: string },
+	) {
+		return this.paymentService.internalDeduct(
+			body.userId,
+			body.amount,
+			body.referenceId,
+			body.reason,
+		);
+	}
+
+	@Post('internal/credit')
+	@UseGuards(InternalServiceGuard)
+	@HttpCode(HttpStatus.OK)
+	@ApiExcludeEndpoint()
+	async internalCredit(
+		@Body() body: { userId: string; amount: number; referenceId: string; reason: string },
+	) {
+		return this.paymentService.internalCredit(
+			body.userId,
+			body.amount,
+			body.referenceId,
+			body.reason,
+		);
+	}
+
+	@Post('internal/refund')
+	@UseGuards(InternalServiceGuard)
+	@HttpCode(HttpStatus.OK)
+	@ApiExcludeEndpoint()
+	async internalRefund(
+		@Body() body: { userId: string; amount: number; originalReferenceId: string; reason: string },
+	) {
+		return this.paymentService.internalRefund(
+			body.userId,
+			body.amount,
+			body.originalReferenceId,
+			body.reason,
+		);
 	}
 
 	/**

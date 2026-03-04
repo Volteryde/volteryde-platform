@@ -9,7 +9,7 @@ resources:
   - serviceaccount.yaml
   - configmap.yaml
   - network-policies.yaml
-  - postgres-deployment.yaml
+  # Austin: Removed postgres-deployment.yaml — we use AWS RDS, not in-cluster PostgreSQL
   - redis-deployment.yaml
   - nestjs-deployment.yaml
   - springboot-deployment.yaml

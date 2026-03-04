@@ -7,6 +7,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -17,6 +18,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { InternalServiceGuard } from '../../shared/guards/internal-service.guard';
 import { BookingInternalService } from '../services/booking-internal.service';
+import { BookingStatus } from '../../../../libs/shared/src/enums/booking-status.enum';
 
 @ApiTags('Internal - Booking')
 @Controller('booking/internal')
@@ -74,6 +76,25 @@ export class BookingInternalController {
       reservationId,
       message: 'Reservation released successfully',
       releasedAt: new Date(),
+    };
+  }
+
+  @Patch(':bookingId/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiExcludeEndpoint()
+  @ApiOperation({ summary: '[INTERNAL] Update booking status' })
+  @ApiResponse({ status: 200, description: 'Booking status updated' })
+  @ApiResponse({ status: 404, description: 'Booking not found' })
+  async updateBookingStatus(
+    @Param('bookingId') bookingId: string,
+    @Body() body: { status: BookingStatus },
+  ) {
+    const booking = await this.bookingInternalService.updateBookingStatus(bookingId, body.status);
+    return {
+      success: true,
+      bookingId: booking.id,
+      status: booking.status,
+      updatedAt: new Date(),
     };
   }
 }

@@ -91,10 +91,10 @@ export async function checkWalletBalance(
   );
 
   try {
-    // Call the Spring Boot Wallet API to get balance
-    // Assuming endpoint: GET /api/v1/wallet/{userId}/balance
+    // Call the NestJS Wallet API to get balance
+    // Endpoint: GET /api/v1/wallet/internal/{userId}/balance
     const response = await axios.get(
-      `${SPRINGBOOT_API_URL}/api/v1/wallet/${userId}/balance`,
+      `${NESTJS_API_URL}/api/v1/wallet/internal/${userId}/balance`,
       {
         headers: {
           "X-Internal-Service-Key": INTERNAL_SERVICE_KEY,
@@ -163,14 +163,13 @@ export async function deductFare(
   );
 
   try {
-    // Call the Spring Boot Wallet API to deduct funds
-    // Assuming endpoint: POST /api/v1/wallet/deduct
+    // Call the NestJS Wallet API to deduct funds
+    // Endpoint: POST /api/v1/wallet/internal/deduct
     const response = await axios.post(
-      `${SPRINGBOOT_API_URL}/api/v1/wallet/deduct`,
+      `${NESTJS_API_URL}/api/v1/wallet/internal/deduct`,
       {
         userId,
         amount,
-        currency: "GHS",
         referenceId: bookingId,
         reason: "Ride Booking Fare",
       },
@@ -225,14 +224,13 @@ export async function refundPartialWalletDeduction(
   );
 
   try {
-    // Call the Spring Boot Wallet API to refund funds
-    // Using new endpoint: POST /api/v1/wallet/refund
+    // Call the NestJS Wallet API to refund funds
+    // Endpoint: POST /api/v1/wallet/internal/refund
     await axios.post(
-      `${SPRINGBOOT_API_URL}/api/v1/wallet/refund`,
+      `${NESTJS_API_URL}/api/v1/wallet/internal/refund`,
       {
         userId: transaction.userId,
         amount,
-        currency: transaction.currency,
         originalReferenceId: transaction.transactionId,
         reason: "Cancellation Refund (Partial)",
       },
@@ -508,11 +506,10 @@ export async function refundWalletDeduction(
 
   try {
     await axios.post(
-      `${SPRINGBOOT_API_URL}/api/v1/wallet/credit`,
+      `${NESTJS_API_URL}/api/v1/wallet/internal/credit`,
       {
         userId: transaction.userId,
         amount: transaction.amount,
-        currency: transaction.currency,
         referenceId: `REFUND-${transaction.transactionId}`,
         reason: "Booking failed - wallet refund",
       },

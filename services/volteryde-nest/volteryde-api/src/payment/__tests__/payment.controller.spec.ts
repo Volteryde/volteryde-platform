@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PaymentController } from '../payment.controller';
 import { PaymentService } from '../payment.service';
-import { TransactionType } from '../entities/transaction.entity';
+import { TransactionType, TransactionStatus } from '../entities/transaction.entity';
 
 // Mock ESM-only deps used by PaymentService internals (not needed for controller tests)
 jest.mock('uuid', () => ({ v4: () => 'mock-uuid' }));
@@ -24,6 +25,8 @@ describe('PaymentController', () => {
 			controllers: [PaymentController],
 			providers: [
 				{ provide: PaymentService, useValue: paymentService },
+				// Austin: ConfigService needed by InternalServiceGuard used on internal/* endpoints
+				{ provide: ConfigService, useValue: { get: jest.fn() } },
 			],
 		}).compile();
 
@@ -79,8 +82,8 @@ describe('PaymentController', () => {
 	describe('getTransactions', () => {
 		it('should return transaction history for a user', async () => {
 			const mockTransactions = [
-				{ id: 'tx-1', amount: 50, type: TransactionType.CREDIT, description: 'Top-up via Paystack', createdAt: new Date() },
-				{ id: 'tx-2', amount: 12, type: TransactionType.DEBIT, description: 'Wallet Debit', createdAt: new Date() },
+				{ id: 'tx-1', amount: 50, type: TransactionType.CREDIT, status: TransactionStatus.SUCCESS, description: 'Top-up via Paystack', createdAt: new Date() },
+				{ id: 'tx-2', amount: 12, type: TransactionType.DEBIT, status: TransactionStatus.SUCCESS, description: 'Wallet Debit', createdAt: new Date() },
 			];
 			paymentService.getTransactionHistory.mockResolvedValue(mockTransactions);
 

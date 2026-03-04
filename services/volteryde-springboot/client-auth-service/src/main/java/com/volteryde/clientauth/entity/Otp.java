@@ -11,7 +11,14 @@ import java.time.LocalDateTime;
  * stores the external reference UUID for verification.
  */
 @Entity
-@Table(name = "client_otps")
+@Table(
+    name = "client_otps",
+    indexes = {
+        @Index(name = "idx_otps_phone_used_created", columnList = "phone, used, created_at"),
+        @Index(name = "idx_otps_email_used_created", columnList = "email, used, created_at"),
+        @Index(name = "idx_otps_expires_at",         columnList = "expires_at")
+    }
+)
 public class Otp {
 
     @Id

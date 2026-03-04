@@ -9,7 +9,13 @@ import java.time.LocalDateTime;
  * Represents a mobile/external client user (Rider or Driver)
  */
 @Entity
-@Table(name = "client_users")
+@Table(
+    name = "client_users",
+    indexes = {
+        @Index(name = "idx_client_users_google_id", columnList = "google_id"),
+        @Index(name = "idx_client_users_apple_id",  columnList = "apple_id")
+    }
+)
 public class ClientUser {
 
     @Id

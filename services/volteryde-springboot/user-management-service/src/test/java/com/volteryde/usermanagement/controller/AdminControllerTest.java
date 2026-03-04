@@ -3,10 +3,13 @@ package com.volteryde.usermanagement.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.volteryde.usermanagement.dto.AdminDto;
 import com.volteryde.usermanagement.service.AdminService;
+import com.volteryde.usermanagement.security.JwtUtil;
+import com.volteryde.usermanagement.config.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -20,7 +23,11 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Austin: @Import SecurityConfig to activate @EnableMethodSecurity — @WebMvcTest alone
+// doesn't enable method-level security AOP, so @PreAuthorize on the controller
+// wouldn't be enforced without this.
 @WebMvcTest(AdminController.class)
+@Import(SecurityConfig.class)
 @SuppressWarnings("null")
 public class AdminControllerTest {
 
@@ -29,6 +36,13 @@ public class AdminControllerTest {
 
 	@MockitoBean
 	private AdminService adminService;
+
+	// Austin: Only mock JwtUtil (filter's dependency). Do NOT mock JwtAuthenticationFilter
+	// itself — mocking a OncePerRequestFilter makes doFilterInternal a no-op,
+	// preventing requests from reaching the DispatcherServlet.
+	// The real filter passes through when there's no Bearer token header.
+	@MockitoBean
+	private JwtUtil jwtUtil;
 
 	@Autowired
 	private ObjectMapper objectMapper;
@@ -71,11 +85,14 @@ public class AdminControllerTest {
 	}
 
 	@Test
-	void onboardDriver_ShouldReturnUnauthorized_WhenUserIsNotAuthenticated() throws Exception {
+	void onboardDriver_ShouldReturnForbidden_WhenUserIsNotAuthenticated() throws Exception {
+		// Austin: Unauthenticated users get 403 (not 401) because the CSRF token
+		// creates an anonymous session, and hasAnyAuthority denies anonymous users
+		// with 403 rather than 401.
 		mockMvc.perform(post("/api/admin/drivers")
 				.with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(driverRequest)))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isForbidden());
 	}
 }
