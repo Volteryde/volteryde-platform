@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PaymentController } from '../payment.controller';
 import { PaymentService } from '../payment.service';
 import { TransactionType, TransactionStatus } from '../entities/transaction.entity';
@@ -24,6 +25,8 @@ describe('PaymentController', () => {
 			controllers: [PaymentController],
 			providers: [
 				{ provide: PaymentService, useValue: paymentService },
+				// Austin: ConfigService needed by InternalServiceGuard used on internal/* endpoints
+				{ provide: ConfigService, useValue: { get: jest.fn() } },
 			],
 		}).compile();
 
