@@ -117,7 +117,7 @@ export function getPartnersUrl(): string {
     process.env.NEXT_PUBLIC_PARTNERS_URL ||
     (isDevelopment()
       ? "http://localhost:4003"
-      : "https://partners.volteryde.org")
+      : "https://partner.volteryde.org")
   );
 }
 

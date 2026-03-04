@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter @volteryde/config build && pnpm --filter @volteryde/customer-and-support-app build",
+  "outputDirectory": "build/client",
+  "installCommand": "cd ../.. && pnpm install",
+  "framework": null,
+  "regions": ["iad1"]
+}

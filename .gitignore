@@ -451,3 +451,6 @@ load-test-results/
 .windsurf/
 .agent/
 .agents/
+
+# Claude Code local settings
+.claude/
