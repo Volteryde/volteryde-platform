@@ -293,8 +293,8 @@ public class OtpService {
     }
 
     /**
-     * Generate and save a new OTP locally (fallback method).
-     * Use generateOtpExternal() as the preferred method.
+     * Generate and save a new OTP locally.
+     * Fast (no external API call) — SMS delivery is handled separately by sendOtpSms().
      */
     @Transactional
     public String generateOtp(String phone) {
@@ -317,7 +317,8 @@ public class OtpService {
     }
 
     /**
-     * Verify an OTP (main entry point - uses external or local based on config).
+     * Verify an OTP against our local database.
+     * OTP is generated locally and verified locally — no external API call needed.
      */
     @Transactional
     public boolean verifyOtp(String phone, String code) {
@@ -335,12 +336,6 @@ public class OtpService {
             return false;
         }
 
-        // Use external verification if configured
-        if (otp.shouldUseExternalVerification()) {
-            return verifyOtpExternal(phone, code);
-        }
-
-        // Fall back to local verification
         return verifyOtpLocal(phone, code, otp);
     }
 
@@ -366,50 +361,44 @@ public class OtpService {
     }
 
     /**
-     * Send OTP via SMS using the external API.
-     * This method generates the OTP externally and sends it in one call.
+     * Send OTP via SMS.
+     * 
+     * Generates the OTP locally (fast, no external call), stores it in our DB,
+     * then delivers the code via Gatekeeper Pro's send_sms endpoint (one API call).
+     * Verification is done locally against our DB — no verify_otp API call needed.
      * 
      * @param phone The phone number to send OTP to
-     * @return true if OTP was generated and sent successfully
+     * @return true if OTP was generated and SMS sent successfully
      */
+    @Transactional
     public boolean sendOtpSms(String phone) {
         logger.info("Sending OTP to phone: {}", maskPhone(phone));
         
-        // Check if SMS provider is configured
+        // 1. Generate OTP locally and store in DB
+        String code = generateOtp(phone);
+        
+        // 2. If SMS provider isn't configured, just log (dev mode)
         if (!smsProviderService.isConfigured()) {
-            logger.warn("SMS provider is not configured. Using local OTP generation.");
-            String code = generateOtp(phone);
-            logger.debug("OTP for {}: {}", phone, code);
-            return true; // Return true for development mode
+            logger.warn("SMS provider not configured — OTP generated locally only. Code: {}", code);
+            return true;
         }
         
+        // 3. Send the OTP via SMS (single fast API call)
         try {
-            // Use external API to generate and send OTP
-            OtpGenerateResponse response = generateOtpExternal(phone);
+            var smsResponse = smsProviderService.sendOtp(phone, code, otpExpirationMinutes);
             
-            if (response != null && response.isSuccess()) {
-                logger.info("OTP generated and sent via Gatekeeper Pro to phone: {}", maskPhone(phone));
+            if (smsResponse != null && Boolean.TRUE.equals(smsResponse.getSuccess())) {
+                logger.info("OTP SMS delivered to phone: {}", maskPhone(phone));
                 return true;
             } else {
-                String errorMsg = response != null ? response.getError() : "Unknown error";
-                logger.error("Failed to generate/send OTP via external API: {}", errorMsg);
+                String errorMsg = smsResponse != null ? smsResponse.getMessage() : "Unknown error";
+                logger.error("Failed to deliver OTP SMS to {}: {}", maskPhone(phone), errorMsg);
                 return false;
             }
         } catch (Exception e) {
-            logger.error("Exception while generating/sending OTP: {}", e.getMessage(), e);
+            logger.error("Exception sending OTP SMS to {}: {}", maskPhone(phone), e.getMessage(), e);
             return false;
         }
-    }
-
-    /**
-     * Legacy method - now calls sendOtpSms(phone) internally.
-     * 
-     * @deprecated Use {@link #sendOtpSms(String)} instead
-     */
-    @Deprecated
-    public boolean sendOtpSms(String phone, String code) {
-        logger.info("Legacy sendOtpSms called with code {} - using new external API method", code);
-        return sendOtpSms(phone);
     }
 
     /**
