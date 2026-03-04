@@ -62,8 +62,8 @@ public class SmsProviderService {
      * This is the preferred method - it handles both OTP generation and SMS sending
      * in one call.
      * 
-     * @param phoneNumber The phone number to send the OTP to (format: 233xxxxxxxxx
-     *                    or +233xxxxxxxxx)
+     * @param phoneNumber The phone number to send the OTP to (any format accepted,
+     *                    will be normalised to +233xxxxxxxxx)
      * @param otpSize     The size of the OTP code (default is 6)
      * @return OtpGenerateResponse containing the reference UUID for later
      *         verification
@@ -71,7 +71,7 @@ public class SmsProviderService {
     public OtpGenerateResponse generateOtp(String phoneNumber, int otpSize) {
         String endpoint = apiUrl + "/api/generate_otp";
 
-        // Format phone number (remove + if present, API expects 233xxxxxxxxx format)
+        // Format phone number to +233xxxxxxxxx (international format with + prefix)
         String formattedPhone = formatPhoneNumber(phoneNumber);
 
         logger.info("Generating OTP for phone: {}", maskPhone(formattedPhone));
@@ -404,7 +404,9 @@ public class SmsProviderService {
     }
 
     /**
-     * Formats phone number for the API (expects 233xxxxxxxxx format).
+     * Formats phone number for the Gatekeeper Pro API.
+     * 
+     * The API expects international format with + prefix: +233xxxxxxxxx
      * Handles various input formats: +233xxx, 233xxx, 0xxx
      */
     private String formatPhoneNumber(String phone) {
@@ -412,10 +414,10 @@ public class SmsProviderService {
             return phone;
         }
 
-        // Remove any spaces, dashes, or other characters
+        // Remove any spaces, dashes, or other non-numeric characters (keep +)
         String cleaned = phone.replaceAll("[^0-9+]", "");
 
-        // Remove leading + if present
+        // Remove leading + if present (we'll add it back at the end)
         if (cleaned.startsWith("+")) {
             cleaned = cleaned.substring(1);
         }
@@ -425,7 +427,8 @@ public class SmsProviderService {
             cleaned = "233" + cleaned.substring(1);
         }
 
-        return cleaned;
+        // Always return with + prefix as required by Gatekeeper Pro API
+        return "+" + cleaned;
     }
 
     /**
