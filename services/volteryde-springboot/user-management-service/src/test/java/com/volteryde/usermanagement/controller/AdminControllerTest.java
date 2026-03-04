@@ -85,11 +85,14 @@ public class AdminControllerTest {
 	}
 
 	@Test
-	void onboardDriver_ShouldReturnUnauthorized_WhenUserIsNotAuthenticated() throws Exception {
+	void onboardDriver_ShouldReturnForbidden_WhenUserIsNotAuthenticated() throws Exception {
+		// Austin: Unauthenticated users get 403 (not 401) because the CSRF token
+		// creates an anonymous session, and hasAnyAuthority denies anonymous users
+		// with 403 rather than 401.
 		mockMvc.perform(post("/api/admin/drivers")
 				.with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(driverRequest)))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isForbidden());
 	}
 }
