@@ -3,7 +3,6 @@ package com.volteryde.usermanagement.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.volteryde.usermanagement.dto.AdminDto;
 import com.volteryde.usermanagement.service.AdminService;
-import com.volteryde.usermanagement.security.JwtAuthenticationFilter;
 import com.volteryde.usermanagement.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,9 +31,10 @@ public class AdminControllerTest {
 	@MockitoBean
 	private AdminService adminService;
 
-	@MockitoBean
-	private JwtAuthenticationFilter jwtAuthenticationFilter;
-
+	// Austin: Only mock JwtUtil (filter's dependency). Do NOT mock JwtAuthenticationFilter
+	// itself — mocking a OncePerRequestFilter makes doFilterInternal a no-op,
+	// preventing requests from reaching the DispatcherServlet.
+	// The real filter passes through when there's no Bearer token header.
 	@MockitoBean
 	private JwtUtil jwtUtil;
 
