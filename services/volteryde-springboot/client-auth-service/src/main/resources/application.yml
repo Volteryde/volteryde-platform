@@ -9,7 +9,15 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: false
@@ -17,7 +25,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: ${DATABASE_SCHEMA:public}
-        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
   security:
     jwt:
       secret: ${JWT_SECRET}
@@ -76,5 +87,5 @@ terms:
 # Logging
 logging:
   level:
-    com.volteryde.clientauth: DEBUG
-    org.springframework.security: INFO
+    com.volteryde.clientauth: INFO
+    org.springframework.security: WARN

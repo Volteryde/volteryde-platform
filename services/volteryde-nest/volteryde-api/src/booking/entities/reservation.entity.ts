@@ -10,7 +10,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity('reservations')
+@Entity({ name: 'reservations', schema: process.env.BOOKING_DATABASE_SCHEMA || 'svc_booking' })
 export class Reservation {
   @PrimaryGeneratedColumn('uuid')
   id: string;

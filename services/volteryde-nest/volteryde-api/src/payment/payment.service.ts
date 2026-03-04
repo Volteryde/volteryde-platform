@@ -85,6 +85,9 @@ export class PaymentService {
 					reference: reference, // Pass our unique reference
 					currency: 'GHS',
 					channels: ['card', 'mobile_money'],
+					// Austin: Paystack redirects here after checkout completes.
+					// Our callback endpoint returns a friendly "Payment Successful" HTML page.
+					callback_url: `https://api.volteryde.com/api/v1/wallet/callback`,
 					metadata: {
 						custom_fields: [
 							{
@@ -120,100 +123,262 @@ export class PaymentService {
 	 * Handle Paystack Webhook
 	 */
 	async handleWebhook(signature: string, payload: any) {
+		const { event, data } = payload;
+		this.logger.log(`Webhook received: event=${event} reference=${data?.reference}`);
+
 		// 1. Verify Signature
+		if (!this.paystackSecretKey) {
+			this.logger.error('PAYSTACK_SECRET_KEY is not set — cannot verify webhook signature');
+			throw new BadRequestException('Webhook verification not configured');
+		}
+
 		const hash = crypto
 			.createHmac('sha512', this.paystackSecretKey)
 			.update(JSON.stringify(payload))
 			.digest('hex');
 
 		if (hash !== signature) {
-			this.logger.error('Invalid webhook signature');
+			this.logger.error(
+				`Webhook signature mismatch for reference=${data?.reference}. ` +
+				`Received: ${signature?.substring(0, 16)}... Expected: ${hash.substring(0, 16)}...`
+			);
 			throw new BadRequestException('Invalid signature');
 		}
 
-		const { event, data } = payload;
-
 		// 2. Handle 'charge.success'
 		if (event === 'charge.success') {
-			return this.processSuccessfulCharge(data);
+			try {
+				const result = await this.processSuccessfulCharge(data);
+				this.logger.log(`Webhook processed: event=${event} reference=${data?.reference} result=${JSON.stringify(result)}`);
+				return result;
+			} catch (err) {
+				this.logger.error(
+					`Webhook processing failed: event=${event} reference=${data?.reference} error=${err?.message}`,
+					err?.stack,
+				);
+				throw err;
+			}
 		}
 
+		this.logger.log(`Webhook ignored: event=${event} (no handler)`);
 		return { status: 'ignored', message: 'Event not handled' };
 	}
 
 	/**
 	 * Process successful charge atomically.
+	 * Handles both backend-initialized transactions (pre-created DB record) and
+	 * client-initiated transactions (no pre-created record — reference = VLTRD-{userId}-{ts}).
 	 */
 	private async processSuccessfulCharge(data: any) {
-		const reference = data.reference;
-		const amountPaid = data.amount / 100; // Convert back to main currency unit
+		const reference = data.reference as string;
+		const amountPaid = data.amount / 100; // Convert pesewas → GHS
 
 		this.logger.log(`Processing successful charge for reference: ${reference}`);
 
-		// Use a transaction to ensure atomicity
 		return await this.dataSource.manager.transaction(async (manager: EntityManager) => {
-			// 1. Find the transaction record with lock
-			// Note: We need to find the transaction first. Locking via findOne with lock mode 'pessimistic_write'
-			// requires a defined repository or query builder within the transaction manager.
-
-			const transactionRecord = await manager.findOne(Transaction, {
+			// Austin: Find transaction WITH relations but WITHOUT lock to avoid
+			// PostgreSQL "FOR UPDATE cannot be applied to nullable side of outer join" error.
+			// TypeORM translates relations: ['wallet'] into LEFT JOIN, which is incompatible with FOR UPDATE.
+			const existingRecord = await manager.findOne(Transaction, {
 				where: { reference },
 				relations: ['wallet'],
-				lock: { mode: 'pessimistic_write' }, // Prevent concurrent updates
 			});
 
-			if (!transactionRecord) {
-				this.logger.error(`Transaction with reference ${reference} not found`);
-				// If not found, we can't credit. This is a critical error or a transaction initialized outside our system.
+			if (existingRecord) {
+				// ── Backend-initialized flow ──────────────────────────────
+				if (existingRecord.status === TransactionStatus.SUCCESS) {
+					this.logger.log(`Transaction ${reference} already processed`);
+					return { status: 'success', message: 'Already processed' };
+				}
+
+				// Austin: Lock transaction row individually (no JOIN = no LEFT JOIN issue)
+				const lockedTx = await manager.findOne(Transaction, {
+					where: { id: existingRecord.id },
+					lock: { mode: 'pessimistic_write' },
+				});
+
+				if (Math.abs(lockedTx.amount - amountPaid) > 0.01) {
+					this.logger.warn(`Amount mismatch for ${reference}: expected ${lockedTx.amount}, got ${amountPaid}`);
+					lockedTx.status = TransactionStatus.FAILED;
+					lockedTx.metadata = { ...lockedTx.metadata, failureReason: 'Amount mismatch' };
+					await manager.save(lockedTx);
+					return;
+				}
+
+				lockedTx.status = TransactionStatus.SUCCESS;
+				lockedTx.externalReference = data.id?.toString();
+				lockedTx.metadata = { ...lockedTx.metadata, paystackData: data };
+				await manager.save(lockedTx);
+
+				// Austin: Lock wallet separately using the ID from the pre-loaded relation
+				const lockedWallet = await manager.findOne(Wallet, {
+					where: { id: existingRecord.wallet.id },
+					lock: { mode: 'pessimistic_write' },
+				});
+				const newBalance = Number(lockedWallet.balance) + amountPaid;
+				lockedWallet.balance = newBalance;
+				await manager.save(lockedWallet);
+
+				this.logger.log(`Wallet credited (backend-init) for user ${lockedWallet.userId}. Balance: ${newBalance}`);
+				this.invalidateBalanceCache(lockedWallet.userId);
+				return { status: 'success' };
+			}
+
+			// ── Client-initiated flow ─────────────────────────────────────
+			// Reference format: VLTRD-{firebaseUserId}-{timestamp}
+			// Metadata may also carry userId as data.metadata.userId
+			const userId: string | undefined =
+				data.metadata?.userId ||
+				(reference.startsWith('VLTRD-') ? reference.split('-').slice(1, -1).join('-') : undefined);
+
+			if (!userId) {
+				this.logger.error(`Cannot identify user for client-initiated charge. Reference: ${reference}`);
 				return;
 			}
 
-			// 2. Idempotency Check
-			if (transactionRecord.status === TransactionStatus.SUCCESS) {
-				this.logger.log(`Transaction ${reference} already processed`);
+			// Idempotency: check if we already created a SUCCESS record for this reference
+			const alreadyProcessed = await manager.findOne(Transaction, { where: { reference } });
+			if (alreadyProcessed) {
+				this.logger.log(`Client-initiated transaction ${reference} already processed`);
 				return { status: 'success', message: 'Already processed' };
 			}
 
-			// 3. Verify Amount
-			// Allow for small floating point differences, though strict equality is better for financial data.
-			if (Math.abs(transactionRecord.amount - amountPaid) > 0.01) {
-				this.logger.warn(`Amount mismatch: Expected ${transactionRecord.amount}, Got ${amountPaid}`);
-				// Potential fraud or partial payment?
-				transactionRecord.status = TransactionStatus.FAILED;
-				transactionRecord.metadata = { ...transactionRecord.metadata, failureReason: 'Amount mismatch' };
-				await manager.save(transactionRecord);
-				return;
+			// Find or create wallet
+			let wallet = await manager.findOne(Wallet, {
+				where: { userId },
+				lock: { mode: 'pessimistic_write' },
+			});
+			if (!wallet) {
+				wallet = manager.create(Wallet, { userId, balance: 0 });
+				await manager.save(wallet);
 			}
 
-			// 4. Update Transaction Status
-			transactionRecord.status = TransactionStatus.SUCCESS;
-			transactionRecord.externalReference = data.id.toString(); // Paystack ID
-			transactionRecord.metadata = { ...transactionRecord.metadata, paystackData: data };
-			await manager.save(transactionRecord);
+			// Create and save the transaction record
+			const txRecord = manager.create(Transaction, {
+				wallet,
+				amount: amountPaid,
+				reference,
+				externalReference: data.id?.toString(),
+				status: TransactionStatus.SUCCESS,
+				type: TransactionType.CREDIT,
+				metadata: { source: 'paystack', paystackData: data, clientInitiated: true },
+			});
+			await manager.save(txRecord);
 
-			// 5. Credit Wallet
-			const wallet = transactionRecord.wallet;
-			// Re-fetch wallet with lock to ensure atomic balance update if needed (though transaction record lock helps)
-			// Or just direct update.
-			// Better to lock wallet too if multiple transactions can happen for same user same time.
-			const lockedWallet = await manager.findOne(Wallet, {
-				where: { id: wallet.id },
+			// Credit wallet
+			const newBalance = Number(wallet.balance) + amountPaid;
+			wallet.balance = newBalance;
+			await manager.save(wallet);
+
+			this.logger.log(`Wallet credited (client-init) for user ${userId}. Balance: ${newBalance}`);
+			this.invalidateBalanceCache(userId);
+			return { status: 'success' };
+		});
+	}
+
+	// ─── Internal Wallet Operations (called by Temporal activities) ─────────────
+
+	async internalGetBalance(userId: string) {
+		const balance = await this.getWalletBalance(userId);
+		return { userId, balance, currency: 'GHS' };
+	}
+
+	async internalDeduct(userId: string, amount: number, referenceId: string, reason: string) {
+		this.logger.log(`[INTERNAL] Deducting ${amount} GHS from user ${userId} for ref ${referenceId}`);
+
+		return await this.dataSource.manager.transaction(async (manager: EntityManager) => {
+			const wallet = await manager.findOne(Wallet, {
+				where: { userId },
 				lock: { mode: 'pessimistic_write' },
 			});
 
-			// We explicitly cast to number because TypeORM returns decimal as string sometimes
-			const currentBalance = Number(lockedWallet.balance);
-			const newBalance = currentBalance + amountPaid;
+			if (!wallet) {
+				throw new BadRequestException(`Wallet not found for user ${userId}`);
+			}
 
-			lockedWallet.balance = newBalance;
-			await manager.save(lockedWallet);
+			const currentBalance = Number(wallet.balance);
+			if (currentBalance < amount) {
+				return {
+					transactionId: null,
+					userId,
+					amount,
+					currency: 'GHS',
+					status: 'FAILED',
+					failureReason: `Insufficient balance: ${currentBalance} < ${amount}`,
+				};
+			}
 
-			this.logger.log(`Wallet credited for user ${lockedWallet.userId}. New balance: ${newBalance}`);
+			wallet.balance = currentBalance - amount;
+			await manager.save(wallet);
 
-			// Invalidate balance cache so next read gets fresh value
-			this.invalidateBalanceCache(lockedWallet.userId);
+			const tx = manager.create(Transaction, {
+				wallet,
+				amount,
+				reference: referenceId,
+				status: TransactionStatus.SUCCESS,
+				type: TransactionType.DEBIT,
+				metadata: { source: 'temporal-booking', reason },
+			});
+			await manager.save(tx);
+
+			this.invalidateBalanceCache(userId);
+			this.logger.log(`[INTERNAL] Deducted ${amount} GHS from ${userId}. New balance: ${wallet.balance}`);
+
+			return {
+				transactionId: tx.id,
+				userId,
+				amount,
+				currency: 'GHS',
+				status: 'SUCCESS',
+			};
 		});
 	}
+
+	async internalCredit(userId: string, amount: number, referenceId: string, reason: string) {
+		this.logger.log(`[INTERNAL] Crediting ${amount} GHS to user ${userId} for ref ${referenceId}`);
+
+		return await this.dataSource.manager.transaction(async (manager: EntityManager) => {
+			let wallet = await manager.findOne(Wallet, {
+				where: { userId },
+				lock: { mode: 'pessimistic_write' },
+			});
+
+			if (!wallet) {
+				wallet = manager.create(Wallet, { userId, balance: 0 });
+				await manager.save(wallet);
+			}
+
+			wallet.balance = Number(wallet.balance) + amount;
+			await manager.save(wallet);
+
+			const tx = manager.create(Transaction, {
+				wallet,
+				amount,
+				reference: referenceId,
+				status: TransactionStatus.SUCCESS,
+				type: TransactionType.CREDIT,
+				metadata: { source: 'temporal-booking', reason },
+			});
+			await manager.save(tx);
+
+			this.invalidateBalanceCache(userId);
+			this.logger.log(`[INTERNAL] Credited ${amount} GHS to ${userId}. New balance: ${wallet.balance}`);
+
+			return {
+				transactionId: tx.id,
+				userId,
+				amount,
+				currency: 'GHS',
+				status: 'SUCCESS',
+			};
+		});
+	}
+
+	async internalRefund(userId: string, amount: number, originalReferenceId: string, reason: string) {
+		return this.internalCredit(userId, amount, `REFUND-${originalReferenceId}`, reason);
+	}
+
+	// ─── Public Wallet Operations ─────────────────────────────────────────────
 
 	async getWalletBalance(userId: string) {
 		const cached = this.balanceCache.get(userId);
@@ -232,6 +397,7 @@ export class PaymentService {
 		this.balanceCache.delete(userId);
 	}
 
+	// Austin: Return ALL statuses (SUCCESS, FAILED, PENDING, ABANDONED) + bonus flag
 	async getTransactionHistory(userId: string, limit = 50) {
 		const wallet = await this.walletRepository.findOne({ where: { userId } });
 		if (!wallet) {
@@ -239,7 +405,7 @@ export class PaymentService {
 		}
 
 		const transactions = await this.transactionRepository.find({
-			where: { wallet: { id: wallet.id }, status: TransactionStatus.SUCCESS },
+			where: { wallet: { id: wallet.id } },
 			order: { createdAt: 'DESC' },
 			take: limit,
 		});
@@ -248,10 +414,25 @@ export class PaymentService {
 			id: tx.id,
 			amount: Number(tx.amount),
 			type: tx.type,
-			description: tx.metadata?.source
-				? `${tx.type === TransactionType.CREDIT ? 'Top-up' : 'Payment'} via ${tx.metadata.source}`
-				: tx.type === TransactionType.CREDIT ? 'Wallet Credit' : 'Wallet Debit',
+			status: tx.status,
+			description: this.buildTransactionDescription(tx),
 			createdAt: tx.createdAt,
 		}));
+	}
+
+	private buildTransactionDescription(tx: Transaction): string {
+		const source = tx.metadata?.source as string | undefined;
+		const reason = tx.metadata?.reason as string | undefined;
+		const isBonus = source === 'bonus' || source === 'promo' || source === 'referral';
+
+		if (isBonus) return reason || 'Bonus Credit';
+		if (source === 'temporal-booking') return reason || 'Ride Payment';
+		if (source === 'paystack') {
+			return tx.type === TransactionType.CREDIT ? 'Top-up via Paystack' : 'Payment via Paystack';
+		}
+		if (source) {
+			return `${tx.type === TransactionType.CREDIT ? 'Top-up' : 'Payment'} via ${source}`;
+		}
+		return tx.type === TransactionType.CREDIT ? 'Wallet Credit' : 'Wallet Debit';
 	}
 }

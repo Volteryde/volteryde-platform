@@ -46,9 +46,8 @@ async function bootstrap() {
   // Global error handling
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // NOTE: No global prefix — controllers define their own route paths.
-  // GTFS/Locator use short paths (e.g., 'gtfs', 'locator').
-  // Payment/Booking use full paths (e.g., 'payment', 'booking').
+  // Global prefix aligns all routes with the Kubernetes ingress rules and pod health probes.
+  app.setGlobalPrefix('api/v1');
 
   // Swagger documentation
   const config = new DocumentBuilder()

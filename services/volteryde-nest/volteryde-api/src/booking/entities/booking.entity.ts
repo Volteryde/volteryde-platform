@@ -12,7 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('bookings')
+@Entity({ name: 'bookings', schema: process.env.BOOKING_DATABASE_SCHEMA || 'svc_booking' })
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;

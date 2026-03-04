@@ -44,14 +44,3 @@ spec:
     spec:
       nodeSelector:
         eks.amazonaws.com/nodegroup: system-services
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  template:
-    spec:
-      nodeSelector:
-        eks.amazonaws.com/nodegroup: system-services

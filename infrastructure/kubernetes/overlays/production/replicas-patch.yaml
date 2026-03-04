@@ -24,12 +24,3 @@ metadata:
   name: temporal-workers
 spec:
   replicas: 0  # No image in ECR yet — scale up after first CI/CD push
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  replicas: 0
-

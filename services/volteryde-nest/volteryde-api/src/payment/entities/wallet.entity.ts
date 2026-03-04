@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { Transaction } from './transaction.entity';
 
-@Entity('wallets')
+@Entity({ name: 'wallets', schema: process.env.PAYMENT_DATABASE_SCHEMA || 'svc_payment' })
 export class Wallet {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;

@@ -4,6 +4,7 @@ import com.volteryde.clientauth.entity.ClientRefreshToken;
 import com.volteryde.clientauth.entity.ClientUser;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +17,7 @@ import java.util.*;
 
 /**
  * JWT Service for Client Authentication
- * 
+ *
  * Generates and validates JWT tokens for mobile/external clients
  */
 @Service
@@ -34,14 +35,22 @@ public class ClientJwtService {
     @Value("${spring.security.jwt.refresh-expiration}")
     private Long refreshExpiration;
 
-    private SecretKey getSigningKey() {
+    // Cached once at startup — avoids rebuilding the key on every JWT operation
+    private SecretKey signingKey;
+
+    @PostConstruct
+    private void init() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             byte[] paddedKey = new byte[32];
             System.arraycopy(keyBytes, 0, paddedKey, 0, keyBytes.length);
             keyBytes = paddedKey;
         }
-        return Keys.hmacShaKeyFor(keyBytes);
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private SecretKey getSigningKey() {
+        return signingKey;
     }
 
     /**
@@ -55,7 +64,7 @@ public class ClientJwtService {
         claims.put("type", "CLIENT");
         claims.put("phone", user.getPhone());
         claims.put("role", user.getRole().name());
-        
+
         if (user.getEmail() != null) {
             claims.put("email", user.getEmail());
         }
@@ -72,7 +81,7 @@ public class ClientJwtService {
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .issuer(ISSUER)
-                .signWith(getSigningKey())
+                .signWith(signingKey)
                 .compact();
     }
 
@@ -101,47 +110,54 @@ public class ClientJwtService {
      * Extract user ID from token
      */
     public String extractUserId(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return extractAllClaims(token).getSubject();
     }
 
     /**
      * Extract phone from token
      */
     public String extractPhone(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("phone", String.class);
+        return extractAllClaims(token).get("phone", String.class);
     }
 
     /**
      * Extract role from token
      */
     public String extractRole(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("role", String.class);
+        return extractAllClaims(token).get("role", String.class);
     }
 
     /**
      * Extract token type (CLIENT)
      */
     public String extractType(String token) {
-        Claims claims = extractAllClaims(token);
-        return claims.get("type", String.class);
+        return extractAllClaims(token).get("type", String.class);
+    }
+
+    /**
+     * Validate token and return all claims in a single parse.
+     * Returns empty Optional for invalid/expired tokens.
+     * Use this instead of calling validateToken() + individual extractors separately.
+     */
+    public Optional<Claims> extractValidClaims(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Optional.of(claims);
+        } catch (JwtException | IllegalArgumentException e) {
+            logger.warn("Invalid JWT token: {}", e.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**
      * Validate token
      */
     public boolean validateToken(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
-            return false;
-        }
+        return extractValidClaims(token).isPresent();
     }
 
     /**
@@ -149,7 +165,7 @@ public class ClientJwtService {
      */
     public boolean isTokenExpired(String token) {
         try {
-            Date expiration = extractClaim(token, Claims::getExpiration);
+            Date expiration = extractAllClaims(token).getExpiration();
             return expiration.before(new Date());
         } catch (Exception e) {
             return true;
@@ -161,21 +177,15 @@ public class ClientJwtService {
      */
     public boolean isClientToken(String token) {
         try {
-            String type = extractType(token);
-            return "CLIENT".equals(type);
+            return "CLIENT".equals(extractType(token));
         } catch (Exception e) {
             return false;
         }
     }
 
-    private <T> T extractClaim(String token, java.util.function.Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

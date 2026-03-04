@@ -3,6 +3,7 @@ package com.volteryde.clientauth.controller;
 import com.volteryde.clientauth.dto.*;
 import com.volteryde.clientauth.service.ClientAuthService;
 import com.volteryde.clientauth.service.ClientJwtService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Client Authentication REST Controller
@@ -210,17 +212,19 @@ public class ClientAuthController {
             @RequestHeader("Authorization") String authHeader) {
 
         String token = authHeader.replace("Bearer ", "");
-        boolean valid = jwtService.validateToken(token);
+
+        // Single JWT parse — extracts all claims in one shot
+        Optional<Claims> claimsOpt = jwtService.extractValidClaims(token);
 
         TokenValidationResponse response = new TokenValidationResponse();
-        response.setValid(valid);
+        response.setValid(claimsOpt.isPresent());
 
-        if (valid) {
-            response.setUserId(jwtService.extractUserId(token));
-            response.setPhone(jwtService.extractPhone(token));
-            response.setRole(jwtService.extractRole(token));
-            response.setType(jwtService.extractType(token));
-        }
+        claimsOpt.ifPresent(claims -> {
+            response.setUserId(claims.getSubject());
+            response.setPhone(claims.get("phone", String.class));
+            response.setRole(claims.get("role", String.class));
+            response.setType(claims.get("type", String.class));
+        });
 
         return ResponseEntity.ok(response);
     }
