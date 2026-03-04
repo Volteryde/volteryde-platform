@@ -1,9 +1,26 @@
 name: Full Pipeline — Build → Dev → Staging → Production
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (pipeline deploys sequentially up to this stage)'
+        required: true
+        type: choice
+        options:
+          - dev-only
+          - dev-and-staging
+          - full-production
+        default: dev-only
+      confirm_production:
+        description: 'Type "deploy-production" to confirm production deployment'
+        required: false
+        type: string
+      skip_dev:
+        description: 'Skip DEV deployment (use if DEV is already verified)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   AWS_REGION: sa-east-1
@@ -148,6 +165,7 @@ jobs:
   deploy-to-dev:
     name: "2 · Deploy to DEV Sandbox"
     needs: build-and-push
+    if: inputs.skip_dev == false
     runs-on: ubuntu-latest
     environment:
       name: development
@@ -327,6 +345,7 @@ jobs:
   deploy-to-staging:
     name: "3 · Deploy to Staging"
     needs: [build-and-push, deploy-to-dev]
+    if: always() && needs.build-and-push.result == 'success' && (needs.deploy-to-dev.result == 'success' || needs.deploy-to-dev.result == 'skipped') && (inputs.environment == 'dev-and-staging' || inputs.environment == 'full-production')
     runs-on: ubuntu-latest
     environment:
       name: staging
@@ -507,6 +526,7 @@ jobs:
   deploy-to-production:
     name: "4 · Blue-Green Deploy to Production"
     needs: [build-and-push, deploy-to-staging]
+    if: always() && needs.build-and-push.result == 'success' && needs.deploy-to-staging.result == 'success' && inputs.environment == 'full-production' && inputs.confirm_production == 'deploy-production'
     runs-on: ubuntu-latest
     environment:
       name: production

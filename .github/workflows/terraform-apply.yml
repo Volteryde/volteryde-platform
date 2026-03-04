@@ -1,10 +1,6 @@
 name: Terraform Apply
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'infrastructure/terraform/**'
   workflow_dispatch:
     inputs:
       environment:

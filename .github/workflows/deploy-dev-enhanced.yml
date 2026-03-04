@@ -1,8 +1,6 @@
 name: Deploy to Development (Enhanced)
 
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
 
 env:
