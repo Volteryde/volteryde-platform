@@ -6,17 +6,19 @@ import {
 	Headers,
 	HttpCode,
 	HttpStatus,
-	UseGuards,
 	UnauthorizedException,
 	Logger,
+	Query,
+	Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentService } from './payment.service';
 import { InitializeTopUpDto, PaystackWebhookDto } from './dto/payment.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('payment')
-@Controller('api/v1/payment')
+@Controller('payment')
 export class PaymentController {
 	private readonly logger = new Logger(PaymentController.name);
 
@@ -30,17 +32,10 @@ export class PaymentController {
 	async initializeTopUp(
 		@CurrentUser() user: any,
 		@Body() dto: InitializeTopUpDto,
+		@Req() req: Request,
 	) {
-		if (!user || !user.uid) { // Assuming Firebase UID is mapped to uid or user_id
-			// In a real app with AuthGuard, user would be present.
-			// If AuthGuard is not globally applied, we might need to apply it here.
-			// For now assuming existing auth infra puts user in request.
-			// But let's check CurrentUser decorator again. It returns request.user.
-			// We need to make sure we extract the ID correctly.
-			// I will assume user object has a uid or id property.
-			throw new UnauthorizedException('User not found');
-		}
-		return this.paymentService.initializeTopUp(user.uid, dto);
+		const userId = this.resolveUserId(user, req);
+		return this.paymentService.initializeTopUp(userId, dto);
 	}
 
 	@Post('webhook')
@@ -62,11 +57,42 @@ export class PaymentController {
 	@Get('wallet')
 	@ApiBearerAuth()
 	@ApiOperation({ summary: 'Get current wallet balance' })
-	async getWalletBalance(@CurrentUser() user: any) {
-		if (!user || !user.uid) {
-			throw new UnauthorizedException('User not found');
-		}
-		const balance = await this.paymentService.getWalletBalance(user.uid);
-		return { balance, currency: 'GHS' };
+	@ApiResponse({ status: 200, description: 'Wallet balance retrieved' })
+	async getWalletBalance(@CurrentUser() user: any, @Req() req: Request) {
+		const userId = this.resolveUserId(user, req);
+		const balance = await this.paymentService.getWalletBalance(userId);
+		const numBalance = Number(balance) || 0;
+		return {
+			customerId: userId,
+			realBalance: numBalance,
+			promoBalance: 0,
+			totalBalance: numBalance,
+			currency: 'GHS',
+		};
+	}
+
+	@Get('transactions')
+	@ApiBearerAuth()
+	@ApiOperation({ summary: 'Get wallet transaction history' })
+	@ApiResponse({ status: 200, description: 'Transaction history retrieved' })
+	async getTransactions(
+		@CurrentUser() user: any,
+		@Req() req: Request,
+		@Query('limit') limit?: string,
+	) {
+		const userId = this.resolveUserId(user, req);
+		const maxResults = Math.min(parseInt(limit, 10) || 50, 100);
+		return this.paymentService.getTransactionHistory(userId, maxResults);
+	}
+
+	/**
+	 * Resolve user ID from CurrentUser decorator or X-User-Id header fallback.
+	 */
+	private resolveUserId(user: any, req: Request): string {
+		if (user?.uid) return user.uid;
+		if (user?.id) return user.id;
+		const headerUserId = req.headers['x-user-id'] as string;
+		if (headerUserId) return headerUserId;
+		throw new UnauthorizedException('User not found');
 	}
 }

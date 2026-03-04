@@ -31,7 +31,7 @@ import {
 } from './dto/booking-response.dto';
 
 @ApiTags('booking')
-@Controller('api/v1/booking')
+@Controller('booking')
 export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 

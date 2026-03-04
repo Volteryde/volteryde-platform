@@ -17,7 +17,7 @@ import { InternalServiceGuard } from '../../shared/guards/internal-service.guard
 import { NotificationService } from '../services/notification.service';
 
 @ApiTags('Internal - Notifications')
-@Controller('api/v1/notifications/internal')
+@Controller('notifications/internal')
 @UseGuards(InternalServiceGuard)
 export class NotificationsInternalController {
   private readonly logger = new Logger(NotificationsInternalController.name);

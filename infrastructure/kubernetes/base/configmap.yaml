@@ -13,29 +13,32 @@ data:
   DATABASE_HOST: "CHANGE_ME_DB_HOST"
   DATABASE_PORT: "5432"
   DATABASE_NAME: "CHANGE_ME_DB_NAME"
-  
+
   # Redis Configuration
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
-  
+
   # Temporal Cloud Configuration
   TEMPORAL_ADDRESS: "sa-east-1.aws.api.temporal.io:7233"
   TEMPORAL_NAMESPACE: "CHANGE_ME_TEMPORAL_NAMESPACE"
   TEMPORAL_TASK_QUEUE: "volteryde-booking"
-  
+
   # Kafka Configuration
   KAFKA_BROKERS: "kafka-service:9092"
-  
+
   # Application Configuration
   NODE_ENV: "production"
   LOG_LEVEL: "info"
-  
+
   # API Gateway Configuration
   API_GATEWAY_URL: "https://CHANGE_ME_API_GATEWAY_URL"
-  
+
   # CORS Configuration
   CORS_ORIGINS: "https://CHANGE_ME_CORS_ORIGINS"
-  
+
+  # Payment Configuration
+  PAYSTACK_CALLBACK_URL: "https://api.volteryde.com/api/v1/payments/webhook/paystack"
+
   # Per-Service Schema Mapping (Database-per-Domain Pattern)
   AUTH_DATABASE_SCHEMA: "svc_auth"
   CLIENT_AUTH_DATABASE_SCHEMA: "svc_client_auth"

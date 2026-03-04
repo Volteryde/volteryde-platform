@@ -293,8 +293,8 @@ public class OtpService {
     }
 
     /**
-     * Generate and save a new OTP locally (fallback method).
-     * Use generateOtpExternal() as the preferred method.
+     * Generate and save a new OTP locally.
+     * Fast (no external API call) — SMS delivery is handled separately by sendOtpSms().
      */
     @Transactional
     public String generateOtp(String phone) {
@@ -317,7 +317,10 @@ public class OtpService {
     }
 
     /**
-     * Verify an OTP (main entry point - uses external or local based on config).
+     * Verify an OTP.
+     * 
+     * Routes to external (Gatekeeper Pro verify_otp) or local verification
+     * based on how the OTP was generated.
      */
     @Transactional
     public boolean verifyOtp(String phone, String code) {
@@ -335,12 +338,12 @@ public class OtpService {
             return false;
         }
 
-        // Use external verification if configured
+        // Use external verification if OTP was generated via Gatekeeper Pro
         if (otp.shouldUseExternalVerification()) {
             return verifyOtpExternal(phone, code);
         }
 
-        // Fall back to local verification
+        // Otherwise verify locally
         return verifyOtpLocal(phone, code, otp);
     }
 
@@ -366,8 +369,10 @@ public class OtpService {
     }
 
     /**
-     * Send OTP via SMS using the external API.
-     * This method generates the OTP externally and sends it in one call.
+     * Send OTP via SMS using Gatekeeper Pro API.
+     * 
+     * Calls generate_otp which generates the OTP and delivers it via SMS.
+     * Stores the reference locally for verification via verify_otp.
      * 
      * @param phone The phone number to send OTP to
      * @return true if OTP was generated and sent successfully
@@ -377,14 +382,14 @@ public class OtpService {
         
         // Check if SMS provider is configured
         if (!smsProviderService.isConfigured()) {
-            logger.warn("SMS provider is not configured. Using local OTP generation.");
+            logger.warn("SMS provider not configured. Using local OTP generation.");
             String code = generateOtp(phone);
             logger.debug("OTP for {}: {}", phone, code);
-            return true; // Return true for development mode
+            return true;
         }
         
         try {
-            // Use external API to generate and send OTP
+            // generate_otp handles both OTP generation and SMS delivery
             OtpGenerateResponse response = generateOtpExternal(phone);
             
             if (response != null && response.isSuccess()) {
@@ -392,24 +397,13 @@ public class OtpService {
                 return true;
             } else {
                 String errorMsg = response != null ? response.getError() : "Unknown error";
-                logger.error("Failed to generate/send OTP via external API: {}", errorMsg);
+                logger.error("Failed to generate/send OTP: {}", errorMsg);
                 return false;
             }
         } catch (Exception e) {
-            logger.error("Exception while generating/sending OTP: {}", e.getMessage(), e);
+            logger.error("Exception sending OTP: {}", e.getMessage(), e);
             return false;
         }
-    }
-
-    /**
-     * Legacy method - now calls sendOtpSms(phone) internally.
-     * 
-     * @deprecated Use {@link #sendOtpSms(String)} instead
-     */
-    @Deprecated
-    public boolean sendOtpSms(String phone, String code) {
-        logger.info("Legacy sendOtpSms called with code {} - using new external API method", code);
-        return sendOtpSms(phone);
     }
 
     /**

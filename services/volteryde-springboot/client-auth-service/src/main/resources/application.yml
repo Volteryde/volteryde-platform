@@ -27,13 +27,8 @@ spring:
 # Eureka Client Configuration
 eureka:
   client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
+    register-with-eureka: false
+    fetch-registry: false
 
 # Actuator
 management:
@@ -69,9 +64,9 @@ sms:
 # The web client ID is used for token validation on the backend
 # All platform tokens (web, iOS, Android) are validated against these
 google:
-  web-client-id: ${GOOGLE_WEB_CLIENT_ID}
-  ios-client-id: ${GOOGLE_IOS_CLIENT_ID}
-  android-client-id: ${GOOGLE_ANDROID_CLIENT_ID}
+  web-client-id: ${GOOGLE_WEB_CLIENT_ID:348743430414-j9oe6em6thml761q4515ocgjd95hicbj.apps.googleusercontent.com}
+  ios-client-id: ${GOOGLE_IOS_CLIENT_ID:348743430414-3je1urp37frac10or722p08buoddqp9u.apps.googleusercontent.com}
+  android-client-id: ${GOOGLE_ANDROID_CLIENT_ID:348743430414-nr958v7e3084kc58029g3qq5t72bbpj.apps.googleusercontent.com}
 
 # Terms & Conditions Configuration
 terms:

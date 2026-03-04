@@ -65,7 +65,9 @@ public class SecurityConfig {
 		configuration.setAllowedOriginPatterns(Arrays.asList(
 				"http://localhost:*",
 				"https://*.volteryde.org",
-				"http://*.volteryde.org"));
+				"https://volteryde.org",
+				"https://*.volteryde.com",
+				"https://volteryde.com"));
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept",
 				"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));

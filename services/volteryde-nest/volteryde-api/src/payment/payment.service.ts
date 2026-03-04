@@ -3,7 +3,6 @@ import {
 	Logger,
 	BadRequestException,
 	InternalServerErrorException,
-	NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
@@ -24,6 +23,10 @@ export class PaymentService {
 	private readonly logger = new Logger(PaymentService.name);
 	private readonly paystackSecretKey: string;
 	private readonly paystackBaseUrl = 'https://api.paystack.co';
+
+	// In-memory balance cache: userId -> { balance, expiresAt }
+	private readonly balanceCache = new Map<string, { balance: number; expiresAt: number }>();
+	private readonly CACHE_TTL_MS = 30_000; // 30 seconds
 
 	constructor(
 		@InjectRepository(Wallet)
@@ -103,7 +106,7 @@ export class PaymentService {
 			return {
 				authorizationUrl: response.data.data.authorization_url,
 				accessCode: response.data.data.access_code,
-				reference: response.data.data.reference,
+				referenceId: response.data.data.reference,
 			};
 		} catch (error) {
 			this.logger.error('Failed to initialize Paystack transaction', error.response?.data || error.message);
@@ -206,11 +209,49 @@ export class PaymentService {
 			await manager.save(lockedWallet);
 
 			this.logger.log(`Wallet credited for user ${lockedWallet.userId}. New balance: ${newBalance}`);
+
+			// Invalidate balance cache so next read gets fresh value
+			this.invalidateBalanceCache(lockedWallet.userId);
 		});
 	}
 
 	async getWalletBalance(userId: string) {
+		const cached = this.balanceCache.get(userId);
+		if (cached && cached.expiresAt > Date.now()) {
+			return cached.balance;
+		}
+
 		const wallet = await this.walletRepository.findOne({ where: { userId } });
-		return wallet ? wallet.balance : 0;
+		const balance = wallet ? Number(wallet.balance) : 0;
+
+		this.balanceCache.set(userId, { balance, expiresAt: Date.now() + this.CACHE_TTL_MS });
+		return balance;
+	}
+
+	private invalidateBalanceCache(userId: string) {
+		this.balanceCache.delete(userId);
+	}
+
+	async getTransactionHistory(userId: string, limit = 50) {
+		const wallet = await this.walletRepository.findOne({ where: { userId } });
+		if (!wallet) {
+			return [];
+		}
+
+		const transactions = await this.transactionRepository.find({
+			where: { wallet: { id: wallet.id }, status: TransactionStatus.SUCCESS },
+			order: { createdAt: 'DESC' },
+			take: limit,
+		});
+
+		return transactions.map((tx) => ({
+			id: tx.id,
+			amount: Number(tx.amount),
+			type: tx.type,
+			description: tx.metadata?.source
+				? `${tx.type === TransactionType.CREDIT ? 'Top-up' : 'Payment'} via ${tx.metadata.source}`
+				: tx.type === TransactionType.CREDIT ? 'Wallet Credit' : 'Wallet Debit',
+			createdAt: tx.createdAt,
+		}));
 	}
 }

@@ -9,7 +9,7 @@ import { CreateVehicleDto } from '../dto/create-vehicle.dto';
 import { VehicleResponseDto, UpdateVehicleStatusDto, AssignDriverDto } from '../dto/fleet-responses.dto';
 
 @ApiTags('Fleet - Vehicles')
-@Controller('api/v1/fleet/vehicles')
+@Controller('fleet/vehicles')
 export class VehiclesController {
   constructor(private vehicleService: VehicleService) {}
 

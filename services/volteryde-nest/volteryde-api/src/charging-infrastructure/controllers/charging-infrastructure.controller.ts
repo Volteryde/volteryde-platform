@@ -9,7 +9,7 @@ import { CreateStationDto } from '../dto/create-station.dto';
 import { StartSessionDto } from '../dto/start-session.dto';
 
 @ApiTags('Charging Infrastructure')
-@Controller('api/v1/charging')
+@Controller('charging')
 export class ChargingInfrastructureController {
   constructor(private readonly chargingService: ChargingInfrastructureService) {}
 

@@ -24,7 +24,9 @@ async function bootstrap() {
       /^(http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]+)$/,
       /^(http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]+)$/,
       /^(https:\/\/.*\.volteryde\.org)$/,
-      'https://volteryde.org'
+      'https://volteryde.org',
+      /^(https:\/\/.*\.volteryde\.com)$/,
+      'https://volteryde.com'
     ],
     credentials: true,
   });
@@ -44,10 +46,9 @@ async function bootstrap() {
   // Global error handling
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // API prefix - exclude root controller
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['/'],
-  });
+  // NOTE: No global prefix — controllers define their own route paths.
+  // GTFS/Locator use short paths (e.g., 'gtfs', 'locator').
+  // Payment/Booking use full paths (e.g., 'payment', 'booking').
 
   // Swagger documentation
   const config = new DocumentBuilder()

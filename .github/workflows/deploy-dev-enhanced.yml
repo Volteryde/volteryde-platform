@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  EKS_CLUSTER: volteryde-cluster
+  AWS_REGION: sa-east-1
+  EKS_CLUSTER: volteryde-production
   ENVIRONMENT: development
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.sa-east-1.amazonaws.com
 
 jobs:
   # ============================================================================
@@ -69,13 +69,41 @@ jobs:
           file: services/volteryde-springboot/Dockerfile
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/volteryde/springboot-service:dev-latest
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:dev-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             SERVICE_NAME=api-gateway
       
+      - name: Build & Push Spring Boot Client Auth Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-client-auth:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=client-auth-service
+
+      - name: Build & Push Spring Boot Payment Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/volteryde-springboot/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=payment-service
+
       - name: Build & Push Temporal Workers
         uses: docker/build-push-action@v5
         with:
@@ -131,16 +159,18 @@ jobs:
           cd infrastructure/kubernetes/overlays/dev
           kustomize edit set image \
             volteryde/nestjs-service=${{ env.ECR_REGISTRY }}/volteryde/nestjs-service:${{ github.sha }} \
-            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-service:${{ github.sha }} \
+            volteryde/springboot-service=${{ env.ECR_REGISTRY }}/volteryde/springboot-auth:${{ github.sha }} \
+            volteryde/springboot-payment=${{ env.ECR_REGISTRY }}/volteryde/springboot-payment:${{ github.sha }} \
             volteryde/temporal-workers=${{ env.ECR_REGISTRY }}/volteryde/temporal-workers:${{ github.sha }}
 
           echo "📋 Applying kustomize manifests to volteryde-dev..."
-          kustomize build . | kubectl apply -f -
+          kustomize build . | kubectl apply --server-side --force-conflicts -f -
       
       - name: Wait for DEV rollout
         run: |
           kubectl rollout status deployment/volteryde-api -n volteryde-dev --timeout=5m || true
           kubectl rollout status deployment/volteryde-auth -n volteryde-dev --timeout=5m || true
+          kubectl rollout status deployment/volteryde-payment -n volteryde-dev --timeout=5m || true
           kubectl rollout status deployment/temporal-workers -n volteryde-dev --timeout=5m || true
       
       - name: DEV Smoke Test
@@ -202,6 +232,7 @@ jobs:
           echo "🔄 Rolling back deployment..."
           kubectl rollout undo deployment/volteryde-api -n volteryde-dev || true
           kubectl rollout undo deployment/volteryde-auth -n volteryde-dev || true
+          kubectl rollout undo deployment/volteryde-payment -n volteryde-dev || true
           kubectl rollout undo deployment/temporal-workers -n volteryde-dev || true
       
       - name: Notify Slack on Failure

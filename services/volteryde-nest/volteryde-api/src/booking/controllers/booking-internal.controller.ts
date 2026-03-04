@@ -19,7 +19,7 @@ import { InternalServiceGuard } from '../../shared/guards/internal-service.guard
 import { BookingInternalService } from '../services/booking-internal.service';
 
 @ApiTags('Internal - Booking')
-@Controller('api/v1/booking/internal')
+@Controller('booking/internal')
 @UseGuards(InternalServiceGuard)
 export class BookingInternalController {
   constructor(private bookingInternalService: BookingInternalService) { }

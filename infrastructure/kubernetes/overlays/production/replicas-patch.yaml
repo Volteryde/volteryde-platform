@@ -7,7 +7,7 @@ kind: Deployment
 metadata:
   name: volteryde-api
 spec:
-  replicas: 3
+  replicas: 2
 
 ---
 apiVersion: apps/v1
@@ -15,7 +15,7 @@ kind: Deployment
 metadata:
   name: volteryde-auth
 spec:
-  replicas: 3
+  replicas: 2
 
 ---
 apiVersion: apps/v1
@@ -23,4 +23,13 @@ kind: Deployment
 metadata:
   name: temporal-workers
 spec:
-  replicas: 2
+  replicas: 0  # No image in ECR yet — scale up after first CI/CD push
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 0
+

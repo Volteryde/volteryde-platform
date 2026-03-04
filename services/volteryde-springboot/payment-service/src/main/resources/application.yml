@@ -8,9 +8,9 @@ spring:
     name: payment-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/volteryde_payment_system
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/payment_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -34,14 +34,8 @@ paystack:
 
 eureka:
   client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 30
-    lease-expiration-duration-in-seconds: 90
+    register-with-eureka: false
+    fetch-registry: false
 
 management:
   endpoints:
