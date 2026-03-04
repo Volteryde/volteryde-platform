@@ -228,7 +228,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: test
       
       - name: Generate Coverage Report
-        run: ./mvnw jacoco:report
+        run: ./mvnw org.jacoco:jacoco-maven-plugin:report
         working-directory: services/volteryde-springboot
       
       - name: Upload Coverage
