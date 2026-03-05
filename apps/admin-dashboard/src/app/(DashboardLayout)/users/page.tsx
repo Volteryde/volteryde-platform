@@ -13,14 +13,14 @@ export default function UsersPage() {
 	const [currentRole, setCurrentRole] = useState('ALL');
 
 	const roles = [
-		{ label: 'All', value: 'ALL', color: 'data-[state=active]:bg-gray-600' },
+		{ label: 'All Staff', value: 'ALL', color: 'data-[state=active]:bg-gray-600' },
+		{ label: 'Super Admins', value: 'SUPER_ADMIN', color: 'data-[state=active]:bg-red-800' },
 		{ label: 'Admins', value: 'ADMIN', color: 'data-[state=active]:bg-red-600' },
 		{ label: 'Drivers', value: 'DRIVER', color: 'data-[state=active]:bg-blue-600' },
-		{ label: 'Support', value: 'SUPPORT', color: 'data-[state=active]:bg-purple-600' },
+		{ label: 'System Support', value: 'SYSTEM_SUPPORT', color: 'data-[state=active]:bg-purple-600' },
 		{ label: 'Fleet Ops', value: 'FLEET_MANAGER', color: 'data-[state=active]:bg-orange-600' },
 		{ label: 'Dispatch', value: 'DISPATCHER', color: 'data-[state=active]:bg-cyan-600' },
-		{ label: 'BI Partners', value: 'BI_PARTNER', color: 'data-[state=active]:bg-indigo-600' },
-		{ label: 'Users', value: 'USER', color: 'data-[state=active]:bg-slate-600' },
+		{ label: 'BI Partners', value: 'PARTNER', color: 'data-[state=active]:bg-indigo-600' },
 	];
 
 	const [refreshKey, setRefreshKey] = useState(0);

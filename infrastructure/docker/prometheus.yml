@@ -151,29 +151,11 @@ scrape_configs:
   # --------------------------------------------------------------------------
   # Infrastructure Services
   # --------------------------------------------------------------------------
-  - job_name: "temporal"
-    static_configs:
-      - targets: ["volteryde-temporal:7233"]
-        labels:
-          service: "temporal"
-          domain: "workflow"
-    scrape_interval: 30s
-
-  - job_name: "redis"
-    static_configs:
-      - targets: ["volteryde-redis:6379"]
-        labels:
-          service: "redis"
-          domain: "cache"
-    scrape_interval: 30s
-
-  - job_name: "postgres"
-    static_configs:
-      - targets: ["volteryde-postgres:5432"]
-        labels:
-          service: "postgres"
-          domain: "database"
-    scrape_interval: 30s
+  # Austin — Removed direct scrapes for Temporal (using Temporal Cloud now),
+  # Redis and Postgres. These services don't expose /metrics HTTP endpoints.
+  # Scraping them with HTTP triggers "SECURITY ATTACK" warnings in Redis
+  # and connection errors in Postgres. To monitor Redis/Postgres metrics,
+  # deploy redis_exporter and postgres_exporter sidecars in the future.
 
   # --------------------------------------------------------------------------
   # Self-Monitoring

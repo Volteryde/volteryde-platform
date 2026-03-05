@@ -1,16 +1,20 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { getConfig, getAuthServiceUrl } from '@volteryde/config';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo, useCallback } from 'react';
+import { getAuthServiceUrl } from '@volteryde/config';
 
-// Get centralized config
-const config = getConfig();
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// User role type
-type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DISPATCHER' | 'SUPPORT_AGENT' | 'PARTNER' | 'DRIVER' | 'FLEET_MANAGER';
+type UserRole =
+	| 'SUPER_ADMIN'
+	| 'ADMIN'
+	| 'DISPATCHER'
+	| 'CUSTOMER_SUPPORT'
+	| 'SYSTEM_SUPPORT'
+	| 'PARTNER'
+	| 'DRIVER'
+	| 'FLEET_MANAGER';
 
-// Auth user type
 interface AuthUser {
 	id: string;
 	email: string;
@@ -22,7 +26,6 @@ interface AuthUser {
 	emailVerified: boolean;
 }
 
-// Auth state type
 interface AuthState {
 	user: AuthUser | null;
 	isAuthenticated: boolean;
@@ -30,85 +33,42 @@ interface AuthState {
 	error: string | null;
 }
 
-// Auth context value type
 interface AuthContextValue extends AuthState {
-	login: (email: string, password: string) => Promise<void>;
+	/** The raw JWT access token – pass to API calls as Bearer header */
+	accessToken: string | null;
+	/** Call GET /api/session again to refresh state from cookie */
+	refreshSession: () => Promise<void>;
 	logout: () => Promise<void>;
 	hasRole: (role: UserRole) => boolean;
 	hasAnyRole: (roles: UserRole[]) => boolean;
 }
 
-// Create context
-const AuthContext = createContext<AuthContextValue | null>(null);
+// ─── Context ──────────────────────────────────────────────────────────────────
 
-// Storage prefix from config
-const STORAGE_PREFIX = 'volteryde_auth_';
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 interface AuthProviderProps {
 	children: ReactNode;
 }
 
-import { Suspense } from 'react';
+// ─── Session response shape ───────────────────────────────────────────────────
 
-// Inner component to handle URL params
-function AuthInitializer({ children, setAuthState }: { children: ReactNode; setAuthState: (state: Partial<AuthState>) => void }) {
-	const searchParams = useSearchParams();
-
-	useEffect(() => {
-		const initAuth = async () => {
-			try {
-				let token = localStorage.getItem(`${STORAGE_PREFIX}access_token`);
-				const codeParam = searchParams.get('code');
-
-				// If code param exists, it takes precedence (new login)
-				if (codeParam) {
-					token = codeParam;
-					localStorage.setItem(`${STORAGE_PREFIX}access_token`, token);
-
-					// Clean URL - remove code param without refresh
-					const url = new URL(window.location.href);
-					url.searchParams.delete('code');
-					window.history.replaceState({}, '', url.pathname + url.search);
-				}
-
-				if (!token) {
-					setAuthState({ isLoading: false });
-					return;
-				}
-
-				// Decode token to get user info
-				const parts = token.split('.');
-				if (parts.length < 2) throw new Error('Invalid token format');
-				const payload = parts[1];
-
-				const decoded = JSON.parse(atob(payload));
-
-				const user: AuthUser = {
-					id: decoded.sub,
-					email: decoded.email,
-					firstName: decoded.firstName,
-					lastName: decoded.lastName,
-					roles: decoded.roles || [],
-					organizationId: decoded.organizationId,
-					emailVerified: decoded.emailVerified ?? true,
-				};
-
-				setAuthState({
-					user,
-					isAuthenticated: true,
-					isLoading: false,
-					error: null,
-				});
-			} catch {
-				setAuthState({ isLoading: false });
-			}
-		};
-
-		initAuth();
-	}, [searchParams, setAuthState]);
-
-	return <>{children}</>;
+interface SessionResponse {
+	authenticated: boolean;
+	token?: string;
+	user?: {
+		id: string;
+		email: string;
+		firstName: string;
+		lastName: string;
+		roles: UserRole[];
+		organizationId: string | null;
+		emailVerified: boolean;
+	};
+	error?: string;
 }
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: AuthProviderProps) {
 	const [state, setState] = useState<AuthState>({
@@ -117,64 +77,103 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		isLoading: true,
 		error: null,
 	});
+	const [accessToken, setAccessToken] = useState<string | null>(null);
+	const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const login = useCallback(async (email: string, password: string) => {
-		setState(prev => ({ ...prev, isLoading: true, error: null }));
-
+	/**
+	 * Read session from the httpOnly cookie via server-side route.
+	 * This is the single source of truth for auth state.
+	 */
+	const fetchSession = useCallback(async () => {
 		try {
-			// Use centralized auth API URL
-			const response = await fetch(`${config.authApiUrl}/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, password }),
-			});
+			const res = await fetch('/api/session', { credentials: 'same-origin' });
 
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Login failed');
+			if (!res.ok) {
+				setAccessToken(null);
+				setState({
+					user: null,
+					isAuthenticated: false,
+					isLoading: false,
+					error: null,
+				});
+				return;
 			}
 
-			const data = await response.json();
+			const data: SessionResponse = await res.json();
 
-			localStorage.setItem(`${STORAGE_PREFIX}access_token`, data.accessToken);
-			localStorage.setItem(`${STORAGE_PREFIX}refresh_token`, data.refreshToken);
+			if (!data.authenticated || !data.user || !data.token) {
+				setAccessToken(null);
+				setState({
+					user: null,
+					isAuthenticated: false,
+					isLoading: false,
+					error: null,
+				});
+				return;
+			}
 
-			const [, payload] = data.accessToken.split('.');
-			const decoded = JSON.parse(atob(payload));
-
+			setAccessToken(data.token);
 			setState({
 				user: {
-					id: decoded.sub,
-					email: decoded.email,
-					firstName: decoded.firstName,
-					lastName: decoded.lastName,
-					roles: decoded.roles || [],
-					organizationId: decoded.organizationId,
-					emailVerified: decoded.emailVerified ?? true,
+					id: data.user.id,
+					email: data.user.email,
+					firstName: data.user.firstName,
+					lastName: data.user.lastName,
+					roles: data.user.roles,
+					organizationId: data.user.organizationId ?? undefined,
+					emailVerified: data.user.emailVerified,
 				},
 				isAuthenticated: true,
 				isLoading: false,
 				error: null,
 			});
-		} catch (err) {
-			setState(prev => ({
-				...prev,
+		} catch {
+			setAccessToken(null);
+			setState({
+				user: null,
+				isAuthenticated: false,
 				isLoading: false,
-				error: err instanceof Error ? err.message : 'Login failed',
-			}));
-			throw err;
+				error: 'Failed to load session',
+			});
 		}
 	}, []);
 
+	// Initialise session on mount
+	useEffect(() => {
+		fetchSession();
+	}, [fetchSession]);
+
+	// Auto-refresh: re-check session every 5 minutes while authenticated
+	useEffect(() => {
+		if (!state.isAuthenticated) {
+			if (refreshTimerRef.current) {
+				clearInterval(refreshTimerRef.current);
+				refreshTimerRef.current = null;
+			}
+			return;
+		}
+
+		refreshTimerRef.current = setInterval(() => {
+			fetchSession();
+		}, 5 * 60 * 1000);
+
+		return () => {
+			if (refreshTimerRef.current) {
+				clearInterval(refreshTimerRef.current);
+				refreshTimerRef.current = null;
+			}
+		};
+	}, [state.isAuthenticated, fetchSession]);
+
 	const logout = useCallback(async () => {
-		// Clear localStorage tokens
-		localStorage.removeItem(`${STORAGE_PREFIX}access_token`);
-		localStorage.removeItem(`${STORAGE_PREFIX}refresh_token`);
-		localStorage.removeItem(`${STORAGE_PREFIX}expires_at`);
+		// Clear the httpOnly session cookie via server route
+		try {
+			await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
+		} catch {
+			// Best-effort
+		}
 
-		// Clear cookies (used by middleware)
-		document.cookie = 'volteryde_auth_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-
+		setAccessToken(null);
 		setState({
 			user: null,
 			isAuthenticated: false,
@@ -182,51 +181,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			error: null,
 		});
 
-		// Redirect to auth platform login page with logout flag
+		// Redirect to auth platform login with logout flag
 		if (typeof window !== 'undefined') {
 			const authUrl = getAuthServiceUrl();
-			// Add logout=true so auth-frontend clears its tokens too
 			window.location.href = `${authUrl}/login?logout=true`;
 		}
 	}, []);
 
-	const hasRole = useCallback((role: UserRole): boolean => {
-		return state.user?.roles.includes(role) ?? false;
-	}, [state.user]);
+	const hasRole = useCallback(
+		(role: UserRole): boolean => state.user?.roles.includes(role) ?? false,
+		[state.user],
+	);
 
-	const hasAnyRole = useCallback((roles: UserRole[]): boolean => {
-		return roles.some(role => state.user?.roles.includes(role));
-	}, [state.user]);
-
-	const updateAuthState = useCallback((newState: Partial<AuthState>) => {
-		setState(prev => ({ ...prev, ...newState }));
-	}, []);
+	const hasAnyRole = useCallback(
+		(roles: UserRole[]): boolean => roles.some((r) => state.user?.roles.includes(r)),
+		[state.user],
+	);
 
 	const contextValue: AuthContextValue = useMemo(
 		() => ({
 			...state,
-			login,
+			accessToken,
+			refreshSession: fetchSession,
 			logout,
 			hasRole,
 			hasAnyRole,
 		}),
-		[state, login, logout, hasRole, hasAnyRole]
+		[state, accessToken, fetchSession, logout, hasRole, hasAnyRole],
 	);
 
-	// Show loading state while initially loading (handled by inner component via state)
 	if (state.isLoading) {
 		return (
-			<Suspense fallback={
-				<div className="min-h-screen flex items-center justify-center bg-background">
-					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-				</div>
-			}>
-				<AuthInitializer setAuthState={updateAuthState}>
-					<div className="min-h-screen flex items-center justify-center bg-background">
-						<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-					</div>
-				</AuthInitializer>
-			</Suspense>
+			<div className="min-h-screen flex items-center justify-center bg-background">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+			</div>
 		);
 	}
 
@@ -237,7 +225,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 	);
 }
 
-// Hooks
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
 export function useAuth(): AuthContextValue {
 	const context = useContext(AuthContext);
 	if (!context) {

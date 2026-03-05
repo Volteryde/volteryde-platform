@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { getAuthServiceUrl } from '@volteryde/config';
 
-type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DISPATCHER' | 'SUPPORT_AGENT' | 'PARTNER' | 'DRIVER' | 'FLEET_MANAGER';
+type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DISPATCHER' | 'CUSTOMER_SUPPORT' | 'SYSTEM_SUPPORT' | 'PARTNER' | 'DRIVER' | 'FLEET_MANAGER';
 
 interface AuthUser {
 	id: string;

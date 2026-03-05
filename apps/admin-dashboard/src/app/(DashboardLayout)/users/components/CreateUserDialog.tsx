@@ -33,7 +33,18 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { adminApi } from '@volteryde/api-client';
+
+// Austin — Valid roles matching svc_auth.roles and svc_users.users role constraints
+const VALID_ROLES = [
+	'SUPER_ADMIN',
+	'ADMIN',
+	'DISPATCHER',
+	'CUSTOMER_SUPPORT',
+	'SYSTEM_SUPPORT',
+	'PARTNER',
+	'DRIVER',
+	'FLEET_MANAGER',
+] as const;
 
 const formSchema = z.object({
 	firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' }),
@@ -41,9 +52,7 @@ const formSchema = z.object({
 	email: z.string().email({ message: 'Invalid email address.' }),
 	phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 characters.' }),
 	password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
-	role: z.enum(
-		['ADMIN', 'SUPER_ADMIN', 'BI_PARTNER', 'CUSTOMER', 'SUPPORT', 'DISPATCHER', 'DRIVER', 'FLEET_MANAGER', 'SYSTEM_SUPPORT']
-	),
+	role: z.enum(VALID_ROLES),
 });
 
 interface CreateUserDialogProps {
@@ -70,19 +79,30 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 	async function onSubmit(values: z.infer<typeof formSchema>) {
 		setIsLoading(true);
 		try {
-			// Call Admin API to create user
-			const newUser = await adminApi.createUser(values);
+			// Austin — Call the single provision endpoint that writes to all DBs atomically
+			const res = await fetch('/api/users/provision', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'same-origin',
+				body: JSON.stringify(values),
+			});
+
+			const data = await res.json();
+
+			if (!res.ok) {
+				throw new Error(data.error || 'Failed to create user');
+			}
 
 			toast({
 				title: 'User created successfully',
 				description: (
 					<div className="flex flex-col gap-2">
 						<p>{values.firstName} {values.lastName} has been added as {values.role}.</p>
-						<p className="font-medium">Access ID: <span className="font-mono bg-slate-100 px-1 rounded">{newUser.userId}</span></p>
+						<p className="font-medium">Access ID: <span className="font-mono bg-slate-100 px-1 rounded">{data.user.accessId}</span></p>
 						<p className="text-xs text-muted-foreground">Please copy this ID for the user.</p>
 					</div>
 				),
-				duration: 10000, // Show for longer so they can copy it
+				duration: 10000,
 			});
 
 			setOpen(false);
@@ -205,11 +225,10 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 										<SelectContent>
 											<SelectItem value="ADMIN">Admin</SelectItem>
 											<SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-											<SelectItem value="BI_PARTNER">BI Partner</SelectItem>
+											<SelectItem value="PARTNER">BI Partner</SelectItem>
 											<SelectItem value="DISPATCHER">Dispatcher</SelectItem>
-											<SelectItem value="SUPPORT">Support Agent</SelectItem>
+											<SelectItem value="CUSTOMER_SUPPORT">Customer Support</SelectItem>
 											<SelectItem value="SYSTEM_SUPPORT">System Support</SelectItem>
-											<SelectItem value="CUSTOMER">Customer</SelectItem>
 											<SelectItem value="DRIVER">Driver</SelectItem>
 											<SelectItem value="FLEET_MANAGER">Fleet Manager</SelectItem>
 										</SelectContent>

@@ -204,6 +204,9 @@ public class ClientAuthService {
     @Transactional
     public ClientAuthResponse registerWithPassword(PasswordRegisterRequest request, String deviceInfo,
             String ipAddress) {
+        // IP-based registration rate limit (10 per hour)
+        rateLimiterService.checkAndRecordRegister(ipAddress);
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -233,14 +236,22 @@ public class ClientAuthService {
      */
     @Transactional
     public ClientAuthResponse loginWithPassword(PasswordLoginRequest request, String deviceInfo, String ipAddress) {
+        // Rate limiting + account lockout check (before touching DB to avoid timing leaks)
+        rateLimiterService.checkLoginAllowed(request.getEmail(), ipAddress);
+
         ClientUser user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
+                    return new RuntimeException("Invalid email or password");
+                });
 
         if (user.getPasswordHash() == null) {
+            rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
             throw new RuntimeException("This account uses social login. Please use Google or phone login.");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
             throw new RuntimeException("Invalid email or password");
         }
 
@@ -248,6 +259,8 @@ public class ClientAuthService {
             throw new RuntimeException("Account is not active");
         }
 
+        // Clear failure counters on successful login
+        rateLimiterService.recordLoginSuccess(request.getEmail());
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }
 
@@ -487,6 +500,7 @@ public class ClientAuthService {
     @Transactional
     public ClientAuthResponse googleLogin(String googleId, String email, String firstName, String lastName,
             String idToken, String deviceInfo, String ipAddress) {
+        rateLimiterService.checkAndRecordSocialLogin(ipAddress);
 
         if (idToken != null && !idToken.isEmpty()) {
             try {
@@ -543,6 +557,8 @@ public class ClientAuthService {
     public ClientAuthResponse googleLoginWithTerms(String googleId, String email, String firstName, String lastName,
             String idToken, String phone, String deviceInfo, String ipAddress,
             boolean termsAccepted, boolean privacyAccepted) {
+        rateLimiterService.checkAndRecordSocialLogin(ipAddress);
+
         // Verify token if provided
         if (idToken != null && !idToken.isEmpty()) {
             try {

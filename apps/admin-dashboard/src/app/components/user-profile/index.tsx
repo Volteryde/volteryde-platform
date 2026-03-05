@@ -1,8 +1,6 @@
 "use client";
 import Image from "next/image"
 import CardBox from "../shared/CardBox"
-import Link from "next/link"
-import { Icon } from "@iconify/react/dist/iconify.js"
 import {
     Dialog,
     DialogContent,
@@ -15,109 +13,106 @@ import BreadcrumbComp from "@/app/(DashboardLayout)/layout/shared/breadcrumb/Bre
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUser } from "@/providers/AuthProvider";
-import { usersApi, configureApiClient, type User } from "@volteryde/api-client";
+import { authApi, configureApiClient, type AuthProfile } from "@volteryde/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { API_CONFIG } from "@/config/api";
+import { useAuth } from "@/providers/AuthProvider";
 
 const UserProfile = () => {
-    const authUser = useUser();
+    const { accessToken } = useAuth();
     const [openModal, setOpenModal] = useState(false);
-    const [modalType, setModalType] = useState<"personal" | "address" | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [profileData, setProfileData] = useState<User | null>(null);
+    const [profile, setProfile] = useState<AuthProfile | null>(null);
 
     const BCrumb = [
         { to: "/", title: "Home" },
         { title: "User Profile" },
     ];
 
-    // Configure API client with centralized config
+    // Configure API client and fetch profile when the token is available.
+    // Both must live in a single effect to guarantee the client is
+    // configured BEFORE the fetch fires (eliminates the race condition
+    // between two independent useEffect hooks).
     useEffect(() => {
         configureApiClient({
-            baseUrl: API_CONFIG.userService.baseUrl,
+            baseUrl: API_CONFIG.authService.baseUrl,
+            getAccessToken: async () => accessToken,
         });
-    }, []);
 
-    useEffect(() => {
+        if (!accessToken) {
+            setIsLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+
         async function fetchProfile() {
-            if (!authUser?.id) {
-                setIsLoading(false);
-                return;
-            }
-
             setIsLoading(true);
             setError(null);
 
             try {
-                // Fetch user profile using authId (from JWT)
-                const data = await usersApi.getUserByAuthId(authUser.id);
-                setProfileData(data);
-            } catch (err) {
-                console.error('Failed to fetch user profile:', err);
-                // Fall back to auth context data if API fails
-                setError('Could not fetch full profile from server');
+                const data = await authApi.getProfile();
+                if (!cancelled) setProfile(data);
+            } catch (err: unknown) {
+                if (cancelled) return;
+                // ApiError from the client is a plain object, not an Error
+                const msg =
+                    err instanceof Error
+                        ? err.message
+                        : typeof err === 'object' && err !== null && 'message' in err
+                            ? String((err as { message: unknown }).message)
+                            : 'Unknown error';
+                console.error('Failed to fetch profile:', msg, err);
+                setError(msg);
             } finally {
-                setIsLoading(false);
+                if (!cancelled) setIsLoading(false);
             }
         }
 
         fetchProfile();
-    }, [authUser?.id]);
 
-    // Use profile data if available, otherwise fall back to auth context
-    const firstName = profileData?.firstName || authUser?.firstName || '';
-    const lastName = profileData?.lastName || authUser?.lastName || '';
-    const email = profileData?.email || authUser?.email || '';
-    const phone = profileData?.phoneNumber || '';
-    const role = profileData?.role || (authUser?.roles?.[0] || 'USER');
-    const avatarUrl = profileData?.profilePictureUrl || authUser?.avatarUrl || "/images/profile/user-1.jpg";
+        return () => { cancelled = true; };
+    }, [accessToken]);
+
+    const firstName = profile?.firstName || '';
+    const lastName = profile?.lastName || '';
+    const email = profile?.email || '';
+    const phone = profile?.phoneNumber || '';
+    const roles = profile?.roles?.join(', ') || '';
+    const accessId = profile?.accessId || '';
+    const avatarUrl = profile?.avatarUrl || "/images/profile/user-1.jpg";
 
     const [personal, setPersonal] = useState({
         firstName,
         lastName,
         email,
         phone,
-        position: role,
     });
 
-    // Update local state when profile data loads
+    // Update local state when profile loads
     useEffect(() => {
-        if (profileData || authUser) {
+        if (profile) {
             setPersonal({
-                firstName: profileData?.firstName || authUser?.firstName || '',
-                lastName: profileData?.lastName || authUser?.lastName || '',
-                email: profileData?.email || authUser?.email || '',
-                phone: profileData?.phoneNumber || '',
-                position: profileData?.role || (authUser?.roles?.[0] || 'USER'),
+                firstName: profile.firstName || '',
+                lastName: profile.lastName || '',
+                email: profile.email || '',
+                phone: profile.phoneNumber || '',
             });
         }
-    }, [profileData, authUser]);
+    }, [profile]);
 
     const [tempPersonal, setTempPersonal] = useState(personal);
 
     useEffect(() => {
-        if (openModal && modalType === "personal") {
+        if (openModal) {
             setTempPersonal(personal);
         }
-    }, [openModal, modalType, personal]);
+    }, [openModal, personal]);
 
     const handleSave = async () => {
-        if (modalType === "personal" && profileData?.id) {
-            try {
-                // Update profile via API
-                const updated = await usersApi.updateUser(profileData.id, {
-                    firstName: tempPersonal.firstName,
-                    lastName: tempPersonal.lastName,
-                    phoneNumber: tempPersonal.phone,
-                });
-                setProfileData(updated);
-                setPersonal(tempPersonal);
-            } catch (err) {
-                console.error('Failed to update profile:', err);
-            }
-        }
+        // TODO: Implement profile update endpoint in auth-service
+        setPersonal(tempPersonal);
         setOpenModal(false);
     };
 
@@ -171,7 +166,7 @@ const UserProfile = () => {
                             <div className="flex flex-col sm:text-left text-center gap-1.5">
                                 <h5 className="card-title">{firstName} {lastName}</h5>
                                 <div className="flex flex-wrap items-center gap-1 md:gap-3">
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{role}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{roles}</p>
                                     {error && (
                                         <p className="text-xs text-amber-500">(Limited data - {error})</p>
                                     )}
@@ -189,27 +184,15 @@ const UserProfile = () => {
                             <div><p className="text-xs text-gray-500">Last Name</p><p>{personal.lastName || '-'}</p></div>
                             <div><p className="text-xs text-gray-500">Email</p><p>{personal.email || '-'}</p></div>
                             <div><p className="text-xs text-gray-500">Phone</p><p>{personal.phone || '-'}</p></div>
-                            <div><p className="text-xs text-gray-500">Role</p><p>{personal.position || '-'}</p></div>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={() => { setModalType("personal"); setOpenModal(true); }}
-                                color={"primary"}
-                                className="flex items-center gap-1.5 rounded-md"
-                                disabled={!profileData}
-                            >
-                                <Icon icon="ic:outline-edit" width="18" height="18" /> Edit
-                            </Button>
+                            <div><p className="text-xs text-gray-500">Roles</p><p>{roles || '-'}</p></div>
                         </div>
                     </div>
 
                     <div className="space-y-6 rounded-xl border border-defaultBorder md:p-6 p-4 relative w-full break-words">
                         <h5 className="card-title">Account Details</h5>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-7 2xl:gap-x-32">
-                            <div><p className="text-xs text-gray-500">User ID</p><p className="text-sm font-mono">{profileData?.id || authUser?.id || '-'}</p></div>
-                            <div><p className="text-xs text-gray-500">Account Status</p><p>{profileData?.status || 'PENDING'}</p></div>
-                            <div><p className="text-xs text-gray-500">Email Verified</p><p>{authUser?.emailVerified ? 'Yes' : 'No'}</p></div>
-                            <div><p className="text-xs text-gray-500">Created</p><p>{profileData?.createdAt ? new Date(profileData.createdAt).toLocaleDateString() : '-'}</p></div>
+                            <div><p className="text-xs text-gray-500">Access ID</p><p className="text-sm font-mono">{accessId || '-'}</p></div>
+                            <div><p className="text-xs text-gray-500">Email Verified</p><p>{profile?.emailVerified ? 'Yes' : 'No'}</p></div>
                         </div>
                     </div>
                 </div>

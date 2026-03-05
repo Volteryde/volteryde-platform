@@ -50,6 +50,11 @@ public class SecurityConfig {
 								"/actuator/**",
 								"/actuator/health/**")
 						.permitAll()
+						// These endpoints validate the JWT manually in the controller
+						.requestMatchers(
+								"/me",
+								"/validate")
+						.permitAll()
 						// Everything else requires authentication
 						.anyRequest().authenticated())
 				.httpBasic(basic -> basic.disable())

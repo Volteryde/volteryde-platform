@@ -6,7 +6,7 @@ import { RecentTransaction } from "../components/dashboard/RecentTransaction";
 import { ProductPerformance } from "../components/dashboard/ProductPerformance";
 import { Footer } from "../components/dashboard/Footer";
 import ProfileWelcome from "../components/dashboard/ProfileWelcome";
-import { MetricCard } from "../components/dashboard/MetricCard";
+import FinanceMetrics from "../components/dashboard/FinanceMetrics";
 
 const page = () => {
   return (
@@ -15,23 +15,9 @@ const page = () => {
         <div className="col-span-12">
           <ProfileWelcome />
         </div>
+        {/* Austin — Live revenue & balance cards from svc_payment / svc_booking */}
         <div className="col-span-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <MetricCard
-              title="Total Real Revenue"
-              amount="$45,231.89"
-              description="Total deposited amounts by customers (Mirroring)"
-              color="text-green-600"
-              tooltipText="Revenue generated from actual customer deposits."
-            />
-            <MetricCard
-              title="Total System Balance"
-              amount="$128,400.00"
-              description="Total value in system"
-              color="text-blue-600"
-              tooltipText="Includes all deposited amounts, plus compensations, free ride balances, and system credits. We mirror monetary value to allow flexibility in user account population."
-            />
-          </div>
+          <FinanceMetrics />
         </div>
         <div className="lg:col-span-8 col-span-12">
           <SalesOverview />

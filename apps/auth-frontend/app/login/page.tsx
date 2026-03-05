@@ -236,8 +236,21 @@ const ErrorMessage = styled.div`
 
 function LoginContent() {
 	const searchParams = useSearchParams();
-	const redirectUrl = searchParams.get('redirect') || '/';
+	const redirectUrl = searchParams.get('redirect_to') || searchParams.get('redirect') || null;
 	const appId = searchParams.get('app') || 'admin';
+
+	// Only redirect to trusted *.volteryde.org URLs — prevents open-redirect attacks
+	const getSafeRedirect = (fallback: string): string => {
+		if (!redirectUrl) return fallback;
+		try {
+			const parsed = new URL(redirectUrl);
+			const allowed = ['volteryde.org', 'admin.volteryde.org', 'dispatch.volteryde.org',
+				'support.volteryde.org', 'partner.volteryde.org', 'auth.volteryde.org'];
+			return allowed.includes(parsed.hostname) ? redirectUrl : fallback;
+		} catch {
+			return fallback;
+		}
+	};
 
 	// Map app ID to role
 	const appToRoleMap: Record<string, 'admin' | 'bi-partner' | 'customer-care' | 'system-support' | 'dispatcher'> = {
@@ -300,49 +313,23 @@ function LoginContent() {
 	// Get logout parameter from URL (set when user logs out from other apps)
 	const isLogout = searchParams.get('logout') === 'true';
 
-	// Check if user is already authenticated - redirect to target app
+	// Clear stale localStorage tokens (migration from old flow) and handle logout
 	useEffect(() => {
-		// If coming from a logout action, clear all tokens first
+		// Always clear old localStorage tokens — we now use httpOnly cookies
+		localStorage.removeItem('volteryde_auth_access_token');
+		localStorage.removeItem('volteryde_auth_refresh_token');
+		localStorage.removeItem('volteryde_auth_expires_at');
+
 		if (isLogout) {
-			localStorage.removeItem('volteryde_auth_access_token');
-			localStorage.removeItem('volteryde_auth_refresh_token');
-			localStorage.removeItem('volteryde_auth_expires_at');
-			document.cookie = 'volteryde_auth_access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-			setIsCheckingAuth(false);
+			// Tell the server to clear the httpOnly session cookie
+			fetch('/api/set-session', { method: 'DELETE' }).finally(() => {
+				setIsCheckingAuth(false);
+			});
 			return;
 		}
 
-		const token = localStorage.getItem('volteryde_auth_access_token');
-		if (token) {
-			try {
-				// Decode token to check if it's valid and not expired
-				const [, payload] = token.split('.');
-				const decoded = JSON.parse(atob(payload));
-				const expiry = decoded.exp * 1000;
-
-				if (Date.now() < expiry) {
-					// Token is valid - redirect to admin (or the requested redirect URL)
-					const adminUrl = getAdminUrl();
-					const targetUrl = redirectUrl !== '/' ? redirectUrl : adminUrl;
-
-					// Add auth code to URL to prevent loop
-					const callbackUrl = new URL(targetUrl);
-					callbackUrl.searchParams.set('code', token);
-					window.location.href = callbackUrl.toString();
-					return;
-				} else {
-					// Token expired - clear it
-					localStorage.removeItem('volteryde_auth_access_token');
-					localStorage.removeItem('volteryde_auth_refresh_token');
-				}
-			} catch {
-				// Invalid token - clear it
-				localStorage.removeItem('volteryde_auth_access_token');
-				localStorage.removeItem('volteryde_auth_refresh_token');
-			}
-		}
 		setIsCheckingAuth(false);
-	}, [redirectUrl, isLogout]);
+	}, [isLogout]);
 
 	useEffect(() => {
 		if (showLogo) {
@@ -360,7 +347,7 @@ function LoginContent() {
 
 		try {
 			const authApiUrl = getAuthApiUrl();
-			const response = await fetch(`${authApiUrl}/api/auth/login`, {
+			const response = await fetch(`${authApiUrl}/login`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -378,13 +365,16 @@ function LoginContent() {
 				throw new Error(data.message || 'Invalid credentials');
 			}
 
-			// Store tokens
-			localStorage.setItem('volteryde_auth_access_token', data.accessToken);
-			localStorage.setItem('volteryde_auth_refresh_token', data.refreshToken);
-			localStorage.setItem('volteryde_auth_expires_at', String(Date.now() + data.expiresIn * 1000));
+			// Set httpOnly session cookie server-side — token never touches localStorage or URL
+			const sessionRes = await fetch('/api/set-session', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ token: data.accessToken, expiresIn: data.expiresIn }),
+			});
+			if (!sessionRes.ok) {
+				throw new Error('Failed to establish session. Please try again.');
+			}
 
-			// Redirect based on role or back to app
-			// Use env vars for production, fallback to localhost for development
 			const adminUrl = getAdminUrl();
 			const partnersUrl = getPartnersUrl();
 			const supportUrl = getSupportUrl();
@@ -398,15 +388,10 @@ function LoginContent() {
 				'dispatcher': dispatchUrl,
 			};
 
-			// User requested: "it should take the role that i select"
-			// We prioritize the selected role's dashboard URL over the 'redirect' param to ensure 
-			// the user actually goes to the app matching their selected role.
-			const targetUrl = roleRedirects[role];
-
-			// Add auth code to URL
-			const callbackUrl = new URL(targetUrl);
-			callbackUrl.searchParams.set('code', data.accessToken);
-			window.location.href = callbackUrl.toString();
+			// Redirect to the role's default app, or the validated redirect_to param
+			const roleDefault = roleRedirects[role];
+			const targetUrl = getSafeRedirect(roleDefault);
+			window.location.href = targetUrl;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'An error occurred');
 		} finally {

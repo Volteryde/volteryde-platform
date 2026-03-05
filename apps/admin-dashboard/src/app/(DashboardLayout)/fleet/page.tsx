@@ -51,7 +51,10 @@ const FleetManagement = () => {
 												<TableCell className="font-medium">{bus.id}</TableCell>
 												<TableCell>{bus.vin}</TableCell>
 												<TableCell>
-													<Badge variant={bus.status === 'Active' ? 'default' : 'destructive'}>
+													<Badge
+														variant={bus.status === 'Active' ? 'default' : 'destructive'}
+														className={bus.status === 'Maintenance' ? 'bg-red-500 text-white hover:bg-red-500' : ''}
+													>
 														{bus.status}
 													</Badge>
 												</TableCell>
