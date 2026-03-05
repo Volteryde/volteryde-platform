@@ -146,7 +146,17 @@ export async function POST(request: NextRequest) {
 	const authUserId = crypto.randomUUID();
 	const profileUserId = crypto.randomUUID();
 	const accessId = generateAccessId(role);
-	const passwordHash = await bcrypt.hash(password, 12);
+
+	// Austin — Debug: log password metadata to diagnose hashing mismatches.
+	// Never log the full password — only length and first/last char for verification.
+	console.log(`[provision] Creating ${role} user: ${email}, accessId: ${accessId}, pw length: ${password.length}, pw preview: ${password[0]}..${password[password.length - 1]}`);
+
+	// Austin — bcryptjs generates $2b$ hashes, but Spring Boot's BCryptPasswordEncoder
+	// only accepts $2a$ prefix. The algorithms are identical; only the prefix differs.
+	// We replace $2b$ → $2a$ so the auth-service (Java) can verify passwords correctly.
+	const rawHash = await bcrypt.hash(password, 12);
+	const passwordHash = rawHash.replace(/^\$2b\$/, '$2a$');
+
 	const roleId = ROLE_ID_MAP[role];
 
 	const authPool = createDbPool('auth_db');

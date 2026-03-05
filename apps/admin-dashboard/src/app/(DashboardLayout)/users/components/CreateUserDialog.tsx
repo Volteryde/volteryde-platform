@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Eye, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -62,6 +62,8 @@ interface CreateUserDialogProps {
 export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 	const [open, setOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
+	// Austin — Password visibility toggle to prevent blind typing errors
+	const [showPassword, setShowPassword] = useState(false);
 	const { toast } = useToast();
 
 	const form = useForm<z.infer<typeof formSchema>>({
@@ -203,7 +205,23 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 								<FormItem>
 									<FormLabel>Password</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="••••••••" {...field} />
+										{/* Austin — Show/hide toggle to prevent blind typing errors
+										    with complex passwords like V0lt3ryd3@P4rtner!2026 */}
+										<div className="relative">
+											<Input
+												type={showPassword ? 'text' : 'password'}
+												placeholder="••••••••"
+												{...field}
+											/>
+											<button
+												type="button"
+												className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+												onClick={() => setShowPassword(!showPassword)}
+												tabIndex={-1}
+											>
+												{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+											</button>
+										</div>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
