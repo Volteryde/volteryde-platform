@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import CardBox from "../shared/CardBox";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -9,115 +10,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRevenueCharts } from "@/hooks/useRevenueCharts";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const SalesOverview = () => {
-  const [selectedMonth, setSelectedMonth] = useState("Year 2025");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  const chartDataByMonth: Record<string, any> = {
-    "Year 2025": {
-      series: [
-        {
-          name: "Earnings",
-          data: [
-            1500, 2700, 2200, 3000, 1500, 1000, 1400, 2400, 1900, 2300, 1400,
-            1100,
-          ],
-        },
-        {
-          name: "Expense",
-          data: [
-            -1800, -1100, -2500, -1500, -600, -1800, -1200, -2300, -1900, -2300,
-            -1200, -2500,
-          ],
-        },
-      ],
-      xaxis: {
-        categories: [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ],
-      },
-    },
-    "Year 2024": {
-      series: [
-        {
-          name: "Earnings",
-          data: [
-            2000, 2500, 2800, 3000, 2000, 1500, 2300, 1500, 1000, 1400, 2400,
-            1900,
-          ],
-        },
-        {
-          name: "Expense",
-          data: [
-            -1200, -1500, -2000, -1000, -800, -1300, -1500, -600, -1800, -1200,
-            -2300, -1900,
-          ],
-        },
-      ],
-      xaxis: {
-        categories: [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ],
-      },
-    },
-    "Year 2023": {
-      series: [
-        {
-          name: "Earnings",
-          data: [
-            1800, 2200, 2600, 3000, 1700, 1200, 2000, 2500, 2800, 1800, 2000,
-            1500,
-          ],
-        },
-        {
-          name: "Expense",
-          data: [
-            -1500, -1300, -2200, -1200, -700, -1600, -1200, -1500, -2000, -1000,
-            -800, -1300,
-          ],
-        },
-      ],
-      xaxis: {
-        categories: [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ],
-      },
-    },
-  };
+  const { data, isLoading, error } = useRevenueCharts(selectedYear);
+
+  // Austin — Dynamic year dropdown: from first transaction year to current year
+  const yearOptions = data?.availableYears ?? [currentYear];
+
+  // Austin — Build series from live data or default to zeros
+  const earnings = data?.revenueChart.earnings ?? Array(12).fill(0);
+  const expenses = data?.revenueChart.expenses ?? Array(12).fill(0);
+  const categories = data?.revenueChart.categories ?? [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+    // Austin — Calculate dynamic Y-axis range from actual data
+  const maxVal = Math.max(...earnings, ...expenses, 1000);
+  const yRange = Math.ceil(maxVal / 1000) * 1000;  const series = [
+    { name: "Earnings", data: earnings },
+    { name: "Expense", data: expenses },
+  ];
 
   const baseChartOptions = {
     chart: {
@@ -148,12 +66,13 @@ const SalesOverview = () => {
       strokeDashArray: 3,
     },
     yaxis: {
-      min: -3000,
-      max: 3000,
-      tickAmount: 6,
+      min: 0,
+      max: yRange,
+      tickAmount: 4,
       labels: {
         formatter: (val: number) => {
-          return `${val / 1000}k`;
+          const rounded = Math.round(val);
+          return rounded >= 1000 ? `${rounded / 1000}k` : `${rounded}`;
         },
       },
     },
@@ -161,7 +80,7 @@ const SalesOverview = () => {
       theme: "dark",
       y: {
         formatter: (val: number) => {
-          return `${val}k`;
+          return val >= 1000 ? `GHS ${(val / 1000).toFixed(1)}k` : `GHS ${val}`;
         },
       },
     },
@@ -170,7 +89,7 @@ const SalesOverview = () => {
   const ChartData = {
     ...baseChartOptions,
     xaxis: {
-      ...chartDataByMonth[selectedMonth].xaxis,
+      categories,
       axisBorder: {
         show: false,
       },
@@ -191,27 +110,39 @@ const SalesOverview = () => {
         </div>
         <div className="sm:mt-0 mt-4">
           <Select
-            value={selectedMonth}
-            onValueChange={(val: any) => setSelectedMonth(val)}
+            value={String(selectedYear)}
+            onValueChange={(val: string) => setSelectedYear(Number(val))}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Select Year" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Year 2025">Year 2025</SelectItem>
-              <SelectItem value="Year 2024">Year 2024</SelectItem>
-              <SelectItem value="Year 2023">Year 2023</SelectItem>
+              {yearOptions.map(y => (
+                <SelectItem key={y} value={String(y)}>Year {y}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
-      <Chart
-        options={ChartData}
-        series={chartDataByMonth[selectedMonth].series}
-        type="bar"
-        height="316px"
-        width={"100%"}
-      />
+      {/* Austin — Show loading state or chart */}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-[316px] text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          Loading revenue data…
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center h-[316px] text-destructive text-sm">
+          {error}
+        </div>
+      ) : (
+        <Chart
+          options={ChartData}
+          series={series}
+          type="bar"
+          height="316px"
+          width={"100%"}
+        />
+      )}
     </CardBox>
   );
 };

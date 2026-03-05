@@ -2,6 +2,9 @@
 export { configureApiClient, getApiConfig, get, post, put, del } from './base';
 export type { ApiClientConfig, RequestOptions } from './base';
 
+// Auth API
+export * as authApi from './auth';
+
 // User API
 export * as usersApi from './users';
 

@@ -18,7 +18,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       # Database per Domain Strategy
-      POSTGRES_MULTIPLE_DATABASES: volteryde_test,temporal,temporal_visibility,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
+      # Austin — temporal and temporal_visibility removed; using Temporal Cloud
+      POSTGRES_MULTIPLE_DATABASES: volteryde_test,auth_db,payment_db,user_db,fleet_db,charging_db,booking_db,telematics_db,client_auth_db
     ports:
       - "5432:5432"
     command: postgres -c 'max_connections=300'
@@ -280,7 +281,10 @@ services:
       - DATABASE_NAME=fleet_db
       - DATABASE_SCHEMA=${FLEET_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3002
     ports:
@@ -315,7 +319,10 @@ services:
       - DATABASE_NAME=charging_db
       - DATABASE_SCHEMA=${CHARGING_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3003
     ports:
@@ -350,7 +357,10 @@ services:
       - DATABASE_NAME=booking_db
       - DATABASE_SCHEMA=${BOOKING_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3004
     ports:
@@ -388,7 +398,10 @@ services:
       - DATABASE_NAME=volteryde
       - DATABASE_SCHEMA=${CORE_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - MAPBOX_ACCESS_TOKEN=${MAPBOX_ACCESS_TOKEN}
       - PORT=3000
@@ -424,7 +437,10 @@ services:
       - DATABASE_NAME=user_db
       - DATABASE_SCHEMA=${NOTIFICATIONS_DATABASE_SCHEMA:-public}
       - REDIS_URL=redis://redis:6379
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE}
+      - TEMPORAL_API_KEY=${TEMPORAL_API_KEY}
+      - TEMPORAL_TASK_QUEUE=${TEMPORAL_TASK_QUEUE}
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3005
     ports:
@@ -502,6 +518,9 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -535,8 +554,12 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_SCHEMA=${CLIENT_AUTH_DATABASE_SCHEMA:-public}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://volteryde-service-discovery:8761/eureka/
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
+      # Austin — application.yml reads REDIS_HOST, not SPRING_REDIS_HOST
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-604800000}
       # Google OAuth Client IDs (defaults are already in application.yml)
       - GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}
       - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
@@ -578,6 +601,7 @@ services:
       - APPLICATION_CONFIG_AUTH_SERVICE_URL=http://volteryde-auth-service:8081/api/auth
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -628,25 +652,31 @@ services:
       - volteryde-network
     restart: unless-stopped
 
-  temporal-workers:
-    build:
-      context: .
-      dockerfile: workers/temporal-workers/Dockerfile.dev
-    container_name: volteryde-temporal-workers
-    environment:
-      - NODE_ENV=development
-      - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS:-temporal:7233}
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/volteryde
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      # Mount the entire monorepo for proper pnpm workspace support
-      - .:/app
-      # Prevent node_modules from being overwritten
-      - /app/node_modules
-      - /app/workers/temporal-workers/node_modules
-    networks:
-      - volteryde-network
-    restart: unless-stopped
+  # ============================================================================
+  # Temporal Workers - DISABLED (Using Temporal Cloud)
+  # Austin — Workers connect to Temporal Cloud (sa-east-1.aws.api.temporal.io)
+  # via env vars. No local container needed. Uncomment only for local testing.
+  # ============================================================================
+
+  # temporal-workers:
+  #   build:
+  #     context: .
+  #     dockerfile: workers/temporal-workers/Dockerfile.dev
+  #   container_name: volteryde-temporal-workers
+  #   environment:
+  #     - NODE_ENV=development
+  #     - TEMPORAL_ADDRESS=${TEMPORAL_ADDRESS:-temporal:7233}
+  #     - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/volteryde
+  #     - REDIS_URL=redis://redis:6379
+  #   volumes:
+  #     # Mount the entire monorepo for proper pnpm workspace support
+  #     - .:/app
+  #     # Prevent node_modules from being overwritten
+  #     - /app/node_modules
+  #     - /app/workers/temporal-workers/node_modules
+  #   networks:
+  #     - volteryde-network
+  #   restart: unless-stopped
 
   # ============================================================================
   # Monitoring & Observability (Optional)

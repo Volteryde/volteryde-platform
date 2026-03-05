@@ -1,3 +1,6 @@
+// Auth types
+export * from './auth';
+
 // User types
 export * from './user';
 

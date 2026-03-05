@@ -17,22 +17,21 @@ import { Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { UserDetailSheet } from './UserDetailSheet';
+import { useAuth } from '@/providers/AuthProvider';
 
 interface UserTableProps {
 	roleFilter?: string;
 }
 
 const roleColors: Record<string, string> = {
+	SUPER_ADMIN: 'bg-red-200 text-red-900 hover:bg-red-200 border-red-300',
 	ADMIN: 'bg-red-100 text-red-800 hover:bg-red-100 border-red-200',
 	DRIVER: 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200',
-	SUPPORT: 'bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200',
 	SYSTEM_SUPPORT: 'bg-purple-100 text-purple-800 hover:bg-purple-100 border-purple-200',
+	CUSTOMER_SUPPORT: 'bg-violet-100 text-violet-800 hover:bg-violet-100 border-violet-200',
 	FLEET_MANAGER: 'bg-orange-100 text-orange-800 hover:bg-orange-100 border-orange-200',
 	DISPATCHER: 'bg-cyan-100 text-cyan-800 hover:bg-cyan-100 border-cyan-200',
-	BI_PARTNER: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100 border-indigo-200',
-	USER: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200',
-	CLIENT: 'bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200',
-	SUPER_ADMIN: 'bg-red-200 text-red-900 hover:bg-red-200 border-red-300',
+	PARTNER: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100 border-indigo-200',
 };
 
 const statusColors: Record<string, string> = {
@@ -47,6 +46,7 @@ export function UserTable({ roleFilter }: UserTableProps) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const { toast } = useToast();
+	const { accessToken } = useAuth();
 
 	// User Sheet State by keeping selected User
 	const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -84,15 +84,15 @@ export function UserTable({ roleFilter }: UserTableProps) {
 	};
 
 	useEffect(() => {
-		// Configure API client - basePath is now included in api-client's BASE_PATH
-		const serviceUrl = API_CONFIG.userService.baseUrl;
-		console.log('Configuring API client with URL:', serviceUrl);
 		configureApiClient({
-			baseUrl: serviceUrl,
+			baseUrl: API_CONFIG.userService.baseUrl,
+			getAccessToken: async () => accessToken,
 		});
-	}, []);
+	}, [accessToken]);
 
 	useEffect(() => {
+		if (!accessToken) return;
+
 		async function fetchUsers() {
 			setIsLoading(true);
 			setError(null);
@@ -101,7 +101,8 @@ export function UserTable({ roleFilter }: UserTableProps) {
 					? roleFilter as UserRole
 					: undefined;
 				const data = await usersApi.getUsers({ role: roleParam });
-				setUsers(data);
+				// Exclude CLIENT role — this page is for internal staff only
+				setUsers(data.filter(u => u.role !== 'CLIENT'));
 			} catch (err) {
 				console.error('Failed to fetch users:', err);
 				setError('Failed to load users. Please try again later.');
@@ -111,7 +112,7 @@ export function UserTable({ roleFilter }: UserTableProps) {
 			}
 		}
 		fetchUsers();
-	}, [roleFilter]);
+	}, [roleFilter, accessToken]);
 
 	// Loading state
 	if (isLoading) {

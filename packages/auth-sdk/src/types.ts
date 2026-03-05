@@ -9,7 +9,8 @@ export type UserRole =
   | "SUPER_ADMIN"
   | "ADMIN"
   | "DISPATCHER"
-  | "SUPPORT_AGENT"
+  | "CUSTOMER_SUPPORT"
+  | "SYSTEM_SUPPORT"
   | "PARTNER"
   | "DRIVER"
   | "FLEET_MANAGER";

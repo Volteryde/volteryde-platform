@@ -14,6 +14,13 @@ const BookingManagement = () => {
 		{ id: 'bk-1004', user: 'Abena Osei', route: 'Kasoa -> Lapaz', time: '05:45 PM', seat: '15C', status: 'Cancelled', amount: '0 GHS' },
 	];
 
+	const getStatusVariant = (status: string) => {
+		if (status === 'Confirmed') return 'default';
+		if (status === 'Boarded') return 'secondary';
+		if (status === 'Completed') return 'outline';
+		return 'destructive';
+	};
+
 	return (
 		<PageContainer title="Booking Management" description="Monitor active rides and passenger manifests">
 			<DashboardCard title="Rides & Bookings">
@@ -64,11 +71,10 @@ const BookingManagement = () => {
 										<TableCell>{booking.time}</TableCell>
 										<TableCell>{booking.seat}</TableCell>
 										<TableCell>
-											<Badge variant={
-												booking.status === 'Confirmed' ? 'default' :
-													booking.status === 'Boarded' ? 'secondary' :
-														booking.status === 'Completed' ? 'outline' : 'destructive'
-											}>
+											<Badge
+												variant={getStatusVariant(booking.status)}
+												className={booking.status === 'Cancelled' ? 'bg-red-500 text-white hover:bg-red-500' : ''}
+											>
 												{booking.status}
 											</Badge>
 										</TableCell>
