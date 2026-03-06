@@ -75,7 +75,7 @@ BEGIN
     ('SUPER_ADMIN',       'Full system access with all permissions'),
     ('ADMIN',             'Administrative access with most permissions'),
     ('DISPATCHER',        'Dispatch and routing management'),
-    ('CUSTOMER_SUPPORT',  'External customer support for end-users'),
+    ('CUSTOMER_SUPPORT',  'External customer care for end-users'),
     ('SYSTEM_SUPPORT',    'Internal system support for drivers and operations'),
     ('PARTNER',           'Business intelligence and partner portal access'),
     ('DRIVER',            'Driver app access and route management'),

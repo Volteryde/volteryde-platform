@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
 const securityHeaders = [
 	{ key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -10,9 +10,10 @@ const securityHeaders = [
 	{ key: 'X-XSS-Protection', value: '1; mode=block' },
 ];
 
-const nextConfig: NextConfig = {
+const nextConfig = {
+	reactStrictMode: false,
+	images: { unoptimized: true },
 	transpilePackages: ['@volteryde/config'],
-	reactCompiler: true,
 	async headers() {
 		return [{ source: '/(.*)', headers: securityHeaders }];
 	},

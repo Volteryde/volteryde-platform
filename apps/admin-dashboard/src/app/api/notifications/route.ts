@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
 				id: `user-new-${row.id}`,
 				type: 'user_created',
 				title: 'New user registered',
-				subtitle: `${row.first_name} ${row.last_name} joined as ${(row.role as string).replace(/_/g, ' ')}`,
+				subtitle: `${row.first_name} ${row.last_name} joined as ${row.role === 'CUSTOMER_SUPPORT' ? 'CUSTOMER CARE' : (row.role as string).replace(/_/g, ' ')}`,
 				time: date.toISOString(),
 				read: false,
 			});

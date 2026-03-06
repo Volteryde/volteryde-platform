@@ -245,7 +245,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 											<SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
 											<SelectItem value="PARTNER">BI Partner</SelectItem>
 											<SelectItem value="DISPATCHER">Dispatcher</SelectItem>
-											<SelectItem value="CUSTOMER_SUPPORT">Customer Support</SelectItem>
+											<SelectItem value="CUSTOMER_SUPPORT">Customer Care</SelectItem>
 											<SelectItem value="SYSTEM_SUPPORT">System Support</SelectItem>
 											<SelectItem value="DRIVER">Driver</SelectItem>
 											<SelectItem value="FLEET_MANAGER">Fleet Manager</SelectItem>
