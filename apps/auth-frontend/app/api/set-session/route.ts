@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -186,7 +187,19 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: reason }, { status: 401 });
 	}
 
-	// 4. Set the shared httpOnly session cookie
+	// 4. Cryptographically verify the JWT signature using the shared secret
+	const jwtSecret = process.env.JWT_SECRET;
+	if (!jwtSecret) {
+		return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
+	}
+	try {
+		await jwtVerify(token, new TextEncoder().encode(jwtSecret));
+	} catch {
+		const reason = isProd ? 'Invalid token' : 'JWT signature verification failed';
+		return NextResponse.json({ error: reason }, { status: 401 });
+	}
+
+	// 5. Set the shared httpOnly session cookie
 	const maxAge = validation.expiresIn!;
 	const response = NextResponse.json({ success: true });
 	response.cookies.set('__volteryde_session', token, {

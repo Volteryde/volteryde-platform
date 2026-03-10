@@ -1,7 +1,8 @@
 "use client";
 import { useState, useMemo } from "react";
 import { Icon } from "@iconify/react";
-import SidebarContent from "../sidebar/Sidebaritems";
+import { navItems, bottomNavItems } from "../sidebar/Sidebaritems";
+const SidebarContent = [...navItems, ...bottomNavItems];
 import SimpleBar from "simplebar-react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -9,23 +10,11 @@ import Link from "next/link";
 function Search() {
   const [query, setQuery] = useState("");
 
-  const searchItems = (items: any[], q: string, parentPath = "") => {
-    let results: any[] = [];
-    items.forEach((item) => {
-      const currentPath = parentPath ? `${parentPath} → ${item.name}` : item.name;
-      if (item.name?.toLowerCase().includes(q.toLowerCase()) && item.url) {
-        results.push({ name: item.name, url: item.url, path: currentPath, icon: item.icon });
-      }
-      if (item.children) {
-        results = [...results, ...searchItems(item.children, q, currentPath)];
-      }
-    });
-    return results;
-  };
-
   const results = useMemo(() => {
     if (!query.trim()) return [];
-    return searchItems(SidebarContent, query);
+    return SidebarContent.filter((item) =>
+      item.name.toLowerCase().includes(query.toLowerCase())
+    ).map((item) => ({ name: item.name, url: item.url, path: item.name, icon: item.icon }));
   }, [query]);
 
   return (

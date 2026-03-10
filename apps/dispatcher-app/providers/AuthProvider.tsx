@@ -119,8 +119,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setAccessToken(null);
     setState({ user: null, isAuthenticated: false, isLoading: false, error: null });
     if (typeof window !== 'undefined') {
+      // Build logout URL from the configured auth service URL (controlled env var, not user input)
       const authUrl = getAuthServiceUrl();
-      window.location.href = `${authUrl}/login?logout=true`;
+      const logoutUrl = new URL('/login', authUrl);
+      logoutUrl.searchParams.set('logout', 'true');
+      window.location.href = logoutUrl.toString();
     }
   }, []);
 

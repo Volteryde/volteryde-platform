@@ -1,21 +1,41 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-
-  // Serve static files from the public directory
-  app.useStaticAssets(join(process.cwd(), 'public'), {
-    prefix: '/',
+  const app = await NestFactory.create(AppModule, {
+    // Never leak stack traces in logs to stdout in production
+    logger: process.env.NODE_ENV === 'production'
+      ? ['error', 'warn']
+      : ['log', 'debug', 'error', 'warn', 'verbose'],
   });
 
-  // Enable CORS
+  // ── Security headers (helmet) ─────────────────────────────────────────────
+  // Removes X-Powered-By, sets CSP, HSTS, X-Frame-Options, X-XSS-Protection, etc.
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        // Allow Swagger UI inline styles/scripts only in non-production
+        ...(process.env.NODE_ENV !== 'production' && {
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+        }),
+      },
+    },
+    // Strict HSTS in production (2 years)
+    strictTransportSecurity: process.env.NODE_ENV === 'production'
+      ? { maxAge: 63072000, includeSubDomains: true, preload: true }
+      : false,
+  }));
+
+  // ── CORS ──────────────────────────────────────────────────────────────────
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || [
       /^(http:\/\/localhost:[0-9]+)$/,
@@ -25,45 +45,45 @@ async function bootstrap() {
       /^(http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}:[0-9]+)$/,
       /^(https:\/\/.*\.volteryde\.org)$/,
       'https://volteryde.org',
-      /^(https:\/\/.*\.volteryde\.com)$/,
-      'https://volteryde.com'
     ],
     credentials: true,
   });
 
-  // Global validation pipe
+  // ── Validation ────────────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
+      whitelist: true,            // strip unknown fields
+      forbidNonWhitelisted: true, // reject requests with unknown fields
       transform: true,
     }),
   );
 
-  // Global response formatting
+  // ── Global interceptors / filters ─────────────────────────────────────────
   app.useGlobalInterceptors(new TransformInterceptor());
-
-  // Global error handling
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Global prefix aligns all routes with the Kubernetes ingress rules and pod health probes.
-  app.setGlobalPrefix('api/v1');
+  // ── Global prefix — '/' excluded so RootController stays at GET / ─────────
+  app.setGlobalPrefix('api/v1', { exclude: ['/'] });
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Volteryde NestJS API')
-    .setDescription('Telematics, Booking, Fleet Operations, Charging APIs')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // ── Swagger — only available outside production ───────────────────────────
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Volteryde API')
+      .setDescription('Telematics · Booking · Fleet · Charging · Payments')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  console.log(`🚀 Volteryde NestJS service running on port ${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  console.log(`Volteryde API running on port ${port}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Swagger docs → http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
 const SESSION_COOKIE = '__volteryde_session';
 const isProd = process.env.NODE_ENV === 'production';
 
-function decodePayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json = Buffer.from(base64, 'base64').toString('utf-8');
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+function cookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax' as const,
+    maxAge,
+    path: '/',
+    ...(isProd && { domain: '.volteryde.org' }),
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -21,39 +21,38 @@ export async function GET(request: NextRequest) {
   if (!token) {
     return NextResponse.json({ authenticated: false, error: 'No session' }, { status: 401 });
   }
-  const payload = decodePayload(token);
-  if (!payload) {
-    return NextResponse.json({ authenticated: false, error: 'Invalid session' }, { status: 401 });
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    return NextResponse.json({ authenticated: false, error: 'Server misconfiguration' }, { status: 500 });
   }
-  const exp = payload.exp as number | undefined;
-  if (typeof exp === 'number' && Date.now() > exp * 1000) {
-    const res = NextResponse.json({ authenticated: false, error: 'Session expired' }, { status: 401 });
-    res.cookies.set(SESSION_COOKIE, '', {
-      httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 0, path: '/',
-      ...(isProd && { domain: '.volteryde.org' }),
+
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+
+    return NextResponse.json({
+      authenticated: true,
+      token,
+      user: {
+        id: payload.sub,
+        email: payload.email,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        roles: (payload.roles as string[]) ?? [],
+        organizationId: (payload.organizationId as string) ?? null,
+        emailVerified: (payload.emailVerified as boolean) ?? true,
+      },
     });
+  } catch {
+    // Signature invalid or token expired — clear the cookie
+    const res = NextResponse.json({ authenticated: false, error: 'Invalid session' }, { status: 401 });
+    res.cookies.set(SESSION_COOKIE, '', cookieOptions(0));
     return res;
   }
-  return NextResponse.json({
-    authenticated: true,
-    token,
-    user: {
-      id: payload.sub,
-      email: payload.email,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      roles: payload.roles ?? [],
-      organizationId: payload.organizationId ?? null,
-      emailVerified: payload.emailVerified ?? true,
-    },
-  });
 }
 
 export async function DELETE() {
   const res = NextResponse.json({ success: true });
-  res.cookies.set(SESSION_COOKIE, '', {
-    httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 0, path: '/',
-    ...(isProd && { domain: '.volteryde.org' }),
-  });
+  res.cookies.set(SESSION_COOKIE, '', cookieOptions(0));
   return res;
 }
