@@ -1,27 +1,9 @@
 'use client';
 
+import { faqs } from '@/mock';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Plus, Minus, Search } from 'lucide-react';
-
-const faqs = [
-	{
-		question: "How do I integrate Volteryde with my existing fleet?",
-		answer: "Our platform supports standard OCPP 1.6/2.0 protocols. Simply point your chargers to our websocket endpoint `wss://api.volteryde.com/ocpp` and configure your API keys in the dashboard."
-	},
-	{
-		question: "What happens if the vehicle loses internet connection?",
-		answer: "The Volteryde telemetry unit caches up to 48 hours of data locally. Once connectivity is restored, the data is batched and uploaded to the cloud without loss."
-	},
-	{
-		question: "Is V2G (Vehicle-to-Grid) supported on all EVs?",
-		answer: "No, V2G requires bi-directional charging hardware and vehicle firmware support. Please check our Compatibility Matrix for a list of certified vehicles (Nissan Leaf, Ford F-150 Lightning, etc.)."
-	},
-	{
-		question: "How is billing handled for public charging?",
-		answer: "We aggregate charging sessions and invoice monthly. You can also set up automated credit card payments or connect your corporate fleet fuel card."
-	},
-];
+import { Plus, Minus } from 'lucide-react';
 
 export function FAQSection() {
 	const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -41,9 +23,9 @@ export function FAQSection() {
 						>
 							<span className="font-medium text-lg text-white">{faq.question}</span>
 							{index === openIndex ? (
-								<Minus className="text-neon w-5 h-5 flex-shrink-0" />
+								<Minus className="text-neon w-5 h-5 shrink-0" />
 							) : (
-								<Plus className="text-neutral-500 w-5 h-5 flex-shrink-0" />
+								<Plus className="text-neutral-500 w-5 h-5 shrink-0" />
 							)}
 						</button>
 						<AnimatePresence>
