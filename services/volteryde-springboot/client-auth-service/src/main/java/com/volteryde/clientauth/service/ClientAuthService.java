@@ -5,6 +5,7 @@ import com.volteryde.clientauth.entity.*;
 import com.volteryde.clientauth.exception.AccountNotActiveException;
 import com.volteryde.clientauth.exception.InvalidCredentialsException;
 import com.volteryde.clientauth.exception.InvalidOtpException;
+import com.volteryde.clientauth.exception.InvalidTokenException;
 import com.volteryde.clientauth.exception.UserAlreadyExistsException;
 import com.volteryde.clientauth.exception.UserNotFoundException;
 import com.volteryde.clientauth.repository.*;
@@ -186,6 +187,11 @@ public class ClientAuthService {
         user.setStatus(ClientStatus.ACTIVE);
         user.setPhoneVerified(true);
 
+        // Set password hash if the user chose to create a password during signup
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+
         // Austin: Record terms acceptance
         user.setTermsAccepted(true);
         user.setTermsAcceptedAt(java.time.LocalDateTime.now());
@@ -195,7 +201,7 @@ public class ClientAuthService {
         // Austin: Save detailed terms acceptance record for audit
         saveTermsAcceptance(user, deviceInfo, ipAddress);
 
-        logger.info("New rider created: {}", user.getId());
+        logger.info("New rider created: {} (password login: {})", user.getId(), user.getPasswordHash() != null);
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }
@@ -251,7 +257,11 @@ public class ClientAuthService {
 
         if (user.getPasswordHash() == null) {
             rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-            throw new InvalidCredentialsException("This account uses social login. Please sign in with Google or your phone number.");
+            if (user.getGoogleId() != null) {
+                throw new InvalidCredentialsException("This account uses Google sign-in. Please tap 'Continue with Google'.");
+            } else {
+                throw new InvalidCredentialsException("This account uses phone login. Please sign in with your phone number.");
+            }
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -363,10 +373,10 @@ public class ClientAuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getResetToken())
-                .orElseThrow(() -> new RuntimeException("Invalid reset token"));
+                .orElseThrow(() -> new InvalidTokenException("Invalid password reset token. Please request a new one."));
 
         if (!resetToken.isValid()) {
-            throw new RuntimeException("Reset token has expired");
+            throw new InvalidTokenException("Password reset token has expired. Please request a new one.");
         }
 
         ClientUser user = resetToken.getUser();
