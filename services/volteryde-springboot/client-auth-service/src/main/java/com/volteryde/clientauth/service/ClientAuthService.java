@@ -2,6 +2,10 @@ package com.volteryde.clientauth.service;
 
 import com.volteryde.clientauth.dto.*;
 import com.volteryde.clientauth.entity.*;
+import com.volteryde.clientauth.exception.AccountNotActiveException;
+import com.volteryde.clientauth.exception.InvalidCredentialsException;
+import com.volteryde.clientauth.exception.InvalidOtpException;
+import com.volteryde.clientauth.exception.UserAlreadyExistsException;
 import com.volteryde.clientauth.exception.UserNotFoundException;
 import com.volteryde.clientauth.repository.*;
 import io.jsonwebtoken.*;
@@ -124,7 +128,7 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtp(phone, request.getCode());
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         Optional<ClientUser> existingUser = userRepository.findByPhone(phone);
@@ -145,10 +149,10 @@ public class ClientAuthService {
         phone = normalizePhone(phone);
 
         ClientUser user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         if (user.getStatus() != ClientStatus.ACTIVE) {
-            throw new RuntimeException("Account is not active");
+            throw new AccountNotActiveException();
         }
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
@@ -165,7 +169,7 @@ public class ClientAuthService {
         String phone = verifySignupToken(request.getSignupToken());
 
         if (userRepository.existsByPhone(phone)) {
-            throw new RuntimeException("User already exists");
+            throw new UserAlreadyExistsException("An account with this phone number already exists");
         }
 
         // Austin: Validate terms acceptance before creating account
@@ -208,11 +212,11 @@ public class ClientAuthService {
         rateLimiterService.checkAndRecordRegister(ipAddress);
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+            throw new UserAlreadyExistsException("Email already registered");
         }
 
         if (request.getPhone() != null && userRepository.existsByPhone(normalizePhone(request.getPhone()))) {
-            throw new RuntimeException("Phone number already registered");
+            throw new UserAlreadyExistsException("Phone number already registered");
         }
 
         ClientUser user = new ClientUser();
@@ -242,21 +246,21 @@ public class ClientAuthService {
         ClientUser user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-                    return new RuntimeException("Invalid email or password");
+                    return new InvalidCredentialsException();
                 });
 
         if (user.getPasswordHash() == null) {
             rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-            throw new RuntimeException("This account uses social login. Please use Google or phone login.");
+            throw new InvalidCredentialsException("This account uses social login. Please sign in with Google or your phone number.");
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException();
         }
 
         if (user.getStatus() != ClientStatus.ACTIVE) {
-            throw new RuntimeException("Account is not active");
+            throw new AccountNotActiveException();
         }
 
         // Clear failure counters on successful login
@@ -326,11 +330,11 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtp(phone, otp);
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         ClientUser user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         return generatePasswordResetToken(user);
     }
@@ -344,11 +348,11 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtpExternalByEmail(email, otp);
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         ClientUser user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         return generatePasswordResetToken(user);
     }

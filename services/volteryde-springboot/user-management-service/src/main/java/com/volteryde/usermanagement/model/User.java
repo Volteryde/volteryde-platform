@@ -60,7 +60,7 @@ public class User {
 	private String email;
 
 	/**
-	 * ID from Auth Service / Identity Provider (e.g., Supabase)
+	 * ID from Auth Service / Identity Provider (AWS Cognito / internal auth service)
 	 * Links user to authentication system
 	 */
 	@Column(name = "auth_id", unique = true)
