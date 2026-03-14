@@ -67,6 +67,18 @@ public class ClientUser {
     @Column(name = "terms_accepted_at")
     private LocalDateTime termsAcceptedAt;
 
+    // 2FA (TOTP)
+    @Column(name = "two_factor_enabled")
+    private boolean twoFactorEnabled = false;
+
+    /** Base32-encoded TOTP secret. Null until the user completes 2FA setup. */
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
+
+    /** Temporary secret while the user is in the setup flow (not yet verified). */
+    @Column(name = "two_factor_secret_pending")
+    private String twoFactorSecretPending;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -132,6 +144,15 @@ public class ClientUser {
 
     public LocalDateTime getTermsAcceptedAt() { return termsAcceptedAt; }
     public void setTermsAcceptedAt(LocalDateTime termsAcceptedAt) { this.termsAcceptedAt = termsAcceptedAt; }
+
+    public boolean isTwoFactorEnabled() { return twoFactorEnabled; }
+    public void setTwoFactorEnabled(boolean twoFactorEnabled) { this.twoFactorEnabled = twoFactorEnabled; }
+
+    public String getTwoFactorSecret() { return twoFactorSecret; }
+    public void setTwoFactorSecret(String twoFactorSecret) { this.twoFactorSecret = twoFactorSecret; }
+
+    public String getTwoFactorSecretPending() { return twoFactorSecretPending; }
+    public void setTwoFactorSecretPending(String twoFactorSecretPending) { this.twoFactorSecretPending = twoFactorSecretPending; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

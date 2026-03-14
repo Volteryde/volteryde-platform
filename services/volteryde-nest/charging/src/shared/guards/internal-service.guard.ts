@@ -12,6 +12,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class InternalServiceGuard implements CanActivate {
@@ -34,7 +35,9 @@ export class InternalServiceGuard implements CanActivate {
       throw new UnauthorizedException('Missing internal service key');
     }
 
-    if (serviceKey !== expectedKey) {
+    const sKeyBuf = Buffer.from(serviceKey);
+    const eKeyBuf = Buffer.from(expectedKey);
+    if (sKeyBuf.length !== eKeyBuf.length || !crypto.timingSafeEqual(sKeyBuf, eKeyBuf)) {
       this.logger.warn(`Invalid X-Internal-Service-Key from ${request.ip}`);
       throw new UnauthorizedException('Invalid internal service key');
     }
