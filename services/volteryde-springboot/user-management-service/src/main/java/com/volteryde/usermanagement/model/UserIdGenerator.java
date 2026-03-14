@@ -58,6 +58,12 @@ public final class UserIdGenerator {
 				case PARTNER:
 					prefix = "VR-P";
 					break;
+				case DRIVER:
+					prefix = "VR-D";
+					break;
+				case FLEET_MANAGER:
+					prefix = "VR-FM";
+					break;
 				default:
 					prefix = PREFIX;
 			}

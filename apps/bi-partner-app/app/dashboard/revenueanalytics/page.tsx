@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useMemo } from "react"
@@ -11,7 +10,6 @@ import {
 import { WalletLoadingPatternsChart } from "@/components/charts/wallet-loading-patterns-chart"
 import { RevenuePerDistanceMetricsChart } from "@/components/charts/revenue-per-distance-metrics-chart"
 
-// Data definition for analysis (mirrors chart data)
 const WALLET_DATA = [
 	{ day: "Mon", value: 20 },
 	{ day: "Tue", value: 40 },
@@ -33,7 +31,6 @@ const REVENUE_DATA = [
 function generateStrategies(walletData: typeof WALLET_DATA, revenueData: typeof REVENUE_DATA) {
 	const strategies = [];
 
-	// 1. Analyze Wallet Loading for Dynamic Trends
 	const peakDay = walletData.reduce((prev, current) => (prev.value > current.value) ? prev : current);
 	if (peakDay.value > 60) {
 		strategies.push({
@@ -43,7 +40,6 @@ function generateStrategies(walletData: typeof WALLET_DATA, revenueData: typeof 
 		});
 	}
 
-	// 2. Analyze Distance for Tier Optimization
 	const midRangeRevenue = revenueData.find(d => d.distance === "10-20km")?.revenue || 0;
 	if (midRangeRevenue > 20000) {
 		strategies.push({
@@ -53,8 +49,6 @@ function generateStrategies(walletData: typeof WALLET_DATA, revenueData: typeof 
 		});
 	}
 
-	// 3. Analyze Overall Engagement for Wallet Incentives
-	// Always relevant for retention
 	strategies.push({
 		title: "Wallet Incentive Program",
 		description: "Encourage higher wallet balances with bonus credits on recharge.",
@@ -68,12 +62,12 @@ export default function RevenueAnalyticsPage() {
 	const strategies = useMemo(() => generateStrategies(WALLET_DATA, REVENUE_DATA), []);
 
 	return (
-		<div className="flex flex-1 flex-col h-full w-full bg-white text-black font-sans overflow-y-auto pb-10">
+		<div className="flex flex-1 flex-col h-full w-full bg-background text-foreground font-sans p-6 overflow-y-auto pb-10">
 
 			{/* Header Section */}
 			<div className="mb-8">
-				<h1 className="text-3xl font-bold tracking-tight text-[#006400]">Enhanced Revenue Analytics</h1>
-				<p className="text-neutral-500 mt-1">Deep dive into revenue metrics and optimization strategies</p>
+				<h1 className="text-3xl font-bold tracking-tight text-primary">Enhanced Revenue Analytics</h1>
+				<p className="text-muted-foreground mt-1">Deep dive into revenue metrics and optimization strategies</p>
 			</div>
 
 			{/* Stats Cards Grid - 4 Columns */}
@@ -101,23 +95,22 @@ export default function RevenueAnalyticsPage() {
 					value="94.5%"
 					icon={<IconRoute className="w-6 h-6 text-white" />}
 					trend="+12%"
-					label="Pricing Efficiency"
 				/>
 			</div>
 
-			{/* Charts Grid - 2 Columns */}
+			{/* Charts Grid */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 h-[400px]">
-				<div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-2 h-full">
+				<div className="bg-card rounded-xl border border-border shadow-md p-2 h-full">
 					<WalletLoadingPatternsChart />
 				</div>
-				<div className="bg-white rounded-xl border border-neutral-200 shadow-sm p-2 h-full">
+				<div className="bg-card rounded-xl border border-border shadow-md p-2 h-full">
 					<RevenuePerDistanceMetricsChart />
 				</div>
 			</div>
 
 			{/* Optimal Pricing Strategies */}
-			<div className="w-full bg-white rounded-xl border border-neutral-200 p-8 shadow-sm mt-12">
-				<h2 className="text-xl font-bold text-[#006400] mb-6">Optimal Pricing Strategies</h2>
+			<div className="w-full bg-card rounded-xl border border-border p-8 shadow-md mt-12">
+				<h2 className="text-xl font-bold text-primary mb-6">Optimal Pricing Strategies</h2>
 
 				<div className="space-y-4">
 					{strategies.map((strategy, index) => (
@@ -135,21 +128,21 @@ export default function RevenueAnalyticsPage() {
 	)
 }
 
-function StatsCard({ title, value, icon, trend }: { title: string, value: string, icon: React.ReactNode, trend: string, label?: string }) {
+function StatsCard({ title, value, icon, trend }: { title: string, value: string, icon: React.ReactNode, trend: string }) {
 	return (
-		<div className="bg-white rounded-xl border border-[#0CCF0E] p-6 shadow-sm relative overflow-hidden h-32 flex flex-col justify-between">
+		<div className="bg-card rounded-xl border border-primary p-6 shadow-md relative overflow-hidden h-32 flex flex-col justify-between">
 			<div className="flex justify-between items-start">
-				<div className="w-10 h-10 rounded-md bg-[#0CCF0E] flex items-center justify-center">
+				<div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
 					{icon}
 				</div>
-				<div className="flex items-center gap-1 text-xs font-bold text-[#0CCF0E]">
+				<div className="flex items-center gap-1 text-xs font-bold text-primary">
 					<IconArrowUpRight className="w-3 h-3" />
 					{trend}
 				</div>
 			</div>
 			<div>
-				<div className="text-2xl font-bold text-black">{value}</div>
-				<div className="text-xs text-neutral-500 font-medium">{title}</div>
+				<div className="text-2xl font-bold text-dark dark:text-white">{value}</div>
+				<div className="text-xs text-muted-foreground font-medium">{title}</div>
 			</div>
 		</div>
 	)
@@ -157,10 +150,10 @@ function StatsCard({ title, value, icon, trend }: { title: string, value: string
 
 function StrategyCard({ title, description, potential }: { title: string, description: string, potential: string }) {
 	return (
-		<div className="bg-[#DCFCE7] rounded-lg p-5">
-			<h3 className="text-sm font-bold text-[#003300] mb-1">{title}</h3>
-			<p className="text-xs text-[#003300] mb-2">{description}</p>
-			<p className="text-xs font-bold text-[#003300]">{potential}</p>
+		<div className="bg-lightprimary rounded-lg p-5">
+			<h3 className="text-sm font-bold text-dark dark:text-white mb-1">{title}</h3>
+			<p className="text-xs text-muted-foreground mb-2">{description}</p>
+			<p className="text-xs font-bold text-primary">{potential}</p>
 		</div>
 	)
 }

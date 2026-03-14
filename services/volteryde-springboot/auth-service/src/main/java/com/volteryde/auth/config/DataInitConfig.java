@@ -88,7 +88,7 @@ public class DataInitConfig {
 			case SUPER_ADMIN -> "Full system access with all permissions";
 			case ADMIN -> "Administrative access with most permissions";
 			case DISPATCHER -> "Dispatch and routing management";
-			case CUSTOMER_SUPPORT -> "External customer support for end-users";
+			case CUSTOMER_SUPPORT -> "External customer care for end-users";
 			case SYSTEM_SUPPORT -> "Internal system support for drivers and operations";
 			case PARTNER -> "Business intelligence and partner portal access";
 			case DRIVER -> "Driver app access and route management";

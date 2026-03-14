@@ -76,8 +76,27 @@ public class ClientJwtService {
         }
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(user.getId())
                 .claims(claims)
+                .issuedAt(issuedAt)
+                .expiration(expiration)
+                .issuer(ISSUER)
+                .signWith(signingKey)
+                .compact();
+    }
+
+    /**
+     * Generate a short-lived 2FA challenge token (5 min).
+     * scope = "2FA_CHALLENGE" when user has 2FA enabled.
+     * scope = "2FA_SETUP_REQUIRED" when admin must set up 2FA before login completes.
+     */
+    public String generate2FaChallengeToken(String userId, String scope) {
+        Date issuedAt = new Date();
+        Date expiration = new Date(issuedAt.getTime() + 300_000); // 5 minutes
+        return Jwts.builder()
+                .subject(userId)
+                .claim("scope", scope)
                 .issuedAt(issuedAt)
                 .expiration(expiration)
                 .issuer(ISSUER)

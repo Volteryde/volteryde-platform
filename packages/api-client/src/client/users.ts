@@ -32,7 +32,7 @@ export async function getUserByUserId(userId: string): Promise<User> {
 }
 
 /**
- * Get a user by their auth ID (Supabase ID)
+ * Get a user by their auth ID (from Auth Service / Identity Provider)
  */
 export async function getUserByAuthId(authId: string): Promise<User> {
 	return get<User>(`${BASE_PATH}/auth/${authId}`);

@@ -22,6 +22,9 @@ public class ProfileCompleteRequest {
     @Email(message = "Invalid email format")
     private String email;
 
+    // Optional — if provided, the account will support password login in addition to OTP.
+    private String password;
+
     private ClientRole role = ClientRole.RIDER;
 
     // Austin: Terms acceptance is required to complete profile
@@ -42,6 +45,9 @@ public class ProfileCompleteRequest {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
     public ClientRole getRole() { return role; }
     public void setRole(ClientRole role) { this.role = role; }

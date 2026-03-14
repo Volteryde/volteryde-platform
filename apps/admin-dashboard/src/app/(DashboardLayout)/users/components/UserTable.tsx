@@ -41,6 +41,18 @@ const statusColors: Record<string, string> = {
 	SUSPENDED: 'destructive',
 };
 
+// Austin - Display-friendly role names (CUSTOMER_SUPPORT → Customer Care rename)
+const roleDisplayNames: Record<string, string> = {
+	SUPER_ADMIN: 'SUPER ADMIN',
+	ADMIN: 'ADMIN',
+	DRIVER: 'DRIVER',
+	SYSTEM_SUPPORT: 'SYSTEM SUPPORT',
+	CUSTOMER_SUPPORT: 'CUSTOMER CARE',
+	FLEET_MANAGER: 'FLEET MANAGER',
+	DISPATCHER: 'DISPATCHER',
+	PARTNER: 'PARTNER',
+};
+
 export function UserTable({ roleFilter }: UserTableProps) {
 	const [users, setUsers] = useState<User[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -211,7 +223,7 @@ export function UserTable({ roleFilter }: UserTableProps) {
 										variant="outline"
 										className={`${roleColors[user.role] || 'bg-gray-100 text-gray-800'} border`}
 									>
-										{user.role.replace('_', ' ')}
+										{roleDisplayNames[user.role] || user.role.replace('_', ' ')}
 									</Badge>
 								</TableCell>
 								<TableCell>

@@ -45,6 +45,24 @@ public class AuthService {
 	private final ActivityLogService activityLogService;
 	private final PhoneVerificationRepository phoneVerificationRepository;
 	private final com.volteryde.auth.client.UserServiceClient userServiceClient;
+	private final TotpService totpService;
+
+	/** Roles that require mandatory 2FA (M7). */
+	private static final Set<RoleEntity.UserRole> MFA_REQUIRED_ROLES = Set.of(
+			RoleEntity.UserRole.SUPER_ADMIN,
+			RoleEntity.UserRole.ADMIN
+	);
+
+	/**
+	 * Roles that cannot be self-assigned via public registration — a valid,
+	 * matching invite code is required (R3).
+	 */
+	private static final Set<RoleEntity.UserRole> INVITE_REQUIRED_ROLES = Set.of(
+			RoleEntity.UserRole.FLEET_MANAGER,
+			RoleEntity.UserRole.DISPATCHER,
+			RoleEntity.UserRole.SYSTEM_SUPPORT,
+			RoleEntity.UserRole.CUSTOMER_SUPPORT
+	);
 
 	public AuthService(
 			UserRepository userRepository,
@@ -56,7 +74,8 @@ public class AuthService {
 			EmailService emailService,
 			ActivityLogService activityLogService,
 			PhoneVerificationRepository phoneVerificationRepository,
-			com.volteryde.auth.client.UserServiceClient userServiceClient) {
+			com.volteryde.auth.client.UserServiceClient userServiceClient,
+			TotpService totpService) {
 		this.userRepository = userRepository;
 		this.roleRepository = roleRepository;
 		this.refreshTokenRepository = refreshTokenRepository;
@@ -67,13 +86,16 @@ public class AuthService {
 		this.activityLogService = activityLogService;
 		this.phoneVerificationRepository = phoneVerificationRepository;
 		this.userServiceClient = userServiceClient;
+		this.totpService = totpService;
 	}
 
 	/**
-	 * Authenticate user and return tokens
-	 * Supports login via Access ID (VLT-XXXXXX) or Email
+	 * Authenticate user and return tokens (or a 2FA challenge for accounts with MFA).
+	 * Supports login via Access ID (VLT-XXXXXX) or Email.
+	 *
+	 * Returns {@link AuthResponse} on success, or {@link TwoFactorChallengeResponse} when 2FA is required.
 	 */
-	public AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress) {
+	public Object login(LoginRequest request, String deviceInfo, String ipAddress) {
 		String identifier = request.getIdentifier();
 		logger.info("Login attempt for identifier: {}", identifier);
 
@@ -112,6 +134,28 @@ public class AuthService {
 
 			// Log successful login
 			activityLogService.logLoginSuccess(user, ipAddress, deviceInfo);
+
+			// M7: Enforce 2FA for privileged roles
+			boolean isPrivilegedRole = user.getRoles().stream()
+					.anyMatch(r -> MFA_REQUIRED_ROLES.contains(r.getName()));
+
+			if (isPrivilegedRole) {
+				if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+					// Admin has not set up 2FA yet — force the setup flow
+					String setupToken = jwtService.generate2FaChallengeToken(user.getId(), "2FA_SETUP_REQUIRED");
+					logger.warn("Admin login without 2FA configured — forcing setup: {}", user.getId());
+					return new TwoFactorChallengeResponse(true, setupToken);
+				}
+				// Admin has 2FA enabled — issue a verification challenge
+				String challengeToken = jwtService.generate2FaChallengeToken(user.getId(), "2FA_CHALLENGE");
+				return new TwoFactorChallengeResponse(false, challengeToken);
+			}
+
+			// Non-privileged users with voluntary 2FA enabled also get a challenge
+			if (Boolean.TRUE.equals(user.getTwoFactorEnabled())) {
+				String challengeToken = jwtService.generate2FaChallengeToken(user.getId(), "2FA_CHALLENGE");
+				return new TwoFactorChallengeResponse(false, challengeToken);
+			}
 
 			return generateAuthResponse(user, deviceInfo, ipAddress);
 		} catch (AuthException e) {
@@ -152,15 +196,19 @@ public class AuthService {
 		UserRole roleEnum;
 
 		if (request.getRole() != null && !request.getRole().isEmpty()) {
-			// Explicit role requested (internal or admin use)
+			// Explicit role requested — parse and validate invite code for privileged roles
 			try {
 				roleEnum = UserRole.valueOf(request.getRole());
 			} catch (IllegalArgumentException e) {
 				logger.warn("Invalid role requested: {}, falling back to default", request.getRole());
 				roleEnum = determineDefaultRole(request.getInviteCode());
 			}
+			// R3: explicit privileged-role requests require a matching invite code
+			if (INVITE_REQUIRED_ROLES.contains(roleEnum)) {
+				validateInviteCodeForRole(request.getInviteCode(), roleEnum);
+			}
 		} else {
-			// Default logic
+			// Default logic — invite code (if provided) determines role
 			roleEnum = determineDefaultRole(request.getInviteCode());
 		}
 
@@ -308,6 +356,125 @@ public class AuthService {
 		return mapToUserDto(user);
 	}
 
+	// ==================== Two-Factor Authentication ====================
+
+	/** Step 1: generate TOTP secret and QR code URI. Requires an active session (Bearer token). */
+	public TwoFactorSetupResponse setupTwoFactor(String userId) {
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		String secret = totpService.generateSecret();
+		user.setTwoFactorSecretPending(secret);
+		userRepository.save(user);
+		String account = user.getEmail() != null ? user.getEmail() : userId;
+		return new TwoFactorSetupResponse(secret, totpService.getOtpAuthUri(secret, account));
+	}
+
+	/** Step 2: confirm first TOTP code to activate 2FA. */
+	public void enableTwoFactor(String userId, String code) {
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		String pending = user.getTwoFactorSecretPending();
+		if (pending == null) {
+			throw new AuthException("No pending 2FA setup. Please call /2fa/setup first.");
+		}
+		if (!totpService.verify(pending, code)) {
+			throw new AuthException("Invalid TOTP code");
+		}
+		user.setTwoFactorSecret(pending);
+		user.setTwoFactorSecretPending(null);
+		user.setTwoFactorEnabled(true);
+		userRepository.save(user);
+		logger.info("2FA enabled for user: {}", userId);
+	}
+
+	/** Disable 2FA — requires a valid current TOTP code. */
+	public void disableTwoFactor(String userId, String code) {
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		if (!Boolean.TRUE.equals(user.getTwoFactorEnabled())) return;
+		if (!totpService.verify(user.getTwoFactorSecret(), code)) {
+			throw new AuthException("Invalid TOTP code");
+		}
+		user.setTwoFactorEnabled(false);
+		user.setTwoFactorSecret(null);
+		user.setTwoFactorSecretPending(null);
+		userRepository.save(user);
+		logger.info("2FA disabled for user: {}", userId);
+	}
+
+	/**
+	 * Complete a standard 2FA login challenge (scope must be "2FA_CHALLENGE").
+	 * Returns full auth tokens on success.
+	 */
+	public AuthResponse verifyTwoFactor(String challengeToken, String code,
+			String deviceInfo, String ipAddress) {
+		if (!jwtService.validateToken(challengeToken)) {
+			throw new AuthException("Invalid or expired 2FA challenge token");
+		}
+		String scope = jwtService.extractScope(challengeToken);
+		if (!"2FA_CHALLENGE".equals(scope)) {
+			throw new AuthException("Invalid token scope");
+		}
+		String userId = jwtService.extractUserId(challengeToken);
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		if (!Boolean.TRUE.equals(user.getTwoFactorEnabled()) || !totpService.verify(user.getTwoFactorSecret(), code)) {
+			throw new AuthException("Invalid TOTP code");
+		}
+		return generateAuthResponse(user, deviceInfo, ipAddress);
+	}
+
+	/**
+	 * Admin forced-setup: return QR code URI using the "2FA_SETUP_REQUIRED" challenge token.
+	 * Does NOT require a normal Bearer token — uses the scoped challenge token from login.
+	 */
+	public TwoFactorSetupResponse forceSetupTwoFactor(String challengeToken) {
+		if (!jwtService.validateToken(challengeToken)) {
+			throw new AuthException("Invalid or expired setup token");
+		}
+		if (!"2FA_SETUP_REQUIRED".equals(jwtService.extractScope(challengeToken))) {
+			throw new AuthException("Invalid token scope");
+		}
+		String userId = jwtService.extractUserId(challengeToken);
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		String secret = totpService.generateSecret();
+		user.setTwoFactorSecretPending(secret);
+		userRepository.save(user);
+		String account = user.getEmail() != null ? user.getEmail() : userId;
+		return new TwoFactorSetupResponse(secret, totpService.getOtpAuthUri(secret, account));
+	}
+
+	/**
+	 * Admin forced-enable: confirm the first TOTP code using the "2FA_SETUP_REQUIRED" challenge token,
+	 * activate 2FA, and return full auth tokens in one step.
+	 */
+	public AuthResponse forceEnableTwoFactor(String challengeToken, String code,
+			String deviceInfo, String ipAddress) {
+		if (!jwtService.validateToken(challengeToken)) {
+			throw new AuthException("Invalid or expired setup token");
+		}
+		if (!"2FA_SETUP_REQUIRED".equals(jwtService.extractScope(challengeToken))) {
+			throw new AuthException("Invalid token scope");
+		}
+		String userId = jwtService.extractUserId(challengeToken);
+		UserEntity user = userRepository.findById(userId)
+				.orElseThrow(() -> new AuthException("User not found"));
+		String pending = user.getTwoFactorSecretPending();
+		if (pending == null) {
+			throw new AuthException("No pending 2FA setup. Please call /2fa/force-setup first.");
+		}
+		if (!totpService.verify(pending, code)) {
+			throw new AuthException("Invalid TOTP code");
+		}
+		user.setTwoFactorSecret(pending);
+		user.setTwoFactorSecretPending(null);
+		user.setTwoFactorEnabled(true);
+		userRepository.save(user);
+		logger.info("Admin 2FA force-enabled for user: {}", userId);
+		return generateAuthResponse(user, deviceInfo, ipAddress);
+	}
+
 	private AuthResponse generateAuthResponse(UserEntity user, String deviceInfo, String ipAddress) {
 		String accessToken = jwtService.generateAccessToken(user);
 		RefreshTokenEntity refreshToken = jwtService.generateRefreshToken(user, deviceInfo, ipAddress);
@@ -356,6 +523,29 @@ public class AuthService {
 					logger.warn("Invalid or expired invite code: {}", inviteCode);
 					return UserRole.DRIVER;
 				});
+	}
+
+	/**
+	 * R3: Validate that the provided invite code exists, is active, and grants the
+	 * expected role.  Called only when a privileged role is explicitly requested via
+	 * the {@code role} field in {@link com.volteryde.auth.dto.RegisterRequest}.
+	 */
+	private void validateInviteCodeForRole(String inviteCode, UserRole expectedRole) {
+		if (inviteCode == null || inviteCode.isBlank()) {
+			throw new AuthException(
+					"An invite code is required to register as " + expectedRole.name());
+		}
+		InviteCodeEntity invite = inviteCodeRepository.findByCodeAndActiveTrue(inviteCode)
+				.filter(InviteCodeEntity::isValid)
+				.orElseThrow(() -> new AuthException("Invalid or expired invite code"));
+		if (invite.getAssignedRole() != expectedRole) {
+			throw new AuthException(
+					"Invite code does not grant the requested role " + expectedRole.name());
+		}
+		// Increment usage so this invite code slot is consumed
+		invite.incrementUsage();
+		inviteCodeRepository.save(invite);
+		logger.info("Invite code {} validated and consumed for explicit role: {}", inviteCode, expectedRole);
 	}
 
 	/**

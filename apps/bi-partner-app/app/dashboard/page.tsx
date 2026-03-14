@@ -31,11 +31,11 @@ const data = [
 
 export default function OverviewPage() {
 	return (
-		<div className="flex flex-1 flex-col h-full w-full bg-white text-black font-sans">
+		<div className="flex flex-1 flex-col h-full w-full bg-background text-foreground font-sans p-6 overflow-y-auto pb-10">
 			{/* Header Section */}
 			<div className="mb-8">
-				<h1 className="text-3xl font-bold tracking-tight text-[#006400]">Business Intelligence Overview</h1>
-				<p className="text-neutral-500 mt-1">Real-time insights into your mobility platform performance</p>
+				<h1 className="text-3xl font-bold tracking-tight text-primary">Business Intelligence Overview</h1>
+				<p className="text-muted-foreground mt-1">Real-time insights into your mobility platform performance</p>
 			</div>
 
 			{/* Cards Grid */}
@@ -71,39 +71,34 @@ export default function OverviewPage() {
 			</div>
 
 			{/* Chart Section */}
-			<div className="w-full bg-white rounded-xl border border-neutral-200 p-6 shadow-sm">
-				<h2 className="text-xl font-bold text-[#006400] mb-6">Revenue vs Forecast</h2>
+			<div className="w-full bg-card rounded-xl border border-border p-6 shadow-md">
+				<h2 className="text-xl font-bold text-primary mb-6">Revenue vs Forecast</h2>
 
 				<div className="h-[400px] w-full">
 					<ResponsiveContainer width="100%" height="100%">
 						<LineChart
 							data={data}
-							margin={{
-								top: 5,
-								right: 30,
-								left: 20,
-								bottom: 5,
-							}}
+							margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
 						>
-							<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5E5" />
+							<CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
 							<XAxis
 								dataKey="name"
 								axisLine={false}
 								tickLine={false}
-								tick={{ fill: '#737373', fontSize: 12 }}
+								tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
 								dy={10}
 							/>
 							<YAxis
 								axisLine={false}
 								tickLine={false}
-								tick={{ fill: '#737373', fontSize: 12 }}
+								tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
 								tickFormatter={(value) => `¢${value / 1000}k`}
 							/>
 							<Tooltip
 								contentStyle={{
-									backgroundColor: '#fff',
+									backgroundColor: 'var(--card)',
 									borderRadius: '8px',
-									border: '1px solid #E5E5E5',
+									border: '1px solid var(--border)',
 									boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
 								}}
 							/>
@@ -111,7 +106,7 @@ export default function OverviewPage() {
 								verticalAlign="top"
 								height={36}
 								iconType="circle"
-								formatter={(value) => <span className="text-sm font-semibold text-neutral-600 ml-2">{value}</span>}
+								formatter={(value) => <span className="text-sm font-semibold text-muted-foreground ml-2">{value}</span>}
 							/>
 							<Line
 								type="monotone"
@@ -154,18 +149,14 @@ function StatsCard({
 	icon: React.ReactNode
 }) {
 	return (
-		<div className="flex flex-col p-6 bg-white rounded-xl border border-neutral-200 shadow-sm relative overflow-hidden h-40 justify-between">
+		<div className="flex flex-col p-6 bg-card rounded-xl border border-border shadow-md relative overflow-hidden h-40 justify-between">
 			<div className="flex justify-between items-start">
-				<div className={cn(
-					"w-10 h-10 rounded-md flex items-center justify-center shadow-sm",
-					trendUp ? "bg-[#0CCF0E]" : "bg-[#0CCF0E]" // Using green base for brand consistency as per image, icon differs
-				)}>
+				<div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center shadow-sm">
 					{icon}
 				</div>
 				<div className={cn(
 					"flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
-					trendUp ? "text-[#006400]" : "text-red-500"
-
+					trendUp ? "text-primary" : "text-error"
 				)}>
 					{trendUp ? <IconArrowUpRight className="w-3 h-3" /> : <IconArrowDownRight className="w-3 h-3" />}
 					{trend}
@@ -173,8 +164,8 @@ function StatsCard({
 			</div>
 
 			<div>
-				<h3 className="text-3xl font-bold text-neutral-800">{value}</h3>
-				<p className="text-xs font-medium text-neutral-500 mt-1">{title}</p>
+				<h3 className="text-3xl font-bold text-dark dark:text-white">{value}</h3>
+				<p className="text-xs font-medium text-muted-foreground mt-1">{title}</p>
 			</div>
 		</div>
 	);

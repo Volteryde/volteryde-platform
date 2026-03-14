@@ -62,6 +62,18 @@ public class UserEntity {
     @Column
     private LocalDateTime lastLoginAt;
 
+    // 2FA (TOTP) — mandatory for SUPER_ADMIN and ADMIN roles
+    @Column(name = "two_factor_enabled")
+    private Boolean twoFactorEnabled = false;
+
+    /** Base32-encoded TOTP secret. Null until setup is confirmed. */
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
+
+    /** Temporary secret during the setup flow (not yet verified). */
+    @Column(name = "two_factor_secret_pending")
+    private String twoFactorSecretPending;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -207,6 +219,15 @@ public class UserEntity {
     public void setLastLoginAt(LocalDateTime lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
     }
+
+    public Boolean getTwoFactorEnabled() { return twoFactorEnabled; }
+    public void setTwoFactorEnabled(Boolean twoFactorEnabled) { this.twoFactorEnabled = twoFactorEnabled; }
+
+    public String getTwoFactorSecret() { return twoFactorSecret; }
+    public void setTwoFactorSecret(String twoFactorSecret) { this.twoFactorSecret = twoFactorSecret; }
+
+    public String getTwoFactorSecretPending() { return twoFactorSecretPending; }
+    public void setTwoFactorSecretPending(String twoFactorSecretPending) { this.twoFactorSecretPending = twoFactorSecretPending; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

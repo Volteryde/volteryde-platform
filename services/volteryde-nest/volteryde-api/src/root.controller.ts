@@ -1,15 +1,21 @@
-import { Controller, Get, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Get } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { join } from 'path';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiExcludeController()
 @Controller()
 export class RootController {
+  @SkipThrottle()
   @Get()
-  getRoot(@Res() res: Response) {
-    // Use absolute path from the working directory
-    const publicDir = join(process.cwd(), 'public', 'index.html');
-    return res.sendFile(publicDir);
+  getRoot() {
+    return {
+      name: 'Volteryde API',
+      status: 'operational',
+      timestamp: new Date().toISOString(),
+      // Docs only linked in non-production; in prod this field is omitted
+      ...(process.env.NODE_ENV !== 'production' && {
+        docs: '/api/docs',
+      }),
+    };
   }
 }

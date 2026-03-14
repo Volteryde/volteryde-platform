@@ -1,5 +1,6 @@
 package com.volteryde.clientauth.service;
 
+import com.volteryde.clientauth.exception.RateLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -88,7 +89,7 @@ public class RateLimiterService {
                 if (ipCount > OTP_IP_MAX_PER_MIN) {
                     blacklistIp(ipAddress);
                     logger.error("IP {} blacklisted for exceeding OTP rate limit", maskIp(ipAddress));
-                    throw new RuntimeException("Your IP has been temporarily blocked due to suspicious activity.");
+                    throw new RateLimitExceededException("Your IP has been temporarily blocked due to suspicious activity.");
                 }
             }
         } catch (RuntimeException e) {
@@ -132,7 +133,7 @@ public class RateLimiterService {
             if (locked != null) {
                 Long ttlSec = redis.getExpire(lockKey);
                 long minsLeft = ttlSec != null ? (ttlSec / 60) + 1 : LOGIN_LOCK_MINUTES;
-                throw new RuntimeException(
+                throw new RateLimitExceededException(
                         "Account temporarily locked due to too many failed attempts. " +
                         "Please try again in " + minsLeft + " minute(s).");
             }
@@ -144,7 +145,7 @@ public class RateLimiterService {
             if (fails >= LOGIN_EMAIL_MAX) {
                 Long ttlSec = redis.getExpire(failKey);
                 long minsLeft = ttlSec != null ? (ttlSec / 60) + 1 : LOGIN_WINDOW_MINUTES;
-                throw new RuntimeException(
+                throw new RateLimitExceededException(
                         "Too many failed login attempts. Please try again in " + minsLeft + " minute(s).");
             }
         } catch (RuntimeException e) {
@@ -337,7 +338,7 @@ public class RateLimiterService {
             String msg = messageTemplate.contains("%d")
                     ? String.format(messageTemplate, minsLeft)
                     : messageTemplate;
-            throw new RuntimeException(msg);
+            throw new RateLimitExceededException(msg);
         }
     }
 
@@ -348,7 +349,7 @@ public class RateLimiterService {
                 Long ttlSec   = redis.getExpire(IP_BLACKLIST + ipAddress);
                 long hoursLeft = ttlSec != null && ttlSec > 0 ? (ttlSec / 3600) + 1 : IP_BL_HOURS_FIRST;
                 logger.warn("Blocked request from blacklisted IP: {}", maskIp(ipAddress));
-                throw new RuntimeException(
+                throw new RateLimitExceededException(
                         "Your IP has been temporarily blocked due to suspicious activity. " +
                         "Please try again in " + hoursLeft + " hour(s).");
             }

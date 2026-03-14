@@ -158,6 +158,24 @@ public class JwtService {
 				.getPayload();
 	}
 
+	/**
+	 * Generate a short-lived 2FA challenge token (5 min).
+	 * scope = "2FA_CHALLENGE"       → user has 2FA enabled, present code entry.
+	 * scope = "2FA_SETUP_REQUIRED"  → admin must set up 2FA before login completes.
+	 */
+	public String generate2FaChallengeToken(String userId, String scope) {
+		Date issuedAt = new Date();
+		Date expiration = new Date(issuedAt.getTime() + 300_000); // 5 minutes
+		return Jwts.builder()
+				.subject(userId)
+				.claim("scope", scope)
+				.issuedAt(issuedAt)
+				.expiration(expiration)
+				.issuer("auth.volteryde.org")
+				.signWith(getSigningKey())
+				.compact();
+	}
+
 	public String generateSignupToken(String phone) {
 		Date issuedAt = new Date();
 		// Signup token valid for 30 minutes

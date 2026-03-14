@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * Authentication REST Controller
  * 
@@ -30,10 +32,10 @@ public class AuthController {
 	}
 
 	/**
-	 * Login endpoint
+	 * Login endpoint — returns AuthResponse normally, or TwoFactorChallengeResponse for admins with/without 2FA
 	 */
 	@PostMapping("/login")
-	public ResponseEntity<AuthResponse> login(
+	public ResponseEntity<?> login(
 			@Valid @RequestBody LoginRequest request,
 			HttpServletRequest httpRequest) {
 
@@ -42,7 +44,7 @@ public class AuthController {
 
 		logger.info("Login request from IP: {}", ipAddress);
 
-		AuthResponse response = authService.login(request, deviceInfo, ipAddress);
+		Object response = authService.login(request, deviceInfo, ipAddress);
 		return ResponseEntity.ok(response);
 	}
 
@@ -157,6 +159,75 @@ public class AuthController {
 			response.setRoles(jwtService.extractRoles(token));
 		}
 
+		return ResponseEntity.ok(response);
+	}
+
+	// ==================== Two-Factor Authentication ====================
+
+	/** Initiate optional TOTP setup (already-logged-in user). */
+	@PostMapping("/2fa/setup")
+	public ResponseEntity<TwoFactorSetupResponse> setupTwoFactor(
+			@RequestHeader("Authorization") String authHeader) {
+		String token = authHeader.replace("Bearer ", "");
+		String userId = jwtService.extractUserId(token);
+		return ResponseEntity.ok(authService.setupTwoFactor(userId));
+	}
+
+	/** Confirm first TOTP code to activate 2FA. */
+	@PostMapping("/2fa/enable")
+	public ResponseEntity<Void> enableTwoFactor(
+			@RequestHeader("Authorization") String authHeader,
+			@RequestBody Map<String, String> request) {
+		String token = authHeader.replace("Bearer ", "");
+		String userId = jwtService.extractUserId(token);
+		authService.enableTwoFactor(userId, request.get("code"));
+		return ResponseEntity.ok().build();
+	}
+
+	/** Disable 2FA — requires a valid current TOTP code. */
+	@PostMapping("/2fa/disable")
+	public ResponseEntity<Void> disableTwoFactor(
+			@RequestHeader("Authorization") String authHeader,
+			@RequestBody Map<String, String> request) {
+		String token = authHeader.replace("Bearer ", "");
+		String userId = jwtService.extractUserId(token);
+		authService.disableTwoFactor(userId, request.get("code"));
+		return ResponseEntity.ok().build();
+	}
+
+	/** Complete a 2FA login challenge — returns full auth tokens. */
+	@PostMapping("/login/2fa")
+	public ResponseEntity<AuthResponse> verifyTwoFactor(
+			@RequestBody Map<String, String> request,
+			HttpServletRequest httpRequest) {
+		String deviceInfo = httpRequest.getHeader("User-Agent");
+		String ipAddress = getClientIp(httpRequest);
+		AuthResponse response = authService.verifyTwoFactor(
+				request.get("challengeToken"), request.get("code"), deviceInfo, ipAddress);
+		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * Forced 2FA setup step 1 — admin login returned setupRequired=true.
+	 * Validates the challengeToken (scope=2FA_SETUP_REQUIRED) and returns TOTP QR URI.
+	 */
+	@PostMapping("/2fa/force-setup")
+	public ResponseEntity<TwoFactorSetupResponse> forceSetupTwoFactor(
+			@RequestBody Map<String, String> request) {
+		return ResponseEntity.ok(authService.forceSetupTwoFactor(request.get("challengeToken")));
+	}
+
+	/**
+	 * Forced 2FA setup step 2 — verify first TOTP code, activate 2FA, and return full auth tokens.
+	 */
+	@PostMapping("/2fa/force-enable")
+	public ResponseEntity<AuthResponse> forceEnableTwoFactor(
+			@RequestBody Map<String, String> request,
+			HttpServletRequest httpRequest) {
+		String deviceInfo = httpRequest.getHeader("User-Agent");
+		String ipAddress = getClientIp(httpRequest);
+		AuthResponse response = authService.forceEnableTwoFactor(
+				request.get("challengeToken"), request.get("code"), deviceInfo, ipAddress);
 		return ResponseEntity.ok(response);
 	}
 

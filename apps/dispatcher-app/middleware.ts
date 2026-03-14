@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 import { getAuthServiceUrl } from '@volteryde/config';
 
 const AUTH_SERVICE_URL = getAuthServiceUrl();
@@ -8,7 +9,27 @@ const REQUIRED_ROLES = ['DISPATCHER', 'ADMIN', 'SUPER_ADMIN'];
 const SESSION_COOKIE = '__volteryde_session';
 const PUBLIC_PATHS = ['/_next', '/favicon.ico', '/api/health'];
 
-export function middleware(request: NextRequest) {
+// Allowed redirect targets (open-redirect guard)
+const ALLOWED_REDIRECT_HOSTS = new Set([
+	'volteryde.org',
+	'admin.volteryde.org',
+	'dispatch.volteryde.org',
+	'support.volteryde.org',
+	'partner.volteryde.org',
+	'auth.volteryde.org',
+	'localhost',
+]);
+
+function isSafeRedirectUrl(url: string): boolean {
+	try {
+		const { hostname } = new URL(url);
+		return ALLOWED_REDIRECT_HOSTS.has(hostname) || hostname.endsWith('.volteryde.org');
+	} catch {
+		return false;
+	}
+}
+
+export async function middleware(request: NextRequest) {
 	const pathname = request.nextUrl.pathname;
 
 	if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
@@ -17,40 +38,45 @@ export function middleware(request: NextRequest) {
 
 	const token = request.cookies.get(SESSION_COOKIE)?.value;
 
+	const buildLoginUrl = (extra?: Record<string, string>) => {
+		const url = new URL('/login', AUTH_SERVICE_URL);
+		url.searchParams.set('app', APP_ID);
+		const rawRedirect = request.url;
+		if (isSafeRedirectUrl(rawRedirect)) {
+			url.searchParams.set('redirect_to', rawRedirect);
+		}
+		if (extra) {
+			for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
+		}
+		return url;
+	};
+
 	if (!token) {
-		const loginUrl = new URL('/login', AUTH_SERVICE_URL);
-		loginUrl.searchParams.set('app', APP_ID);
-		loginUrl.searchParams.set('redirect_to', request.url);
-		return NextResponse.redirect(loginUrl);
+		return NextResponse.redirect(buildLoginUrl());
+	}
+
+	const secret = process.env.JWT_SECRET;
+	if (!secret) {
+		// Fail closed — cannot verify without the secret
+		const res = NextResponse.redirect(buildLoginUrl());
+		res.cookies.delete(SESSION_COOKIE);
+		return res;
 	}
 
 	try {
-		const [, payload] = token.split('.');
-		const decoded = JSON.parse(atob(payload));
+		const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
 
-		if (Date.now() > decoded.exp * 1000) {
-			const loginUrl = new URL('/login', AUTH_SERVICE_URL);
-			loginUrl.searchParams.set('app', APP_ID);
-			loginUrl.searchParams.set('redirect_to', request.url);
-			const response = NextResponse.redirect(loginUrl);
-			response.cookies.delete(SESSION_COOKIE);
-			return response;
-		}
-
-		const roles: string[] = decoded.roles || [];
+		const roles = (payload.roles as string[] | undefined) ?? [];
 		if (!roles.some(r => REQUIRED_ROLES.includes(r))) {
-			const loginUrl = new URL('/login', AUTH_SERVICE_URL);
-			loginUrl.searchParams.set('app', APP_ID);
-			loginUrl.searchParams.set('error', 'unauthorized');
-			const response = NextResponse.redirect(loginUrl);
-			response.cookies.delete(SESSION_COOKIE);
-			return response;
+			const res = NextResponse.redirect(buildLoginUrl({ error: 'unauthorized' }));
+			res.cookies.delete(SESSION_COOKIE);
+			return res;
 		}
 	} catch {
-		const loginUrl = new URL('/login', AUTH_SERVICE_URL);
-		const response = NextResponse.redirect(loginUrl);
-		response.cookies.delete(SESSION_COOKIE);
-		return response;
+		// Signature invalid, token expired, or any other jwtVerify failure
+		const res = NextResponse.redirect(buildLoginUrl());
+		res.cookies.delete(SESSION_COOKIE);
+		return res;
 	}
 
 	return NextResponse.next();

@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
 const securityHeaders = [
 	{ key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -6,13 +6,14 @@ const securityHeaders = [
 	{ key: 'X-Frame-Options', value: 'SAMEORIGIN' },
 	{ key: 'X-Content-Type-Options', value: 'nosniff' },
 	{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-	{ key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+	{ key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },
 	{ key: 'X-XSS-Protection', value: '1; mode=block' },
 ];
 
-const nextConfig: NextConfig = {
-	transpilePackages: ['@volteryde/config'],
-	reactCompiler: true,
+const nextConfig = {
+	reactStrictMode: false,
+	images: { unoptimized: true },
+	transpilePackages: ['@volteryde/config', 'mapbox-gl'],
 	async headers() {
 		return [{ source: '/(.*)', headers: securityHeaders }];
 	},

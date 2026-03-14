@@ -22,7 +22,18 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/client/auth")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+@CrossOrigin(
+    origins = {
+        "https://app.volteryde.org",
+        "https://auth.volteryde.org",
+        "https://admin.volteryde.org",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8080"
+    },
+    allowedHeaders = { "Authorization", "Content-Type", "X-Requested-With" },
+    methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS }
+)
 public class ClientAuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientAuthController.class);
@@ -93,14 +104,15 @@ public class ClientAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ClientAuthResponse> login(
+    public ResponseEntity<?> login(
             @Valid @RequestBody PasswordLoginRequest request,
             HttpServletRequest httpRequest) {
 
         String deviceInfo = httpRequest.getHeader("User-Agent");
         String ipAddress = getClientIp(httpRequest);
 
-        ClientAuthResponse response = authService.loginWithPassword(request, deviceInfo, ipAddress);
+        // Returns ClientAuthResponse normally, or TwoFactorChallengeResponse when 2FA is enabled
+        Object response = authService.loginWithPassword(request, deviceInfo, ipAddress);
         return ResponseEntity.ok(response);
     }
 
@@ -169,10 +181,15 @@ public class ClientAuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody(required = false) RefreshTokenRequest request) {
-        if (request != null && request.getRefreshToken() != null) {
-            authService.logout(request.getRefreshToken());
+    public ResponseEntity<Void> logout(
+            @RequestBody(required = false) RefreshTokenRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String accessToken = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            accessToken = authHeader.substring(7);
         }
+        String refreshToken = (request != null) ? request.getRefreshToken() : null;
+        authService.logout(refreshToken, accessToken);
         return ResponseEntity.ok().build();
     }
 
@@ -227,6 +244,72 @@ public class ClientAuthController {
         });
 
         return ResponseEntity.ok(response);
+    }
+
+    // ==================== Two-Factor Authentication ====================
+
+    /** Step 1: generate TOTP secret and QR code URI. */
+    @PostMapping("/2fa/setup")
+    public ResponseEntity<com.volteryde.clientauth.dto.TwoFactorSetupResponse> setupTwoFactor(
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String userId = jwtService.extractUserId(token);
+        return ResponseEntity.ok(authService.setupTwoFactor(userId));
+    }
+
+    /** Step 2: confirm the first TOTP code to activate 2FA. */
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<Void> enableTwoFactor(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, String> request) {
+        String token = authHeader.replace("Bearer ", "");
+        String userId = jwtService.extractUserId(token);
+        authService.enableTwoFactor(userId, request.get("code"));
+        return ResponseEntity.ok().build();
+    }
+
+    /** Disable 2FA — requires a valid current TOTP code. */
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<Void> disableTwoFactor(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, String> request) {
+        String token = authHeader.replace("Bearer ", "");
+        String userId = jwtService.extractUserId(token);
+        authService.disableTwoFactor(userId, request.get("code"));
+        return ResponseEntity.ok().build();
+    }
+
+    /** Complete a 2FA login challenge — returns full auth tokens. */
+    @PostMapping("/login/2fa")
+    public ResponseEntity<com.volteryde.clientauth.dto.ClientAuthResponse> verifyTwoFactor(
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
+        String deviceInfo = httpRequest.getHeader("User-Agent");
+        String ipAddress = getClientIp(httpRequest);
+        com.volteryde.clientauth.dto.ClientAuthResponse response =
+                authService.verifyTwoFactor(request.get("challengeToken"), request.get("code"), deviceInfo, ipAddress);
+        return ResponseEntity.ok(response);
+    }
+
+    // ==================== Email Verification ====================
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<Void> verifyEmail(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, String> request) {
+        String token = authHeader.replace("Bearer ", "");
+        String userId = jwtService.extractUserId(token);
+        authService.verifyEmail(userId, request.get("otp"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/email/verify/resend")
+    public ResponseEntity<Void> resendEmailVerification(
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String userId = jwtService.extractUserId(token);
+        authService.resendEmailVerification(userId);
+        return ResponseEntity.ok().build();
     }
 
     // ==================== Social Login ====================

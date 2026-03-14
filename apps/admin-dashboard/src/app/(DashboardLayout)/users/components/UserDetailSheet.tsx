@@ -72,7 +72,7 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
 						</p>
 						<div className="flex items-center gap-2 mt-1">
 							<Badge variant="outline" className="text-xs font-normal">
-								{user.role.replace(/_/g, ' ')}
+								{user.role === 'CUSTOMER_SUPPORT' ? 'CUSTOMER CARE' : user.role.replace(/_/g, ' ')}
 							</Badge>
 							<span className={`h-2 w-2 rounded-full shrink-0 ${user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-300'}`} />
 							<span className="text-xs text-muted-foreground">{user.status}</span>

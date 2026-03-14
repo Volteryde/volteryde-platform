@@ -11,7 +11,7 @@ const Profile = () => {
 	const user = {
 		name: 'Support Agent',
 		avatarUrl: '', // Default fallback
-		role: 'Customer Support'
+		role: 'Customer Care'
 	};
 
 	const handleLogout = () => {

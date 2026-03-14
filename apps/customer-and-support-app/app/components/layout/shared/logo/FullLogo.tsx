@@ -4,13 +4,13 @@ const FullLogo = () => {
 		<div className="flex items-center gap-2">
 			<img
 				src="/logo1.png"
-				alt="Volteryde Customer Support"
+				alt="Volteryde Customer Care"
 				width={40}
 				height={40}
 				className="object-contain"
 			/>
 			<span className="text-xl font-bold dark:text-white text-dark">
-				Customer Support
+				Customer Care
 			</span>
 		</div>
 	);

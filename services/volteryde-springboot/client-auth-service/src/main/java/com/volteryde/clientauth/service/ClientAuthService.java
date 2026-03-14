@@ -2,6 +2,11 @@ package com.volteryde.clientauth.service;
 
 import com.volteryde.clientauth.dto.*;
 import com.volteryde.clientauth.entity.*;
+import com.volteryde.clientauth.exception.AccountNotActiveException;
+import com.volteryde.clientauth.exception.InvalidCredentialsException;
+import com.volteryde.clientauth.exception.InvalidOtpException;
+import com.volteryde.clientauth.exception.InvalidTokenException;
+import com.volteryde.clientauth.exception.UserAlreadyExistsException;
 import com.volteryde.clientauth.exception.UserNotFoundException;
 import com.volteryde.clientauth.repository.*;
 import io.jsonwebtoken.*;
@@ -42,6 +47,9 @@ public class ClientAuthService {
     private final ClientJwtService jwtService;
     private final RateLimiterService rateLimiterService;
     private final PasswordEncoder passwordEncoder;
+    private final GoogleOAuthService googleOAuthService;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final TotpService totpService;
 
     @Value("${spring.security.jwt.secret}")
     private String jwtSecret;
@@ -63,7 +71,10 @@ public class ClientAuthService {
             OtpService otpService,
             ClientJwtService jwtService,
             RateLimiterService rateLimiterService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            GoogleOAuthService googleOAuthService,
+            TokenBlacklistService tokenBlacklistService,
+            TotpService totpService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -72,6 +83,9 @@ public class ClientAuthService {
         this.jwtService = jwtService;
         this.rateLimiterService = rateLimiterService;
         this.passwordEncoder = passwordEncoder;
+        this.googleOAuthService = googleOAuthService;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.totpService = totpService;
     }
 
     // ==================== OTP Authentication ====================
@@ -124,7 +138,7 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtp(phone, request.getCode());
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         Optional<ClientUser> existingUser = userRepository.findByPhone(phone);
@@ -145,10 +159,10 @@ public class ClientAuthService {
         phone = normalizePhone(phone);
 
         ClientUser user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         if (user.getStatus() != ClientStatus.ACTIVE) {
-            throw new RuntimeException("Account is not active");
+            throw new AccountNotActiveException();
         }
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
@@ -165,7 +179,7 @@ public class ClientAuthService {
         String phone = verifySignupToken(request.getSignupToken());
 
         if (userRepository.existsByPhone(phone)) {
-            throw new RuntimeException("User already exists");
+            throw new UserAlreadyExistsException("An account with this phone number already exists");
         }
 
         // Austin: Validate terms acceptance before creating account
@@ -182,6 +196,11 @@ public class ClientAuthService {
         user.setStatus(ClientStatus.ACTIVE);
         user.setPhoneVerified(true);
 
+        // Set password hash if the user chose to create a password during signup
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        }
+
         // Austin: Record terms acceptance
         user.setTermsAccepted(true);
         user.setTermsAcceptedAt(java.time.LocalDateTime.now());
@@ -191,7 +210,7 @@ public class ClientAuthService {
         // Austin: Save detailed terms acceptance record for audit
         saveTermsAcceptance(user, deviceInfo, ipAddress);
 
-        logger.info("New rider created: {}", user.getId());
+        logger.info("New rider created: {} (password login: {})", user.getId(), user.getPasswordHash() != null);
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }
@@ -207,12 +226,17 @@ public class ClientAuthService {
         // IP-based registration rate limit (10 per hour)
         rateLimiterService.checkAndRecordRegister(ipAddress);
 
+        // Terms acceptance is required for email/password registration
+        if (!request.isTermsAccepted() || !request.isPrivacyAccepted()) {
+            throw new RuntimeException("Terms and conditions must be accepted to register");
+        }
+
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
+            throw new UserAlreadyExistsException("Email already registered");
         }
 
         if (request.getPhone() != null && userRepository.existsByPhone(normalizePhone(request.getPhone()))) {
-            throw new RuntimeException("Phone number already registered");
+            throw new UserAlreadyExistsException("Phone number already registered");
         }
 
         ClientUser user = new ClientUser();
@@ -224,44 +248,124 @@ public class ClientAuthService {
         user.setRole(ClientRole.RIDER);
         user.setStatus(ClientStatus.ACTIVE);
         user.setEmailVerified(false); // Require email verification
+        user.setTermsAccepted(true);
+        user.setTermsAcceptedAt(LocalDateTime.now());
 
         user = userRepository.save(user);
+
+        // Save terms acceptance record for audit
+        saveTermsAcceptance(user, deviceInfo, ipAddress);
+
         logger.info("New rider registered via email: {}", user.getId());
+
+        // Send email verification OTP
+        try {
+            otpService.generateOtpExternalByEmail(user.getEmail());
+            logger.info("Email verification OTP sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            logger.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
+        }
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }
 
     /**
-     * Login with email and password
+     * Login with email and password.
+     * Returns {@link ClientAuthResponse} normally, or {@link TwoFactorChallengeResponse}
+     * when 2FA is enabled on the account.
      */
     @Transactional
-    public ClientAuthResponse loginWithPassword(PasswordLoginRequest request, String deviceInfo, String ipAddress) {
+    public Object loginWithPassword(PasswordLoginRequest request, String deviceInfo, String ipAddress) {
         // Rate limiting + account lockout check (before touching DB to avoid timing leaks)
         rateLimiterService.checkLoginAllowed(request.getEmail(), ipAddress);
 
         ClientUser user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-                    return new RuntimeException("Invalid email or password");
+                    return new InvalidCredentialsException();
                 });
 
         if (user.getPasswordHash() == null) {
             rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-            throw new RuntimeException("This account uses social login. Please use Google or phone login.");
+            if (user.getGoogleId() != null) {
+                throw new InvalidCredentialsException("This account uses Google sign-in. Please tap 'Continue with Google'.");
+            } else {
+                throw new InvalidCredentialsException("This account uses phone login. Please sign in with your phone number.");
+            }
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             rateLimiterService.recordLoginFailure(request.getEmail(), ipAddress);
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException();
         }
 
         if (user.getStatus() != ClientStatus.ACTIVE) {
-            throw new RuntimeException("Account is not active");
+            throw new AccountNotActiveException();
         }
 
         // Clear failure counters on successful login
         rateLimiterService.recordLoginSuccess(request.getEmail());
+
+        // If 2FA is enabled, issue a challenge token instead of full auth tokens
+        if (user.isTwoFactorEnabled()) {
+            String challengeToken = jwtService.generate2FaChallengeToken(user.getId(), "2FA_CHALLENGE");
+            return new TwoFactorChallengeResponse(false, challengeToken);
+        }
+
         return generateAuthResponse(user, deviceInfo, ipAddress);
+    }
+
+    // ==================== Email Verification ====================
+
+    /**
+     * Verify email address with OTP sent to the user's email.
+     */
+    @Transactional
+    public void verifyEmail(String userId, String otp) {
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            return; // Already verified — idempotent
+        }
+
+        String email = user.getEmail();
+        if (email == null) {
+            throw new RuntimeException("No email associated with this account");
+        }
+
+        boolean verified = otpService.verifyOtpExternalByEmail(email, otp);
+        if (!verified) {
+            throw new InvalidOtpException();
+        }
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        logger.info("Email verified for user: {}", userId);
+    }
+
+    /**
+     * Resend email verification OTP.
+     */
+    @Transactional
+    public void resendEmailVerification(String userId) {
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            return; // Already verified — nothing to do
+        }
+
+        String email = user.getEmail();
+        if (email == null) {
+            throw new RuntimeException("No email associated with this account");
+        }
+
+        var response = otpService.generateOtpExternalByEmail(email);
+        if (response == null || !response.isSuccess()) {
+            throw new RuntimeException("Failed to send verification email. Please try again.");
+        }
+        logger.info("Email verification resent for user: {}", userId);
     }
 
     // ==================== Password Recovery ====================
@@ -326,11 +430,11 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtp(phone, otp);
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         ClientUser user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         return generatePasswordResetToken(user);
     }
@@ -344,11 +448,11 @@ public class ClientAuthService {
 
         boolean verified = otpService.verifyOtpExternalByEmail(email, otp);
         if (!verified) {
-            throw new RuntimeException("Invalid or expired OTP");
+            throw new InvalidOtpException();
         }
 
         ClientUser user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(UserNotFoundException::new);
 
         return generatePasswordResetToken(user);
     }
@@ -359,10 +463,10 @@ public class ClientAuthService {
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getResetToken())
-                .orElseThrow(() -> new RuntimeException("Invalid reset token"));
+                .orElseThrow(() -> new InvalidTokenException("Invalid password reset token. Please request a new one."));
 
         if (!resetToken.isValid()) {
-            throw new RuntimeException("Reset token has expired");
+            throw new InvalidTokenException("Password reset token has expired. Please request a new one.");
         }
 
         ClientUser user = resetToken.getUser();
@@ -473,15 +577,32 @@ public class ClientAuthService {
     }
 
     /**
-     * Logout
+     * Logout — revokes the refresh token and blacklists the still-valid access token.
+     *
+     * @param refreshToken the refresh token to revoke (may be null)
+     * @param accessToken  the current access token to blacklist (may be null)
      */
     @Transactional
-    public void logout(String refreshToken) {
-        refreshTokenRepository.findByToken(refreshToken)
-                .ifPresent(token -> {
-                    token.setRevoked(true);
-                    refreshTokenRepository.save(token);
-                });
+    public void logout(String refreshToken, String accessToken) {
+        if (refreshToken != null) {
+            refreshTokenRepository.findByToken(refreshToken)
+                    .ifPresent(token -> {
+                        token.setRevoked(true);
+                        refreshTokenRepository.save(token);
+                    });
+        }
+        if (accessToken != null) {
+            jwtService.extractValidClaims(accessToken).ifPresent(claims -> {
+                String jti = claims.getId();
+                if (jti != null) {
+                    java.util.Date exp = claims.getExpiration();
+                    long ttl = exp != null
+                            ? Math.max(0, (exp.getTime() - System.currentTimeMillis()) / 1000)
+                            : jwtService.getExpirationInSeconds();
+                    tokenBlacklistService.blacklist(jti, ttl);
+                }
+            });
+        }
     }
 
     /**
@@ -502,20 +623,12 @@ public class ClientAuthService {
             String idToken, String deviceInfo, String ipAddress) {
         rateLimiterService.checkAndRecordSocialLogin(ipAddress);
 
-        if (idToken != null && !idToken.isEmpty()) {
-            try {
-                // In a production environment, verify the token
-                // GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new
-                // NetHttpTransport(), new GsonFactory())
-                // .setAudience(Collections.singletonList(googleClientId))
-                // .build();
-                // GoogleIdToken verifiedToken = verifier.verify(idToken);
-                // if (verifiedToken != null) { ... }
-                logger.info("Received Google ID Token: " + idToken.substring(0, 10) + "...");
-            } catch (Exception e) {
-                logger.error("Error checking Google token", e);
-            }
-        }
+        // Verify the Google ID token — extract trusted identity from Google's servers
+        GoogleOAuthService.GoogleUserInfo userInfo = googleOAuthService.validateIdToken(idToken);
+        googleId = userInfo.getGoogleId();
+        email = userInfo.getEmail();
+        if (userInfo.getFirstName() != null) firstName = userInfo.getFirstName();
+        if (userInfo.getLastName() != null) lastName = userInfo.getLastName();
 
         Optional<ClientUser> existingUser = userRepository.findByGoogleId(googleId);
 
@@ -559,15 +672,12 @@ public class ClientAuthService {
             boolean termsAccepted, boolean privacyAccepted) {
         rateLimiterService.checkAndRecordSocialLogin(ipAddress);
 
-        // Verify token if provided
-        if (idToken != null && !idToken.isEmpty()) {
-            try {
-                logger.info("Received Google ID Token for Terms Login: " + idToken.substring(0, 10) + "...");
-                // Verification logic would go here
-            } catch (Exception e) {
-                logger.error("Error checking Google token", e);
-            }
-        }
+        // Verify the Google ID token — extract trusted identity from Google's servers
+        GoogleOAuthService.GoogleUserInfo userInfo = googleOAuthService.validateIdToken(idToken);
+        googleId = userInfo.getGoogleId();
+        email = userInfo.getEmail();
+        if (userInfo.getFirstName() != null) firstName = userInfo.getFirstName();
+        if (userInfo.getLastName() != null) lastName = userInfo.getLastName();
 
         // Normalize phone if provided
         String normalizedPhone = (phone != null && !phone.isEmpty()) ? normalizePhone(phone) : null;
@@ -652,6 +762,95 @@ public class ClientAuthService {
 
         logger.info("New rider created via Google with terms (phone: {}): {}", normalizedPhone != null ? "yes" : "no",
                 user.getId());
+
+        return generateAuthResponse(user, deviceInfo, ipAddress);
+    }
+
+    // ==================== Two-Factor Authentication ====================
+
+    /**
+     * Step 1 of 2FA setup: generate a TOTP secret and return the QR code URI.
+     * The secret is stored as "pending" until the user confirms with a valid code.
+     */
+    @Transactional
+    public TwoFactorSetupResponse setupTwoFactor(String userId) {
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        String secret = totpService.generateSecret();
+        user.setTwoFactorSecretPending(secret);
+        userRepository.save(user);
+        String account = user.getEmail() != null ? user.getEmail() : user.getPhone();
+        String otpAuthUri = totpService.getOtpAuthUri(secret, account);
+        return new TwoFactorSetupResponse(secret, otpAuthUri);
+    }
+
+    /**
+     * Step 2 of 2FA setup: verify the first code to confirm the secret is correctly
+     * entered in the authenticator app, then activate 2FA.
+     */
+    @Transactional
+    public void enableTwoFactor(String userId, String code) {
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        String pending = user.getTwoFactorSecretPending();
+        if (pending == null) {
+            throw new RuntimeException("No pending 2FA setup found. Please call /2fa/setup first.");
+        }
+        if (!totpService.verify(pending, code)) {
+            throw new InvalidOtpException();
+        }
+        user.setTwoFactorSecret(pending);
+        user.setTwoFactorSecretPending(null);
+        user.setTwoFactorEnabled(true);
+        userRepository.save(user);
+        logger.info("2FA enabled for user: {}", userId);
+    }
+
+    /**
+     * Disable 2FA. Requires a valid TOTP code to prevent accidental/malicious disablement.
+     */
+    @Transactional
+    public void disableTwoFactor(String userId, String code) {
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        if (!user.isTwoFactorEnabled()) {
+            return; // Already disabled — idempotent
+        }
+        if (!totpService.verify(user.getTwoFactorSecret(), code)) {
+            throw new InvalidOtpException();
+        }
+        user.setTwoFactorEnabled(false);
+        user.setTwoFactorSecret(null);
+        user.setTwoFactorSecretPending(null);
+        userRepository.save(user);
+        logger.info("2FA disabled for user: {}", userId);
+    }
+
+    /**
+     * Complete a 2FA login challenge.
+     *
+     * @param challengeToken Short-lived JWT with scope="2FA_CHALLENGE" (issued by login endpoint)
+     * @param code           6-digit TOTP code
+     * @return Full {@link ClientAuthResponse} on success
+     */
+    @Transactional
+    public ClientAuthResponse verifyTwoFactor(String challengeToken, String code,
+                                              String deviceInfo, String ipAddress) {
+        io.jsonwebtoken.Claims claims = jwtService.extractValidClaims(challengeToken)
+                .orElseThrow(() -> new InvalidTokenException("Invalid or expired 2FA challenge token"));
+
+        String scope = claims.get("scope", String.class);
+        if (!"2FA_CHALLENGE".equals(scope)) {
+            throw new InvalidTokenException("Invalid token scope for 2FA verification");
+        }
+
+        String userId = claims.getSubject();
+        ClientUser user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (!user.isTwoFactorEnabled() || !totpService.verify(user.getTwoFactorSecret(), code)) {
+            throw new InvalidOtpException();
+        }
 
         return generateAuthResponse(user, deviceInfo, ipAddress);
     }

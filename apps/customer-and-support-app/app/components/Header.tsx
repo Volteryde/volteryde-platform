@@ -19,7 +19,7 @@ export function Header() {
 				<div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center text-white font-bold">
 					CS
 				</div>
-				<span className="font-semibold text-gray-900">Customer Support</span>
+				<span className="font-semibold text-gray-900">Customer Care</span>
 			</div>
 
 			<button

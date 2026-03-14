@@ -1,9 +1,9 @@
 package com.volteryde.clientauth.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
 /**
  * Request for email + password registration
@@ -15,7 +15,10 @@ public class PasswordRegisterRequest {
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
+    @Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$",
+        message = "Password must be at least 8 characters and include uppercase, lowercase, digit, and special character"
+    )
     private String password;
 
     @NotBlank(message = "First name is required")
@@ -26,6 +29,12 @@ public class PasswordRegisterRequest {
 
     @Pattern(regexp = "^\\+?[1-9]\\d{6,14}$", message = "Invalid phone number format")
     private String phone;
+
+    @AssertTrue(message = "You must accept the Terms and Conditions to register")
+    private boolean termsAccepted;
+
+    @AssertTrue(message = "You must accept the Privacy Policy to register")
+    private boolean privacyAccepted;
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -41,4 +50,10 @@ public class PasswordRegisterRequest {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public boolean isTermsAccepted() { return termsAccepted; }
+    public void setTermsAccepted(boolean termsAccepted) { this.termsAccepted = termsAccepted; }
+
+    public boolean isPrivacyAccepted() { return privacyAccepted; }
+    public void setPrivacyAccepted(boolean privacyAccepted) { this.privacyAccepted = privacyAccepted; }
 }
