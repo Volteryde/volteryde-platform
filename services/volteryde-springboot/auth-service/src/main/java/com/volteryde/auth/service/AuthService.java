@@ -53,6 +53,17 @@ public class AuthService {
 			RoleEntity.UserRole.ADMIN
 	);
 
+	/**
+	 * Roles that cannot be self-assigned via public registration — a valid,
+	 * matching invite code is required (R3).
+	 */
+	private static final Set<RoleEntity.UserRole> INVITE_REQUIRED_ROLES = Set.of(
+			RoleEntity.UserRole.FLEET_MANAGER,
+			RoleEntity.UserRole.DISPATCHER,
+			RoleEntity.UserRole.SYSTEM_SUPPORT,
+			RoleEntity.UserRole.CUSTOMER_SUPPORT
+	);
+
 	public AuthService(
 			UserRepository userRepository,
 			RoleRepository roleRepository,
@@ -185,15 +196,19 @@ public class AuthService {
 		UserRole roleEnum;
 
 		if (request.getRole() != null && !request.getRole().isEmpty()) {
-			// Explicit role requested (internal or admin use)
+			// Explicit role requested — parse and validate invite code for privileged roles
 			try {
 				roleEnum = UserRole.valueOf(request.getRole());
 			} catch (IllegalArgumentException e) {
 				logger.warn("Invalid role requested: {}, falling back to default", request.getRole());
 				roleEnum = determineDefaultRole(request.getInviteCode());
 			}
+			// R3: explicit privileged-role requests require a matching invite code
+			if (INVITE_REQUIRED_ROLES.contains(roleEnum)) {
+				validateInviteCodeForRole(request.getInviteCode(), roleEnum);
+			}
 		} else {
-			// Default logic
+			// Default logic — invite code (if provided) determines role
 			roleEnum = determineDefaultRole(request.getInviteCode());
 		}
 
@@ -508,6 +523,29 @@ public class AuthService {
 					logger.warn("Invalid or expired invite code: {}", inviteCode);
 					return UserRole.DRIVER;
 				});
+	}
+
+	/**
+	 * R3: Validate that the provided invite code exists, is active, and grants the
+	 * expected role.  Called only when a privileged role is explicitly requested via
+	 * the {@code role} field in {@link com.volteryde.auth.dto.RegisterRequest}.
+	 */
+	private void validateInviteCodeForRole(String inviteCode, UserRole expectedRole) {
+		if (inviteCode == null || inviteCode.isBlank()) {
+			throw new AuthException(
+					"An invite code is required to register as " + expectedRole.name());
+		}
+		InviteCodeEntity invite = inviteCodeRepository.findByCodeAndActiveTrue(inviteCode)
+				.filter(InviteCodeEntity::isValid)
+				.orElseThrow(() -> new AuthException("Invalid or expired invite code"));
+		if (invite.getAssignedRole() != expectedRole) {
+			throw new AuthException(
+					"Invite code does not grant the requested role " + expectedRole.name());
+		}
+		// Increment usage so this invite code slot is consumed
+		invite.incrementUsage();
+		inviteCodeRepository.save(invite);
+		logger.info("Invite code {} validated and consumed for explicit role: {}", inviteCode, expectedRole);
 	}
 
 	/**

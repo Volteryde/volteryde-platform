@@ -1,7 +1,8 @@
 
 import { Link, useLocation } from 'react-router';
 // import { useTheme } from 'next-themes'; // Simplifying for now
-import SidebarContent from './Sidebaritems';
+import { getSidebarForRole } from './Sidebaritems';
+import { useRole } from '../../RequireAuth';
 import SimpleBar from 'simplebar-react';
 import { Icon } from '@iconify/react';
 import FullLogo from '../shared/logo/FullLogo';
@@ -171,15 +172,8 @@ const renderSidebarItemsRR = (
 const Sidebar = ({ onClose }: { onClose?: () => void }) => {
 	const location = useLocation();
 	const currentPath = location.pathname;
-	// const [mounted, setMounted] = useState(false);
-
-	// useEffect(() => {
-	//   setMounted(true);
-	// }, []);
-
-	// if (!mounted) {
-	//   return <div className="fixed left-0 top-0 border-r border-border dark:border-darkborder bg-white dark:bg-dark z-10 h-screen w-[270px]" />;
-	// }
+	const { role } = useRole();
+	const sidebarItems = getSidebarForRole(role);
 
 	return (
 		<div className='fixed left-0 top-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 z-10 h-screen w-[270px] flex flex-col'>
@@ -190,10 +184,10 @@ const Sidebar = ({ onClose }: { onClose?: () => void }) => {
 				</Link>
 			</div>
 
-			{/* Sidebar items */}
+			{/* Sidebar items — scoped to the user's role */}
 			<SimpleBar className='flex-1'>
 				<div className='px-6 py-4'>
-					{SidebarContent.map((section, index) => (
+					{sidebarItems.map((section, index) => (
 						<div key={index}>
 							{renderSidebarItemsRR(
 								[
